@@ -1,0 +1,24 @@
+*.iml
+.gradle/
+build/
+**/build/
+local.properties
+.idea/
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.dex
+
+# Gradle wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Keystores
+*.jks
+*.keystore
+
+# macOS & Windows metadata
+.DS_Store
+Thumbs.db

@@ -1,0 +1,17 @@
+package com.pixelmarks.ui.theme
+
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+/**
+ * PixelMarks design spacing tokens.
+ */
+object Spacing {
+    val extraSmall: Dp = 4.dp
+    val small: Dp = 8.dp
+    val mediumSmall: Dp = 12.dp
+    val medium: Dp = 16.dp
+    val mediumLarge: Dp = 20.dp
+    val large: Dp = 24.dp
+    val extraLarge: Dp = 32.dp
+}
