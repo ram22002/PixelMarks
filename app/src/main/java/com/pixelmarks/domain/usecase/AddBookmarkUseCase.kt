@@ -4,7 +4,7 @@ import com.pixelmarks.core.database.model.MetadataStatus
 import com.pixelmarks.core.model.Bookmark
 import com.pixelmarks.core.util.UrlUtils
 import com.pixelmarks.data.repository.BookmarkRepository
-
+import com.pixelmarks.data.repository.TagRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -22,12 +22,14 @@ sealed interface AddBookmarkResult {
 class AddBookmarkUseCase(
     private val bookmarkRepository: BookmarkRepository,
     private val fetchBookmarkMetadataUseCase: FetchBookmarkMetadataUseCase? = null,
+    private val tagRepository: TagRepository? = null,
     private val coroutineScope: CoroutineScope? = null
 ) {
     suspend operator fun invoke(
         rawUrl: String,
         customTitle: String? = null,
         collectionId: Long? = null,
+        tagIds: Set<Long> = emptySet(),
         forceSave: Boolean = false
     ): AddBookmarkResult {
         val trimmed = rawUrl.trim()
@@ -80,6 +82,9 @@ class AddBookmarkUseCase(
             )
 
             val generatedId = bookmarkRepository.insert(newBookmark)
+            if (tagIds.isNotEmpty()) {
+                tagRepository?.setTagsForBookmark(generatedId, tagIds)
+            }
             val savedBookmark = newBookmark.copy(id = generatedId)
 
             // Trigger asynchronous metadata enrichment without blocking or gating the save result

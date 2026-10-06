@@ -5,9 +5,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pixelmarks.core.model.Bookmark
 import com.pixelmarks.core.model.Collection
+import com.pixelmarks.core.model.Tag
 import com.pixelmarks.domain.usecase.AddBookmarkResult
 import com.pixelmarks.domain.usecase.AddBookmarkUseCase
+import com.pixelmarks.domain.usecase.CreateTagResult
+import com.pixelmarks.domain.usecase.CreateTagUseCase
 import com.pixelmarks.domain.usecase.ObserveCollectionsUseCase
+import com.pixelmarks.domain.usecase.ObserveTagsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,6 +23,8 @@ data class AddBookmarkUiState(
     val title: String = "",
     val selectedCollectionId: Long? = null,
     val availableCollections: List<Collection> = emptyList(),
+    val selectedTagIds: Set<Long> = emptySet(),
+    val availableTags: List<Tag> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val duplicateBookmark: Bookmark? = null,
@@ -27,7 +33,9 @@ data class AddBookmarkUiState(
 
 class AddBookmarkViewModel(
     private val addBookmarkUseCase: AddBookmarkUseCase,
-    private val observeCollectionsUseCase: ObserveCollectionsUseCase? = null
+    private val observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
+    private val observeTagsUseCase: ObserveTagsUseCase? = null,
+    private val createTagUseCase: CreateTagUseCase? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddBookmarkUiState())
@@ -38,6 +46,13 @@ class AddBookmarkViewModel(
             viewModelScope.launch {
                 useCase().collect { collections ->
                     _uiState.update { it.copy(availableCollections = collections) }
+                }
+            }
+        }
+        observeTagsUseCase?.let { useCase ->
+            viewModelScope.launch {
+                useCase().collect { tags ->
+                    _uiState.update { it.copy(availableTags = tags.sortedBy { t -> t.name.lowercase() }) }
                 }
             }
         }
@@ -55,6 +70,34 @@ class AddBookmarkViewModel(
         _uiState.update { it.copy(selectedCollectionId = collectionId) }
     }
 
+    fun onTagsSelected(tagIds: Set<Long>) {
+        _uiState.update { it.copy(selectedTagIds = tagIds) }
+    }
+
+    fun onRemoveTag(tagId: Long) {
+        _uiState.update { it.copy(selectedTagIds = it.selectedTagIds - tagId) }
+    }
+
+    fun createTag(name: String, onCreated: (Tag) -> Unit) {
+        if (createTagUseCase == null) return
+        viewModelScope.launch {
+            when (val result = createTagUseCase(name)) {
+                is CreateTagResult.Success -> {
+                    onCreated(result.tag)
+                }
+                is CreateTagResult.InvalidName -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+                is CreateTagResult.DuplicateName -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+                is CreateTagResult.Error -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+            }
+        }
+    }
+
     fun saveBookmark() {
         val currentUrl = _uiState.value.url.trim()
         if (currentUrl.isEmpty()) {
@@ -68,6 +111,7 @@ class AddBookmarkViewModel(
                 rawUrl = currentUrl,
                 customTitle = _uiState.value.title.takeIf { it.isNotBlank() },
                 collectionId = _uiState.value.selectedCollectionId,
+                tagIds = _uiState.value.selectedTagIds,
                 forceSave = false
             )) {
                 is AddBookmarkResult.Success -> {
@@ -116,6 +160,7 @@ class AddBookmarkViewModel(
                 rawUrl = currentUrl,
                 customTitle = _uiState.value.title.takeIf { it.isNotBlank() },
                 collectionId = _uiState.value.selectedCollectionId,
+                tagIds = _uiState.value.selectedTagIds,
                 forceSave = true
             )) {
                 is AddBookmarkResult.Success -> {
@@ -152,12 +197,19 @@ class AddBookmarkViewModel(
     companion object {
         fun provideFactory(
             addBookmarkUseCase: AddBookmarkUseCase,
-            observeCollectionsUseCase: ObserveCollectionsUseCase? = null
+            observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
+            observeTagsUseCase: ObserveTagsUseCase? = null,
+            createTagUseCase: CreateTagUseCase? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AddBookmarkViewModel(addBookmarkUseCase, observeCollectionsUseCase) as T
+                    return AddBookmarkViewModel(
+                        addBookmarkUseCase,
+                        observeCollectionsUseCase,
+                        observeTagsUseCase,
+                        createTagUseCase
+                    ) as T
                 }
             }
     }

@@ -45,9 +45,20 @@ class TagRepositoryImpl(
     override suspend fun removeTagFromBookmark(bookmarkId: Long, tagId: Long) =
         bookmarkTagDao.delete(BookmarkTagCrossRef(bookmarkId = bookmarkId, tagId = tagId))
 
+    override suspend fun setTagsForBookmark(bookmarkId: Long, tagIds: Set<Long>) {
+        bookmarkTagDao.deleteByBookmarkId(bookmarkId)
+        if (tagIds.isNotEmpty()) {
+            val refs = tagIds.map { BookmarkTagCrossRef(bookmarkId = bookmarkId, tagId = it) }
+            bookmarkTagDao.insertAll(refs)
+        }
+    }
+
     override fun observeTagsForBookmark(bookmarkId: Long): Flow<List<Tag>> =
         bookmarkTagDao.observeTagsForBookmark(bookmarkId).map { list -> list.map { it.toDomain() } }
 
     override fun observeBookmarksForTag(tagId: Long): Flow<List<Bookmark>> =
         bookmarkTagDao.observeBookmarksForTag(tagId).map { list -> list.map { it.toDomain() } }
+
+    override fun observeAllCrossRefs(): Flow<List<BookmarkTagCrossRef>> =
+        bookmarkTagDao.observeAllCrossRefs()
 }

@@ -91,7 +91,10 @@ fun PixelMarksNavHost(
             val bookmarkId = backStackEntry.arguments?.getLong("bookmarkId") ?: 1L
             BookmarkDetailScreen(
                 bookmarkId = bookmarkId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToTagDetail = { tagId ->
+                    navController.navigate(Screen.TagDetail.createRoute(tagId))
+                }
             )
         }
 
@@ -123,7 +126,10 @@ fun PixelMarksNavHost(
             val tagId = backStackEntry.arguments?.getLong("tagId") ?: 1L
             TagDetailScreen(
                 tagId = tagId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBookmarkDetail = { bookmarkId ->
+                    navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))
+                }
             )
         }
 

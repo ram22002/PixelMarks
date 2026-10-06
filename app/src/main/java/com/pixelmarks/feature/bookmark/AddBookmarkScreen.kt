@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Title
@@ -58,6 +59,13 @@ import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.ui.components.PixelMarksScreenScaffold
 import com.pixelmarks.ui.theme.Spacing
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.InputChip
+import com.pixelmarks.feature.tags.CreateEditTagDialog
+import com.pixelmarks.feature.tags.SelectTagsDialog
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AddBookmarkScreen(
     onNavigateBack: () -> Unit,
@@ -66,13 +74,17 @@ fun AddBookmarkScreen(
             val app = LocalContext.current.applicationContext as PixelMarksApplication
             AddBookmarkViewModel.provideFactory(
                 addBookmarkUseCase = app.container.addBookmarkUseCase,
-                observeCollectionsUseCase = app.container.observeCollectionsUseCase
+                observeCollectionsUseCase = app.container.observeCollectionsUseCase,
+                observeTagsUseCase = app.container.observeTagsUseCase,
+                createTagUseCase = app.container.createTagUseCase
             )
         }
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showCollectionPicker by remember { mutableStateOf(false) }
+    var showSelectTagsDialog by remember { mutableStateOf(false) }
+    var showCreateTagDialog by remember { mutableStateOf(false) }
 
     // When save succeeds, return to previous screen
     LaunchedEffect(uiState.isSavedSuccessfully) {
@@ -91,6 +103,33 @@ fun AddBookmarkScreen(
             onSelectCollection = { colId ->
                 viewModel.onCollectionSelected(colId)
                 showCollectionPicker = false
+            }
+        )
+    }
+
+    if (showSelectTagsDialog) {
+        SelectTagsDialog(
+            currentTagIds = uiState.selectedTagIds,
+            availableTags = uiState.availableTags,
+            onDismiss = { showSelectTagsDialog = false },
+            onConfirm = { selectedIds ->
+                viewModel.onTagsSelected(selectedIds)
+                showSelectTagsDialog = false
+            },
+            onCreateNewTagRequested = {
+                showCreateTagDialog = true
+            }
+        )
+    }
+
+    if (showCreateTagDialog) {
+        CreateEditTagDialog(
+            onDismiss = { showCreateTagDialog = false },
+            onSave = { name, _ ->
+                viewModel.createTag(name) { newTag ->
+                    showCreateTagDialog = false
+                    viewModel.onTagsSelected(uiState.selectedTagIds + newTag.id)
+                }
             }
         )
     }
@@ -294,6 +333,63 @@ fun AddBookmarkScreen(
                                 text = "None (Unsorted)",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Tags Section (Optional)
+            val selectedTags = uiState.availableTags.filter { uiState.selectedTagIds.contains(it.id) }
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Spacing.small)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Tags (${selectedTags.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    OutlinedButton(
+                        onClick = { showSelectTagsDialog = true },
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.size(4.dp))
+                        Text(
+                            text = if (selectedTags.isEmpty()) "Add Tags" else "Edit Tags",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+
+                if (selectedTags.isNotEmpty()) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        selectedTags.forEach { tag ->
+                            InputChip(
+                                selected = true,
+                                onClick = { viewModel.onRemoveTag(tag.id) },
+                                label = { Text(tag.name) },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Remove tag",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             )
                         }
                     }

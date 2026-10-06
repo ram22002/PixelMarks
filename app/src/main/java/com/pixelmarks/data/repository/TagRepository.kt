@@ -17,6 +17,8 @@ interface TagRepository {
     suspend fun deleteById(id: Long)
     suspend fun addTagToBookmark(bookmarkId: Long, tagId: Long)
     suspend fun removeTagFromBookmark(bookmarkId: Long, tagId: Long)
+    suspend fun setTagsForBookmark(bookmarkId: Long, tagIds: Set<Long>)
     fun observeTagsForBookmark(bookmarkId: Long): Flow<List<Tag>>
     fun observeBookmarksForTag(tagId: Long): Flow<List<Bookmark>>
+    fun observeAllCrossRefs(): Flow<List<com.pixelmarks.core.database.entity.BookmarkTagCrossRef>>
 }

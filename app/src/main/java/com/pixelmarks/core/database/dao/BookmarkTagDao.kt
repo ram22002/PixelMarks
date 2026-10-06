@@ -31,6 +31,9 @@ interface BookmarkTagDao {
     @Query("DELETE FROM bookmark_tag_cross_ref WHERE tagId = :tagId")
     suspend fun deleteByTagId(tagId: Long)
 
+    @Query("SELECT * FROM bookmark_tag_cross_ref")
+    fun observeAllCrossRefs(): Flow<List<BookmarkTagCrossRef>>
+
     @Query("""
         SELECT t.* FROM tags t
         INNER JOIN bookmark_tag_cross_ref ref ON t.id = ref.tagId

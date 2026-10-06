@@ -30,6 +30,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
+import com.pixelmarks.domain.usecase.CreateTagUseCase
+import com.pixelmarks.domain.usecase.DeleteTagUseCase
+import com.pixelmarks.domain.usecase.GetTagUseCase
+import com.pixelmarks.domain.usecase.ObserveBookmarkTagsUseCase
+import com.pixelmarks.domain.usecase.ObserveBookmarksByTagUseCase
+import com.pixelmarks.domain.usecase.ObserveTagsUseCase
+import com.pixelmarks.domain.usecase.ReplaceBookmarkTagsUseCase
+import com.pixelmarks.domain.usecase.UpdateTagUseCase
+
 /**
  * Application dependency container providing singleton instances of repositories and use cases.
  */
@@ -53,6 +62,15 @@ interface AppContainer {
     val updateCollectionUseCase: UpdateCollectionUseCase
     val deleteCollectionUseCase: DeleteCollectionUseCase
     val moveBookmarkUseCase: MoveBookmarkUseCase
+
+    val observeTagsUseCase: ObserveTagsUseCase
+    val getTagUseCase: GetTagUseCase
+    val createTagUseCase: CreateTagUseCase
+    val updateTagUseCase: UpdateTagUseCase
+    val deleteTagUseCase: DeleteTagUseCase
+    val observeBookmarkTagsUseCase: ObserveBookmarkTagsUseCase
+    val observeBookmarksByTagUseCase: ObserveBookmarksByTagUseCase
+    val replaceBookmarkTagsUseCase: ReplaceBookmarkTagsUseCase
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -95,6 +113,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         AddBookmarkUseCase(
             bookmarkRepository = bookmarkRepository,
             fetchBookmarkMetadataUseCase = fetchBookmarkMetadataUseCase,
+            tagRepository = tagRepository,
             coroutineScope = applicationScope
         )
     }
@@ -137,5 +156,37 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val moveBookmarkUseCase: MoveBookmarkUseCase by lazy {
         MoveBookmarkUseCase(bookmarkRepository)
+    }
+
+    override val observeTagsUseCase: ObserveTagsUseCase by lazy {
+        ObserveTagsUseCase(tagRepository)
+    }
+
+    override val getTagUseCase: GetTagUseCase by lazy {
+        GetTagUseCase(tagRepository)
+    }
+
+    override val createTagUseCase: CreateTagUseCase by lazy {
+        CreateTagUseCase(tagRepository)
+    }
+
+    override val updateTagUseCase: UpdateTagUseCase by lazy {
+        UpdateTagUseCase(tagRepository)
+    }
+
+    override val deleteTagUseCase: DeleteTagUseCase by lazy {
+        DeleteTagUseCase(tagRepository)
+    }
+
+    override val observeBookmarkTagsUseCase: ObserveBookmarkTagsUseCase by lazy {
+        ObserveBookmarkTagsUseCase(tagRepository)
+    }
+
+    override val observeBookmarksByTagUseCase: ObserveBookmarksByTagUseCase by lazy {
+        ObserveBookmarksByTagUseCase(tagRepository)
+    }
+
+    override val replaceBookmarkTagsUseCase: ReplaceBookmarkTagsUseCase by lazy {
+        ReplaceBookmarkTagsUseCase(tagRepository)
     }
 }
