@@ -2,6 +2,9 @@ package com.pixelmarks.data.repository
 
 import com.pixelmarks.core.database.dao.BookmarkDao
 import com.pixelmarks.core.model.Bookmark
+import com.pixelmarks.core.model.BookmarkFilters
+import com.pixelmarks.core.model.BookmarkSortOption
+import com.pixelmarks.core.util.SearchQueryUtils
 import com.pixelmarks.data.mapper.toDomain
 import com.pixelmarks.data.mapper.toEntity
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +37,29 @@ class BookmarkRepositoryImpl(
 
     override fun observeByDomain(domain: String): Flow<List<Bookmark>> =
         bookmarkDao.observeByDomain(domain).map { list -> list.map { it.toDomain() } }
+
+    override fun observeTotalCount(): Flow<Int> =
+        bookmarkDao.observeCount()
+
+    override fun observeBookmarks(
+        query: String,
+        filters: BookmarkFilters,
+        sort: BookmarkSortOption
+    ): Flow<List<Bookmark>> {
+        val trimmedQuery = query.trim()
+        val escapedQuery = SearchQueryUtils.escapeSqlLike(trimmedQuery)
+        return bookmarkDao.searchBookmarks(
+            query = trimmedQuery,
+            escapedQuery = escapedQuery,
+            favoriteOnly = filters.favoriteOnly,
+            pinnedOnly = filters.pinnedOnly,
+            archivedOnly = filters.archivedOnly,
+            collectionId = filters.collectionId,
+            tagId = filters.tagId
+        ).map { entities ->
+            entities.map { it.toDomain() }.sortedWith(sort.comparator)
+        }
+    }
 
     override suspend fun getById(id: Long): Bookmark? =
         bookmarkDao.getById(id)?.toDomain()

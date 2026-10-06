@@ -1,6 +1,8 @@
 package com.pixelmarks.data.repository
 
 import com.pixelmarks.core.model.Bookmark
+import com.pixelmarks.core.model.BookmarkFilters
+import com.pixelmarks.core.model.BookmarkSortOption
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -15,6 +17,12 @@ interface BookmarkRepository {
     fun observePinned(): Flow<List<Bookmark>>
     fun observeArchived(): Flow<List<Bookmark>>
     fun observeByDomain(domain: String): Flow<List<Bookmark>>
+    fun observeTotalCount(): Flow<Int>
+    fun observeBookmarks(
+        query: String = "",
+        filters: BookmarkFilters = BookmarkFilters(),
+        sort: BookmarkSortOption = BookmarkSortOption.NEWEST
+    ): Flow<List<Bookmark>>
     suspend fun getById(id: Long): Bookmark?
     suspend fun findByNormalizedUrl(normalizedUrl: String): List<Bookmark>
     suspend fun insert(bookmark: Bookmark): Long

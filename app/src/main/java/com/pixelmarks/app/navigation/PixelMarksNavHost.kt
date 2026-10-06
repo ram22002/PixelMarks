@@ -72,7 +72,10 @@ fun PixelMarksNavHost(
         // Secondary / Modal Routes
         composable(Screen.Search.route) {
             SearchScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBookmarkDetail = { bookmarkId ->
+                    navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))
+                }
             )
         }
 

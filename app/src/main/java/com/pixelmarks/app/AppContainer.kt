@@ -17,6 +17,7 @@ import com.pixelmarks.domain.usecase.DeleteBookmarkUseCase
 import com.pixelmarks.domain.usecase.FetchBookmarkMetadataUseCase
 import com.pixelmarks.domain.usecase.GetBookmarkUseCase
 import com.pixelmarks.domain.usecase.ObserveBookmarksUseCase
+import com.pixelmarks.domain.usecase.SearchBookmarksUseCase
 import coil3.ImageLoader
 import com.pixelmarks.core.image.PixelMarksImageLoader
 import com.pixelmarks.domain.usecase.CreateCollectionUseCase
@@ -51,6 +52,7 @@ interface AppContainer {
 
     val addBookmarkUseCase: AddBookmarkUseCase
     val observeBookmarksUseCase: ObserveBookmarksUseCase
+    val searchBookmarksUseCase: SearchBookmarksUseCase
     val getBookmarkUseCase: GetBookmarkUseCase
     val deleteBookmarkUseCase: DeleteBookmarkUseCase
     val updateBookmarkUseCase: UpdateBookmarkUseCase
@@ -120,6 +122,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val observeBookmarksUseCase: ObserveBookmarksUseCase by lazy {
         ObserveBookmarksUseCase(bookmarkRepository)
+    }
+
+    override val searchBookmarksUseCase: SearchBookmarksUseCase by lazy {
+        SearchBookmarksUseCase(bookmarkRepository)
     }
 
     override val getBookmarkUseCase: GetBookmarkUseCase by lazy {
