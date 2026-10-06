@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 interface ReminderRepository {
     fun observeUpcoming(currentTime: Long = System.currentTimeMillis()): Flow<List<Reminder>>
     fun observeAll(): Flow<List<Reminder>>
+    fun observeByBookmarkId(bookmarkId: Long): Flow<Reminder?>
     suspend fun getById(id: Long): Reminder?
     suspend fun getByBookmarkId(bookmarkId: Long): Reminder?
     suspend fun setReminder(bookmarkId: Long, reminderAt: Long): Long

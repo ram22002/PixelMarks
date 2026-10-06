@@ -53,6 +53,7 @@ import com.pixelmarks.data.repository.ReminderRepositoryImpl
 import com.pixelmarks.domain.usecase.CancelBookmarkReminderUseCase
 import com.pixelmarks.domain.usecase.GetBookmarkReminderUseCase
 import com.pixelmarks.domain.usecase.MarkReminderCompletedUseCase
+import com.pixelmarks.domain.usecase.ObserveBookmarkReminderUseCase
 import com.pixelmarks.domain.usecase.ObserveUpcomingRemindersUseCase
 import com.pixelmarks.domain.usecase.SetBookmarkReminderUseCase
 
@@ -103,6 +104,7 @@ interface AppContainer {
     val setBookmarkReminderUseCase: SetBookmarkReminderUseCase
     val cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase
     val getBookmarkReminderUseCase: GetBookmarkReminderUseCase
+    val observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase
     val observeUpcomingRemindersUseCase: ObserveUpcomingRemindersUseCase
     val markReminderCompletedUseCase: MarkReminderCompletedUseCase
 }
@@ -266,7 +268,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val reminderRepository: ReminderRepository by lazy {
-        ReminderRepositoryImpl(database.reminderDao(), bookmarkRepository)
+        ReminderRepositoryImpl(database.reminderDao(), bookmarkRepository, context)
     }
 
     override val setBookmarkReminderUseCase: SetBookmarkReminderUseCase by lazy {
@@ -279,6 +281,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val getBookmarkReminderUseCase: GetBookmarkReminderUseCase by lazy {
         GetBookmarkReminderUseCase(reminderRepository)
+    }
+
+    override val observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase by lazy {
+        ObserveBookmarkReminderUseCase(reminderRepository)
     }
 
     override val observeUpcomingRemindersUseCase: ObserveUpcomingRemindersUseCase by lazy {

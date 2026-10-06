@@ -33,6 +33,9 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE bookmarkId = :bookmarkId LIMIT 1")
     suspend fun getByBookmarkId(bookmarkId: Long): ReminderEntity?
 
+    @Query("SELECT * FROM reminders WHERE bookmarkId = :bookmarkId LIMIT 1")
+    fun observeByBookmarkId(bookmarkId: Long): Flow<ReminderEntity?>
+
     @Query("SELECT * FROM reminders WHERE isCompleted = 0 AND reminderAt >= :currentTime ORDER BY reminderAt ASC")
     fun observeUpcoming(currentTime: Long): Flow<List<ReminderEntity>>
 

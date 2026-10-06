@@ -1,3 +1,4 @@
+
 package com.pixelmarks.feature.bookmark
 
 import androidx.compose.foundation.background
@@ -67,6 +68,7 @@ import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.core.image.BookmarkFavicon
 import com.pixelmarks.core.image.BookmarkThumbnail
 import com.pixelmarks.core.image.ImageUrlValidator
+import com.pixelmarks.core.reminder.ReminderFormatter
 import com.pixelmarks.feature.bookmark.dialogs.SetExpirationDialog
 import com.pixelmarks.feature.bookmark.dialogs.SetReminderDialog
 import com.pixelmarks.feature.collection.SelectCollectionDialog
@@ -567,39 +569,75 @@ fun AddBookmarkScreen(
                 }
             }
 
-            // Reminder & Expiration Action Chips
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.small)
-            ) {
-                val reminderFormatted = uiState.reminderAt?.let {
-                    SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(it))
+            // Reminder & Expiration Management
+            if (uiState.reminderAt != null) {
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = Spacing.medium, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.small),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Alarm,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "Reminder set",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = ReminderFormatter.format(uiState.reminderAt!!),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(onClick = { showReminderDialog = true }) {
+                                Text("Edit")
+                            }
+                            TextButton(onClick = { viewModel.onReminderChanged(null) }) {
+                                Text("Remove")
+                            }
+                        }
+                    }
                 }
-
-                AssistChip(
+            } else {
+                OutlinedButton(
                     onClick = { showReminderDialog = true },
-                    label = { Text(if (reminderFormatted != null) "Reminder: $reminderFormatted" else "Set Reminder") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Alarm,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                )
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Alarm, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text("Set Reminder")
+                }
+            }
 
-                val hasExpiry = uiState.notes.contains("[Expires:")
-                AssistChip(
-                    onClick = { showExpirationDialog = true },
-                    label = { Text(if (hasExpiry) "Expires Set" else "Set Expiration") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.HourglassBottom,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                )
+            val hasExpiry = uiState.notes.contains("[Expires:")
+            OutlinedButton(
+                onClick = { showExpirationDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.HourglassBottom, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.size(6.dp))
+                Text(if (hasExpiry) "Expiration Set" else "Set Expiration")
             }
 
             Spacer(modifier = Modifier.height(Spacing.medium))

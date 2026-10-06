@@ -32,12 +32,16 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import com.pixelmarks.core.model.Reminder
+import com.pixelmarks.domain.usecase.ObserveBookmarkReminderUseCase
+
 data class BookmarkDetailUiState(
     val bookmark: Bookmark? = null,
     val assignedTags: List<Tag> = emptyList(),
     val allTags: List<Tag> = emptyList(),
     val availableCollections: List<Collection> = emptyList(),
     val assignedCollection: Collection? = null,
+    val reminder: Reminder? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -61,7 +65,8 @@ class BookmarkDetailViewModel(
     private val moveBookmarkUseCase: MoveBookmarkUseCase? = null,
     private val observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
     private val setBookmarkReminderUseCase: SetBookmarkReminderUseCase? = null,
-    private val cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null
+    private val cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null,
+    private val observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase? = null
 ) : ViewModel() {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
@@ -77,13 +82,15 @@ class BookmarkDetailViewModel(
         }
     }
 
+    private val reminderFlow = observeBookmarkReminderUseCase?.invoke(bookmarkId) ?: kotlinx.coroutines.flow.flowOf(null)
+
     val uiState: StateFlow<BookmarkDetailUiState> = combine(
         observeBookmarkByIdUseCase(bookmarkId),
         observeBookmarkTagsUseCase(bookmarkId),
         observeTagsUseCase(),
         _collections,
-        _errorMessage
-    ) { bookmark, assignedTags, allTags, collections, err ->
+        reminderFlow
+    ) { bookmark, assignedTags, allTags, collections, reminder ->
         val assignedCol = bookmark?.collectionId?.let { id -> collections.firstOrNull { it.id == id } }
         BookmarkDetailUiState(
             bookmark = bookmark,
@@ -91,9 +98,12 @@ class BookmarkDetailViewModel(
             allTags = allTags,
             availableCollections = collections,
             assignedCollection = assignedCol,
+            reminder = reminder,
             isLoading = bookmark == null,
-            errorMessage = err
+            errorMessage = null
         )
+    }.combine(_errorMessage) { state, err ->
+        state.copy(errorMessage = err)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -228,7 +238,8 @@ class BookmarkDetailViewModel(
             moveBookmarkUseCase: MoveBookmarkUseCase? = null,
             observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
             setBookmarkReminderUseCase: SetBookmarkReminderUseCase? = null,
-            cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null
+            cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null,
+            observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -251,7 +262,8 @@ class BookmarkDetailViewModel(
                     moveBookmarkUseCase = moveBookmarkUseCase,
                     observeCollectionsUseCase = observeCollectionsUseCase,
                     setBookmarkReminderUseCase = setBookmarkReminderUseCase,
-                    cancelBookmarkReminderUseCase = cancelBookmarkReminderUseCase
+                    cancelBookmarkReminderUseCase = cancelBookmarkReminderUseCase,
+                    observeBookmarkReminderUseCase = observeBookmarkReminderUseCase
                 ) as T
             }
         }

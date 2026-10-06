@@ -42,6 +42,8 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+import com.pixelmarks.core.reminder.ReminderFormatter
+
 @Composable
 fun SetReminderDialog(
     currentReminderAt: Long?,
@@ -55,6 +57,18 @@ fun SetReminderDialog(
         val cal = Calendar.getInstance().apply {
             add(Calendar.DAY_OF_YEAR, 1)
             set(Calendar.HOUR_OF_DAY, 9)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        cal.timeInMillis
+    }
+
+    // Calculate tomorrow 8:00 PM
+    val tomorrowEvening = remember {
+        val cal = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 20)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
@@ -80,7 +94,7 @@ fun SetReminderDialog(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Text("Set Read-Later Reminder")
+                Text(if (currentReminderAt != null) "Edit Reminder" else "Set Read-Later Reminder")
             }
         },
         text = {
@@ -90,7 +104,7 @@ fun SetReminderDialog(
             ) {
                 if (currentReminderAt != null) {
                     Text(
-                        text = "Current: ${dateFormat.format(Date(currentReminderAt))}",
+                        text = "Current: ${ReminderFormatter.format(currentReminderAt)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -113,6 +127,16 @@ fun SetReminderDialog(
                     icon = Icons.Default.CalendarMonth,
                     onClick = {
                         onSetReminder(tomorrowMorning)
+                        onDismiss()
+                    }
+                )
+
+                ReminderPresetItem(
+                    title = "Tomorrow Evening",
+                    subtitle = dateFormat.format(Date(tomorrowEvening)),
+                    icon = Icons.Default.CalendarMonth,
+                    onClick = {
+                        onSetReminder(tomorrowEvening)
                         onDismiss()
                     }
                 )

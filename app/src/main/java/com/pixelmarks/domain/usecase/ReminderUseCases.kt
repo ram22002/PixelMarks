@@ -25,6 +25,13 @@ class GetBookmarkReminderUseCase(
         reminderRepository.getByBookmarkId(bookmarkId)
 }
 
+class ObserveBookmarkReminderUseCase(
+    private val reminderRepository: ReminderRepository
+) {
+    operator fun invoke(bookmarkId: Long): Flow<Reminder?> =
+        reminderRepository.observeByBookmarkId(bookmarkId)
+}
+
 class ObserveUpcomingRemindersUseCase(
     private val reminderRepository: ReminderRepository
 ) {

@@ -78,6 +78,7 @@ import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.core.image.BookmarkFavicon
 import com.pixelmarks.core.image.BookmarkThumbnail
 import com.pixelmarks.core.image.ImageUrlValidator
+import com.pixelmarks.core.reminder.ReminderFormatter
 import com.pixelmarks.feature.bookmark.dialogs.SetExpirationDialog
 import com.pixelmarks.feature.bookmark.dialogs.SetReminderDialog
 import com.pixelmarks.feature.collection.SelectCollectionDialog
@@ -121,7 +122,8 @@ fun BookmarkDetailScreen(
                 moveBookmarkUseCase = app.container.moveBookmarkUseCase,
                 observeCollectionsUseCase = app.container.observeCollectionsUseCase,
                 setBookmarkReminderUseCase = app.container.setBookmarkReminderUseCase,
-                cancelBookmarkReminderUseCase = app.container.cancelBookmarkReminderUseCase
+                cancelBookmarkReminderUseCase = app.container.cancelBookmarkReminderUseCase,
+                observeBookmarkReminderUseCase = app.container.observeBookmarkReminderUseCase
             )
         }
     )
@@ -632,38 +634,76 @@ fun BookmarkDetailScreen(
 
                     // Reminder & Expiration Management
                     if (!current.isTrashed) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.small)
-                        ) {
-                            val reminderFormatted = current.reminderAt?.let {
-                                SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(it))
-                            }
+                        val activeReminderTime = uiState.reminder?.reminderAt ?: current.reminderAt
 
+                        if (activeReminderTime != null) {
+                            OutlinedCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.outlinedCardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = Spacing.medium, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(Spacing.small),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Alarm,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "Reminder set",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(
+                                                text = ReminderFormatter.format(activeReminderTime),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        }
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        TextButton(onClick = { showReminderDialog = true }) {
+                                            Text("Edit")
+                                        }
+                                        TextButton(onClick = { viewModel.setReminder(null) }) {
+                                            Text("Remove")
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
                             OutlinedButton(
                                 onClick = { showReminderDialog = true },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Icon(Icons.Default.Alarm, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.size(4.dp))
-                                Text(
-                                    text = if (reminderFormatted != null) reminderFormatted else "Reminder",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
+                                Spacer(modifier = Modifier.size(6.dp))
+                                Text("Set Reminder")
                             }
+                        }
 
-                            val hasExpiry = current.notes?.contains("[Expires:") == true
-                            OutlinedButton(
-                                onClick = { showExpirationDialog = true },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.HourglassBottom, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.size(4.dp))
-                                Text(
-                                    text = if (hasExpiry) "Expires Set" else "Expiration",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
+                        val hasExpiry = current.notes?.contains("[Expires:") == true
+                        OutlinedButton(
+                            onClick = { showExpirationDialog = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.HourglassBottom, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text(if (hasExpiry) "Expiration Set" else "Set Expiration")
                         }
                     }
 
