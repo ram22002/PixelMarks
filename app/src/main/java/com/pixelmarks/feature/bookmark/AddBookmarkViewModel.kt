@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pixelmarks.core.model.Bookmark
+import com.pixelmarks.core.model.Collection
 import com.pixelmarks.domain.usecase.AddBookmarkResult
 import com.pixelmarks.domain.usecase.AddBookmarkUseCase
+import com.pixelmarks.domain.usecase.ObserveCollectionsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +17,8 @@ import kotlinx.coroutines.launch
 data class AddBookmarkUiState(
     val url: String = "",
     val title: String = "",
+    val selectedCollectionId: Long? = null,
+    val availableCollections: List<Collection> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val duplicateBookmark: Bookmark? = null,
@@ -22,11 +26,22 @@ data class AddBookmarkUiState(
 )
 
 class AddBookmarkViewModel(
-    private val addBookmarkUseCase: AddBookmarkUseCase
+    private val addBookmarkUseCase: AddBookmarkUseCase,
+    private val observeCollectionsUseCase: ObserveCollectionsUseCase? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddBookmarkUiState())
     val uiState: StateFlow<AddBookmarkUiState> = _uiState.asStateFlow()
+
+    init {
+        observeCollectionsUseCase?.let { useCase ->
+            viewModelScope.launch {
+                useCase().collect { collections ->
+                    _uiState.update { it.copy(availableCollections = collections) }
+                }
+            }
+        }
+    }
 
     fun onUrlChanged(newUrl: String) {
         _uiState.update { it.copy(url = newUrl, errorMessage = null) }
@@ -34,6 +49,10 @@ class AddBookmarkViewModel(
 
     fun onTitleChanged(newTitle: String) {
         _uiState.update { it.copy(title = newTitle) }
+    }
+
+    fun onCollectionSelected(collectionId: Long?) {
+        _uiState.update { it.copy(selectedCollectionId = collectionId) }
     }
 
     fun saveBookmark() {
@@ -48,6 +67,7 @@ class AddBookmarkViewModel(
             when (val result = addBookmarkUseCase(
                 rawUrl = currentUrl,
                 customTitle = _uiState.value.title.takeIf { it.isNotBlank() },
+                collectionId = _uiState.value.selectedCollectionId,
                 forceSave = false
             )) {
                 is AddBookmarkResult.Success -> {
@@ -95,6 +115,7 @@ class AddBookmarkViewModel(
             when (val result = addBookmarkUseCase(
                 rawUrl = currentUrl,
                 customTitle = _uiState.value.title.takeIf { it.isNotBlank() },
+                collectionId = _uiState.value.selectedCollectionId,
                 forceSave = true
             )) {
                 is AddBookmarkResult.Success -> {
@@ -129,11 +150,14 @@ class AddBookmarkViewModel(
     }
 
     companion object {
-        fun provideFactory(addBookmarkUseCase: AddBookmarkUseCase): ViewModelProvider.Factory =
+        fun provideFactory(
+            addBookmarkUseCase: AddBookmarkUseCase,
+            observeCollectionsUseCase: ObserveCollectionsUseCase? = null
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AddBookmarkViewModel(addBookmarkUseCase) as T
+                    return AddBookmarkViewModel(addBookmarkUseCase, observeCollectionsUseCase) as T
                 }
             }
     }

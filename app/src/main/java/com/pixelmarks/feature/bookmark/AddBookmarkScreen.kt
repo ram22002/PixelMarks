@@ -27,16 +27,32 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import com.pixelmarks.feature.collection.SelectCollectionDialog
+import com.pixelmarks.feature.collection.getIconVector
+import com.pixelmarks.feature.collection.parseHexColor
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.ui.components.PixelMarksScreenScaffold
@@ -46,18 +62,37 @@ import com.pixelmarks.ui.theme.Spacing
 fun AddBookmarkScreen(
     onNavigateBack: () -> Unit,
     viewModel: AddBookmarkViewModel = viewModel(
-        factory = AddBookmarkViewModel.provideFactory(
-            (LocalContext.current.applicationContext as PixelMarksApplication).container.addBookmarkUseCase
-        )
+        factory = run {
+            val app = LocalContext.current.applicationContext as PixelMarksApplication
+            AddBookmarkViewModel.provideFactory(
+                addBookmarkUseCase = app.container.addBookmarkUseCase,
+                observeCollectionsUseCase = app.container.observeCollectionsUseCase
+            )
+        }
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showCollectionPicker by remember { mutableStateOf(false) }
 
     // When save succeeds, return to previous screen
     LaunchedEffect(uiState.isSavedSuccessfully) {
         if (uiState.isSavedSuccessfully) {
             onNavigateBack()
         }
+    }
+
+    if (showCollectionPicker) {
+        SelectCollectionDialog(
+            title = "Choose Collection",
+            confirmButtonText = "Select",
+            currentCollectionId = uiState.selectedCollectionId,
+            availableCollections = uiState.availableCollections,
+            onDismiss = { showCollectionPicker = false },
+            onSelectCollection = { colId ->
+                viewModel.onCollectionSelected(colId)
+                showCollectionPicker = false
+            }
+        )
     }
 
     // Duplicate alert dialog
@@ -185,6 +220,85 @@ fun AddBookmarkScreen(
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Collection Selector (Optional)
+            val selectedCol = uiState.availableCollections.firstOrNull { it.id == uiState.selectedCollectionId }
+            OutlinedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showCollectionPicker = true },
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.medium, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
+                ) {
+                    if (selectedCol != null) {
+                        val colColor = parseHexColor(selectedCol.color)
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(colColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = getIconVector(selectedCol.icon),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Collection",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                            Text(
+                                text = selectedCol.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.onCollectionSelected(null) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear collection selection",
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Collection (Optional)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                            Text(
+                                text = "None (Unsorted)",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(Spacing.medium))
 

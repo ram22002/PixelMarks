@@ -31,9 +31,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -264,7 +271,9 @@ fun HomeScreen(
 fun BookmarkListItem(
     bookmark: Bookmark,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onMove: (() -> Unit)? = null,
+    onRemoveFromCollection: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -339,12 +348,55 @@ fun BookmarkListItem(
                 )
             }
 
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.DeleteOutline,
-                    contentDescription = "Delete bookmark",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            if (onMove != null || onRemoveFromCollection != null) {
+                var menuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Bookmark options",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        if (onMove != null) {
+                            DropdownMenuItem(
+                                text = { Text("Move to Collection") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onMove()
+                                }
+                            )
+                        }
+                        if (onRemoveFromCollection != null) {
+                            DropdownMenuItem(
+                                text = { Text("Remove from Collection") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onRemoveFromCollection()
+                                }
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            }
+                        )
+                    }
+                }
+            } else {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = "Delete bookmark",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

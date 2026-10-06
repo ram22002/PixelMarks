@@ -19,7 +19,13 @@ import com.pixelmarks.domain.usecase.GetBookmarkUseCase
 import com.pixelmarks.domain.usecase.ObserveBookmarksUseCase
 import coil3.ImageLoader
 import com.pixelmarks.core.image.PixelMarksImageLoader
+import com.pixelmarks.domain.usecase.CreateCollectionUseCase
+import com.pixelmarks.domain.usecase.DeleteCollectionUseCase
+import com.pixelmarks.domain.usecase.GetCollectionUseCase
+import com.pixelmarks.domain.usecase.MoveBookmarkUseCase
+import com.pixelmarks.domain.usecase.ObserveCollectionsUseCase
 import com.pixelmarks.domain.usecase.UpdateBookmarkUseCase
+import com.pixelmarks.domain.usecase.UpdateCollectionUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +46,13 @@ interface AppContainer {
     val deleteBookmarkUseCase: DeleteBookmarkUseCase
     val updateBookmarkUseCase: UpdateBookmarkUseCase
     val fetchBookmarkMetadataUseCase: FetchBookmarkMetadataUseCase
+
+    val observeCollectionsUseCase: ObserveCollectionsUseCase
+    val getCollectionUseCase: GetCollectionUseCase
+    val createCollectionUseCase: CreateCollectionUseCase
+    val updateCollectionUseCase: UpdateCollectionUseCase
+    val deleteCollectionUseCase: DeleteCollectionUseCase
+    val moveBookmarkUseCase: MoveBookmarkUseCase
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -100,5 +113,29 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val updateBookmarkUseCase: UpdateBookmarkUseCase by lazy {
         UpdateBookmarkUseCase(bookmarkRepository)
+    }
+
+    override val observeCollectionsUseCase: ObserveCollectionsUseCase by lazy {
+        ObserveCollectionsUseCase(collectionRepository)
+    }
+
+    override val getCollectionUseCase: GetCollectionUseCase by lazy {
+        GetCollectionUseCase(collectionRepository)
+    }
+
+    override val createCollectionUseCase: CreateCollectionUseCase by lazy {
+        CreateCollectionUseCase(collectionRepository)
+    }
+
+    override val updateCollectionUseCase: UpdateCollectionUseCase by lazy {
+        UpdateCollectionUseCase(collectionRepository)
+    }
+
+    override val deleteCollectionUseCase: DeleteCollectionUseCase by lazy {
+        DeleteCollectionUseCase(collectionRepository, bookmarkRepository)
+    }
+
+    override val moveBookmarkUseCase: MoveBookmarkUseCase by lazy {
+        MoveBookmarkUseCase(bookmarkRepository)
     }
 }

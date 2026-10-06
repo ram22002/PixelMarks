@@ -104,7 +104,13 @@ fun PixelMarksNavHost(
             val collectionId = backStackEntry.arguments?.getLong("collectionId") ?: 1L
             CollectionDetailScreen(
                 collectionId = collectionId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCollectionDetail = { childId ->
+                    navController.navigate(Screen.CollectionDetail.createRoute(childId))
+                },
+                onNavigateToBookmarkDetail = { bookmarkId ->
+                    navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))
+                }
             )
         }
 
