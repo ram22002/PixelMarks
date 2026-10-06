@@ -58,14 +58,23 @@ class FetchBookmarkMetadataUseCase(
                         bookmark.title
                     }
 
-                    val resolvedDescription = meta.description?.takeIf { it.isNotBlank() }
-                        ?: bookmark.description
+                    val resolvedDescription = if (!bookmark.description.isNullOrBlank()) {
+                        bookmark.description
+                    } else {
+                        meta.description?.takeIf { it.isNotBlank() }
+                    }
 
-                    val resolvedThumbnail = meta.imageUrl?.takeIf { it.isNotBlank() }
-                        ?: bookmark.thumbnailUrl
+                    val resolvedThumbnail = if (!bookmark.thumbnailUrl.isNullOrBlank()) {
+                        bookmark.thumbnailUrl
+                    } else {
+                        meta.imageUrl?.takeIf { it.isNotBlank() }
+                    }
 
-                    val resolvedFavicon = meta.faviconUrl?.takeIf { it.isNotBlank() }
-                        ?: bookmark.faviconUrl
+                    val resolvedFavicon = if (!bookmark.faviconUrl.isNullOrBlank()) {
+                        bookmark.faviconUrl
+                    } else {
+                        meta.faviconUrl?.takeIf { it.isNotBlank() }
+                    }
 
                     bookmark.copy(
                         title = resolvedTitle,

@@ -117,4 +117,38 @@ class AddBookmarkUseCaseTest {
         org.junit.Assert.assertNotNull(persisted)
         assertEquals("https://resilient.example.com", persisted?.url)
     }
+
+    @Test
+    fun testSavesWithNotesDescriptionThumbnailAndReminder() = runBlocking {
+        val reminderRepository = com.pixelmarks.data.repository.ReminderRepositoryImpl(
+            database.reminderDao(),
+            repository
+        )
+        val fullUseCase = AddBookmarkUseCase(
+            bookmarkRepository = repository,
+            reminderRepository = reminderRepository
+        )
+
+        val reminderTime = System.currentTimeMillis() + 3600000L
+        val result = fullUseCase(
+            rawUrl = "https://custom.example.com",
+            customTitle = "Custom Title",
+            description = "Custom Description",
+            notes = "Watch this later for reference",
+            thumbnailUrl = "https://custom.example.com/thumb.png",
+            reminderAt = reminderTime
+        )
+
+        assertTrue(result is AddBookmarkResult.Success)
+        val success = result as AddBookmarkResult.Success
+        assertEquals("Custom Title", success.bookmark.title)
+        assertEquals("Custom Description", success.bookmark.description)
+        assertEquals("Watch this later for reference", success.bookmark.notes)
+        assertEquals("https://custom.example.com/thumb.png", success.bookmark.thumbnailUrl)
+        assertEquals(reminderTime, success.bookmark.reminderAt)
+
+        val retrievedReminder = reminderRepository.getByBookmarkId(success.bookmark.id)
+        org.junit.Assert.assertNotNull(retrievedReminder)
+        assertEquals(reminderTime, retrievedReminder?.reminderAt)
+    }
 }

@@ -96,4 +96,36 @@ object UrlUtils {
             }
         }.getOrDefault("")
     }
+
+    private val URL_REGEX = Regex("""(?i)\bhttps?://[^\s<>"{}|\\^`]+""")
+
+    /**
+     * Extracts the first valid HTTP/HTTPS URL from arbitrary shared text.
+     * Supports multiline captions, text with surrounding copy, and strips trailing punctuation.
+     * Rejects non-web schemes and invalid URLs.
+     */
+    fun extractUrlFromText(text: String?): String? {
+        if (text.isNullOrBlank()) return null
+        val trimmed = text.trim()
+
+        // 1. First look for explicit http:// or https:// matches
+        val match = URL_REGEX.find(trimmed)
+        if (match != null) {
+            val candidate = match.value.trimEnd('.', ',', ';', '!', '?', ')', ']', '>', '"', '\'')
+            if (isValidUrl(candidate)) {
+                return runCatching { normalizeUrl(candidate) }.getOrNull()
+            }
+        }
+
+        // 2. Fall back to inspecting individual whitespace-delimited tokens
+        val tokens = trimmed.split(Regex("""\s+"""))
+        for (token in tokens) {
+            val candidate = token.trimEnd('.', ',', ';', '!', '?', ')', ']', '>', '"', '\'')
+            if (isValidUrl(candidate)) {
+                return runCatching { normalizeUrl(candidate) }.getOrNull()
+            }
+        }
+
+        return null
+    }
 }

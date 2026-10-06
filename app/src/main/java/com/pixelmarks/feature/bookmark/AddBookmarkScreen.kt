@@ -1,7 +1,12 @@
 package com.pixelmarks.feature.bookmark
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,25 +15,38 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -38,45 +56,47 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pixelmarks.app.PixelMarksApplication
+import com.pixelmarks.core.image.BookmarkFavicon
+import com.pixelmarks.core.image.BookmarkThumbnail
+import com.pixelmarks.core.image.ImageUrlValidator
+import com.pixelmarks.feature.bookmark.dialogs.SetExpirationDialog
+import com.pixelmarks.feature.bookmark.dialogs.SetReminderDialog
 import com.pixelmarks.feature.collection.SelectCollectionDialog
 import com.pixelmarks.feature.collection.getIconVector
 import com.pixelmarks.feature.collection.parseHexColor
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.pixelmarks.app.PixelMarksApplication
-import com.pixelmarks.ui.components.PixelMarksScreenScaffold
-import com.pixelmarks.ui.theme.Spacing
-
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material3.InputChip
 import com.pixelmarks.feature.tags.CreateEditTagDialog
 import com.pixelmarks.feature.tags.SelectTagsDialog
+import com.pixelmarks.ui.components.PixelMarksScreenScaffold
+import com.pixelmarks.ui.theme.Spacing
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AddBookmarkScreen(
+    initialUrl: String? = null,
     onNavigateBack: () -> Unit,
+    onNavigateToBookmarkDetail: (Long) -> Unit = {},
+    onNavigateToEditBookmark: (Long) -> Unit = {},
     viewModel: AddBookmarkViewModel = viewModel(
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
             AddBookmarkViewModel.provideFactory(
                 addBookmarkUseCase = app.container.addBookmarkUseCase,
+                metadataRepository = app.container.metadataRepository,
                 observeCollectionsUseCase = app.container.observeCollectionsUseCase,
                 observeTagsUseCase = app.container.observeTagsUseCase,
-                createTagUseCase = app.container.createTagUseCase
+                createTagUseCase = app.container.createTagUseCase,
+                initialUrl = initialUrl
             )
         }
     )
@@ -85,6 +105,8 @@ fun AddBookmarkScreen(
     var showCollectionPicker by remember { mutableStateOf(false) }
     var showSelectTagsDialog by remember { mutableStateOf(false) }
     var showCreateTagDialog by remember { mutableStateOf(false) }
+    var showReminderDialog by remember { mutableStateOf(false) }
+    var showExpirationDialog by remember { mutableStateOf(false) }
 
     // When save succeeds, return to previous screen
     LaunchedEffect(uiState.isSavedSuccessfully) {
@@ -134,20 +156,40 @@ fun AddBookmarkScreen(
         )
     }
 
-    // Duplicate alert dialog
+    if (showReminderDialog) {
+        SetReminderDialog(
+            currentReminderAt = uiState.reminderAt,
+            onDismiss = { showReminderDialog = false },
+            onSetReminder = { timestamp ->
+                viewModel.onReminderChanged(timestamp)
+            }
+        )
+    }
+
+    if (showExpirationDialog) {
+        SetExpirationDialog(
+            currentNotes = uiState.notes,
+            onDismiss = { showExpirationDialog = false },
+            onSetExpirationNote = { updatedNotes ->
+                viewModel.onNotesChanged(updatedNotes)
+            }
+        )
+    }
+
+    // Duplicate alert dialog with full options
     uiState.duplicateBookmark?.let { existing ->
         AlertDialog(
             onDismissRequest = { viewModel.dismissDuplicateDialog() },
             title = {
                 Text(
-                    text = "Bookmark Already Exists",
+                    text = "This bookmark already exists",
                     style = MaterialTheme.typography.titleLarge
                 )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
                     Text(
-                        text = "A bookmark with this URL is already saved:",
+                        text = "A bookmark with this URL is already saved in your library:",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
@@ -163,10 +205,39 @@ fun AddBookmarkScreen(
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = { viewModel.saveAnyway() }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text("Save Anyway")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.small)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.dismissDuplicateDialog()
+                                onNavigateToBookmarkDetail(existing.id)
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Open Existing", style = MaterialTheme.typography.labelSmall)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.dismissDuplicateDialog()
+                                onNavigateToEditBookmark(existing.id)
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Edit Existing", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    Button(
+                        onClick = { viewModel.saveAnyway() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Save Anyway")
+                    }
                 }
             },
             dismissButton = {
@@ -180,7 +251,7 @@ fun AddBookmarkScreen(
     }
 
     PixelMarksScreenScaffold(
-        title = "Add Bookmark",
+        title = "Save Bookmark",
         onNavigateBack = onNavigateBack
     ) { paddingValues ->
         Column(
@@ -191,11 +262,73 @@ fun AddBookmarkScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.medium)
         ) {
-            Text(
-                text = "Save New Link",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            // Live Metadata Preview Card
+            if (uiState.url.isNotBlank()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (uiState.isLoadingMetadata) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+
+                        if (ImageUrlValidator.isValidImageUrl(uiState.previewThumbnailUrl)) {
+                            BookmarkThumbnail(
+                                thumbnailUrl = uiState.previewThumbnailUrl,
+                                modifier = Modifier.fillMaxWidth(),
+                                size = 140.dp
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Spacing.medium),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                BookmarkFavicon(faviconUrl = uiState.previewFaviconUrl)
+                                Text(
+                                    text = uiState.domain.ifBlank { "Preview" },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                if (uiState.isLoadingMetadata) {
+                                    Spacer(modifier = Modifier.size(6.dp))
+                                    Text(
+                                        text = "Loading preview...",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            }
+
+                            val displayTitle = uiState.title.ifBlank { uiState.domain.ifBlank { uiState.url } }
+                            Text(
+                                text = displayTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            if (uiState.description.isNotBlank()) {
+                                Text(
+                                    text = uiState.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 3
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             // URL Input
             OutlinedTextField(
@@ -238,12 +371,12 @@ fun AddBookmarkScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Title Input (Optional override)
+            // Title Input
             OutlinedTextField(
                 value = uiState.title,
                 onValueChange = viewModel::onTitleChanged,
                 label = { Text("Title (Optional)") },
-                placeholder = { Text("Auto-derived from domain if left blank") },
+                placeholder = { Text("Auto-derived from webpage if left blank") },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Title,
@@ -251,6 +384,44 @@ fun AddBookmarkScreen(
                     )
                 },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Next
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Description Input
+            OutlinedTextField(
+                value = uiState.description,
+                onValueChange = viewModel::onDescriptionChanged,
+                label = { Text("Description (Optional)") },
+                placeholder = { Text("Webpage summary or brief excerpt") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Description,
+                        contentDescription = null
+                    )
+                },
+                maxLines = 3,
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Next
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Optional Note Input
+            OutlinedTextField(
+                value = uiState.notes,
+                onValueChange = viewModel::onNotesChanged,
+                label = { Text("Optional Note") },
+                placeholder = { Text("Watch this later because...") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Notes,
+                        contentDescription = null
+                    )
+                },
+                maxLines = 4,
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Done
                 ),
@@ -260,7 +431,7 @@ fun AddBookmarkScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Collection Selector (Optional)
+            // Collection Selector
             val selectedCol = uiState.availableCollections.firstOrNull { it.id == uiState.selectedCollectionId }
             OutlinedCard(
                 modifier = Modifier
@@ -339,7 +510,7 @@ fun AddBookmarkScreen(
                 }
             }
 
-            // Tags Section (Optional)
+            // Tags Section
             val selectedTags = uiState.availableTags.filter { uiState.selectedTagIds.contains(it.id) }
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -394,6 +565,41 @@ fun AddBookmarkScreen(
                         }
                     }
                 }
+            }
+
+            // Reminder & Expiration Action Chips
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.small)
+            ) {
+                val reminderFormatted = uiState.reminderAt?.let {
+                    SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(it))
+                }
+
+                AssistChip(
+                    onClick = { showReminderDialog = true },
+                    label = { Text(if (reminderFormatted != null) "Reminder: $reminderFormatted" else "Set Reminder") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Alarm,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
+
+                val hasExpiry = uiState.notes.contains("[Expires:")
+                AssistChip(
+                    onClick = { showExpirationDialog = true },
+                    label = { Text(if (hasExpiry) "Expires Set" else "Set Expiration") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.HourglassBottom,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(Spacing.medium))

@@ -4,6 +4,7 @@ import com.pixelmarks.core.database.model.MetadataStatus
 import com.pixelmarks.core.model.Bookmark
 import com.pixelmarks.core.util.UrlUtils
 import com.pixelmarks.data.repository.BookmarkRepository
+import com.pixelmarks.data.repository.ReminderRepository
 import com.pixelmarks.data.repository.TagRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -23,11 +24,17 @@ class AddBookmarkUseCase(
     private val bookmarkRepository: BookmarkRepository,
     private val fetchBookmarkMetadataUseCase: FetchBookmarkMetadataUseCase? = null,
     private val tagRepository: TagRepository? = null,
+    private val reminderRepository: ReminderRepository? = null,
     private val coroutineScope: CoroutineScope? = null
 ) {
     suspend operator fun invoke(
         rawUrl: String,
         customTitle: String? = null,
+        description: String? = null,
+        notes: String? = null,
+        thumbnailUrl: String? = null,
+        faviconUrl: String? = null,
+        reminderAt: Long? = null,
         collectionId: Long? = null,
         tagIds: Set<Long> = emptySet(),
         forceSave: Boolean = false
@@ -63,20 +70,20 @@ class AddBookmarkUseCase(
                 url = normalizedUrl,
                 normalizedUrl = normalizedUrl,
                 title = title,
-                description = null,
+                description = description?.trim()?.ifEmpty { null },
                 domain = domain,
-                faviconUrl = null,
-                thumbnailUrl = null,
+                faviconUrl = faviconUrl?.trim()?.ifEmpty { null },
+                thumbnailUrl = thumbnailUrl?.trim()?.ifEmpty { null },
                 collectionId = collectionId,
                 isFavorite = false,
                 isPinned = false,
                 isArchived = false,
-                notes = null,
+                notes = notes?.trim()?.ifEmpty { null },
                 createdAt = now,
                 updatedAt = now,
                 lastOpenedAt = null,
                 visitCount = 0,
-                reminderAt = null,
+                reminderAt = reminderAt,
                 metadataStatus = MetadataStatus.PENDING,
                 metadataUpdatedAt = null
             )
@@ -84,6 +91,9 @@ class AddBookmarkUseCase(
             val generatedId = bookmarkRepository.insert(newBookmark)
             if (tagIds.isNotEmpty()) {
                 tagRepository?.setTagsForBookmark(generatedId, tagIds)
+            }
+            if (reminderAt != null && reminderRepository != null) {
+                reminderRepository.setReminder(generatedId, reminderAt)
             }
             val savedBookmark = newBookmark.copy(id = generatedId)
 

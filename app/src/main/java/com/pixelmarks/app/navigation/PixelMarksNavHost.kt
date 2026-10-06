@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.pixelmarks.feature.backup.BackupScreen
 import com.pixelmarks.feature.bookmark.AddBookmarkScreen
 import com.pixelmarks.feature.bookmark.BookmarkDetailScreen
+import com.pixelmarks.feature.bookmark.EditBookmarkScreen
 import com.pixelmarks.feature.browser.BrowserScreen
 import com.pixelmarks.feature.collection.CollectionDetailScreen
 import com.pixelmarks.feature.collection.CollectionsScreen
@@ -83,6 +84,25 @@ fun PixelMarksNavHost(
 
         composable(Screen.AddBookmark.route) {
             AddBookmarkScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBookmarkDetail = { id ->
+                    navController.navigate(Screen.BookmarkDetail.createRoute(id))
+                },
+                onNavigateToEditBookmark = { id ->
+                    navController.navigate(Screen.EditBookmark.createRoute(id))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.EditBookmark.route,
+            arguments = listOf(
+                navArgument("bookmarkId") { type = NavType.LongType; defaultValue = 1L }
+            )
+        ) { backStackEntry ->
+            val bookmarkId = backStackEntry.arguments?.getLong("bookmarkId") ?: 1L
+            EditBookmarkScreen(
+                bookmarkId = bookmarkId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -97,6 +117,9 @@ fun PixelMarksNavHost(
             BookmarkDetailScreen(
                 bookmarkId = bookmarkId,
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToEditBookmark = { id ->
+                    navController.navigate(Screen.EditBookmark.createRoute(id))
+                },
                 onNavigateToTagDetail = { tagId ->
                     navController.navigate(Screen.TagDetail.createRoute(tagId))
                 }
@@ -140,7 +163,10 @@ fun PixelMarksNavHost(
 
         composable(Screen.Reminders.route) {
             RemindersScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBookmarkDetail = { bookmarkId ->
+                    navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))
+                }
             )
         }
 

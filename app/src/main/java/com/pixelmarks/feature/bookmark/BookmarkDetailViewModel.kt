@@ -4,21 +4,27 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pixelmarks.core.model.Bookmark
+import com.pixelmarks.core.model.Collection
 import com.pixelmarks.core.model.Tag
 import com.pixelmarks.domain.usecase.ArchiveBookmarkUseCase
+import com.pixelmarks.domain.usecase.CancelBookmarkReminderUseCase
 import com.pixelmarks.domain.usecase.CreateTagResult
 import com.pixelmarks.domain.usecase.CreateTagUseCase
 import com.pixelmarks.domain.usecase.GetBookmarkUseCase
+import com.pixelmarks.domain.usecase.MoveBookmarkUseCase
 import com.pixelmarks.domain.usecase.ObserveBookmarkByIdUseCase
 import com.pixelmarks.domain.usecase.ObserveBookmarkTagsUseCase
+import com.pixelmarks.domain.usecase.ObserveCollectionsUseCase
 import com.pixelmarks.domain.usecase.ObserveTagsUseCase
 import com.pixelmarks.domain.usecase.PermanentlyDeleteBookmarkUseCase
 import com.pixelmarks.domain.usecase.ReplaceBookmarkTagsUseCase
 import com.pixelmarks.domain.usecase.RestoreBookmarkUseCase
+import com.pixelmarks.domain.usecase.SetBookmarkReminderUseCase
 import com.pixelmarks.domain.usecase.ToggleBookmarkFavoriteUseCase
 import com.pixelmarks.domain.usecase.ToggleBookmarkPinUseCase
 import com.pixelmarks.domain.usecase.TrashBookmarkUseCase
 import com.pixelmarks.domain.usecase.UnarchiveBookmarkUseCase
+import com.pixelmarks.domain.usecase.UpdateBookmarkUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +36,8 @@ data class BookmarkDetailUiState(
     val bookmark: Bookmark? = null,
     val assignedTags: List<Tag> = emptyList(),
     val allTags: List<Tag> = emptyList(),
+    val availableCollections: List<Collection> = emptyList(),
+    val assignedCollection: Collection? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -48,21 +56,41 @@ class BookmarkDetailViewModel(
     private val unarchiveBookmarkUseCase: UnarchiveBookmarkUseCase,
     private val trashBookmarkUseCase: TrashBookmarkUseCase,
     private val restoreBookmarkUseCase: RestoreBookmarkUseCase,
-    private val permanentlyDeleteBookmarkUseCase: PermanentlyDeleteBookmarkUseCase
+    private val permanentlyDeleteBookmarkUseCase: PermanentlyDeleteBookmarkUseCase,
+    private val updateBookmarkUseCase: UpdateBookmarkUseCase? = null,
+    private val moveBookmarkUseCase: MoveBookmarkUseCase? = null,
+    private val observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
+    private val setBookmarkReminderUseCase: SetBookmarkReminderUseCase? = null,
+    private val cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null
 ) : ViewModel() {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
+    private val _collections = MutableStateFlow<List<Collection>>(emptyList())
+
+    init {
+        observeCollectionsUseCase?.let { useCase ->
+            viewModelScope.launch {
+                useCase().collect { cols ->
+                    _collections.value = cols
+                }
+            }
+        }
+    }
 
     val uiState: StateFlow<BookmarkDetailUiState> = combine(
         observeBookmarkByIdUseCase(bookmarkId),
         observeBookmarkTagsUseCase(bookmarkId),
         observeTagsUseCase(),
+        _collections,
         _errorMessage
-    ) { bookmark, assignedTags, allTags, err ->
+    ) { bookmark, assignedTags, allTags, collections, err ->
+        val assignedCol = bookmark?.collectionId?.let { id -> collections.firstOrNull { it.id == id } }
         BookmarkDetailUiState(
             bookmark = bookmark,
             assignedTags = assignedTags,
             allTags = allTags,
+            availableCollections = collections,
+            assignedCollection = assignedCol,
             isLoading = bookmark == null,
             errorMessage = err
         )
@@ -149,6 +177,33 @@ class BookmarkDetailViewModel(
         }
     }
 
+    fun updateNotes(newNotes: String) {
+        val current = uiState.value.bookmark ?: return
+        viewModelScope.launch {
+            val updated = current.copy(
+                notes = newNotes.trim().ifEmpty { null },
+                updatedAt = System.currentTimeMillis()
+            )
+            updateBookmarkUseCase?.invoke(updated)
+        }
+    }
+
+    fun moveToCollection(collectionId: Long?) {
+        viewModelScope.launch {
+            moveBookmarkUseCase?.invoke(bookmarkId, collectionId)
+        }
+    }
+
+    fun setReminder(reminderAt: Long?) {
+        viewModelScope.launch {
+            if (reminderAt != null) {
+                setBookmarkReminderUseCase?.invoke(bookmarkId, reminderAt)
+            } else {
+                cancelBookmarkReminderUseCase?.invoke(bookmarkId)
+            }
+        }
+    }
+
     fun clearError() {
         _errorMessage.value = null
     }
@@ -168,7 +223,12 @@ class BookmarkDetailViewModel(
             unarchiveBookmarkUseCase: UnarchiveBookmarkUseCase,
             trashBookmarkUseCase: TrashBookmarkUseCase,
             restoreBookmarkUseCase: RestoreBookmarkUseCase,
-            permanentlyDeleteBookmarkUseCase: PermanentlyDeleteBookmarkUseCase
+            permanentlyDeleteBookmarkUseCase: PermanentlyDeleteBookmarkUseCase,
+            updateBookmarkUseCase: UpdateBookmarkUseCase? = null,
+            moveBookmarkUseCase: MoveBookmarkUseCase? = null,
+            observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
+            setBookmarkReminderUseCase: SetBookmarkReminderUseCase? = null,
+            cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -186,7 +246,12 @@ class BookmarkDetailViewModel(
                     unarchiveBookmarkUseCase = unarchiveBookmarkUseCase,
                     trashBookmarkUseCase = trashBookmarkUseCase,
                     restoreBookmarkUseCase = restoreBookmarkUseCase,
-                    permanentlyDeleteBookmarkUseCase = permanentlyDeleteBookmarkUseCase
+                    permanentlyDeleteBookmarkUseCase = permanentlyDeleteBookmarkUseCase,
+                    updateBookmarkUseCase = updateBookmarkUseCase,
+                    moveBookmarkUseCase = moveBookmarkUseCase,
+                    observeCollectionsUseCase = observeCollectionsUseCase,
+                    setBookmarkReminderUseCase = setBookmarkReminderUseCase,
+                    cancelBookmarkReminderUseCase = cancelBookmarkReminderUseCase
                 ) as T
             }
         }
