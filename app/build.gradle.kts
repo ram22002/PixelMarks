@@ -67,6 +67,10 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.jsoup)
 
+    // Image Loading (Coil 3)
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.androidx.room.testing)

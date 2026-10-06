@@ -17,6 +17,8 @@ import com.pixelmarks.domain.usecase.DeleteBookmarkUseCase
 import com.pixelmarks.domain.usecase.FetchBookmarkMetadataUseCase
 import com.pixelmarks.domain.usecase.GetBookmarkUseCase
 import com.pixelmarks.domain.usecase.ObserveBookmarksUseCase
+import coil3.ImageLoader
+import com.pixelmarks.core.image.PixelMarksImageLoader
 import com.pixelmarks.domain.usecase.UpdateBookmarkUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +32,7 @@ interface AppContainer {
     val collectionRepository: CollectionRepository
     val tagRepository: TagRepository
     val metadataRepository: MetadataRepository
+    val imageLoader: ImageLoader
 
     val addBookmarkUseCase: AddBookmarkUseCase
     val observeBookmarksUseCase: ObserveBookmarksUseCase
@@ -65,6 +68,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val metadataRepository: MetadataRepository by lazy {
         MetadataRepositoryImpl(metadataHttpClient)
+    }
+
+    override val imageLoader: ImageLoader by lazy {
+        PixelMarksImageLoader.create(context)
     }
 
     override val fetchBookmarkMetadataUseCase: FetchBookmarkMetadataUseCase by lazy {

@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.pixelmarks.core.database.model.MetadataStatus
+import com.pixelmarks.core.image.BookmarkFavicon
+import com.pixelmarks.core.image.BookmarkThumbnail
+import com.pixelmarks.core.image.ImageUrlValidator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -276,9 +279,16 @@ fun BookmarkListItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(Spacing.medium),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.medium),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (ImageUrlValidator.isValidImageUrl(bookmark.thumbnailUrl)) {
+                BookmarkThumbnail(
+                    thumbnailUrl = bookmark.thumbnailUrl,
+                    size = 72.dp
+                )
+            }
+
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(Spacing.extraSmall)
@@ -287,13 +297,14 @@ fun BookmarkListItem(
                     text = bookmark.title,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    BookmarkFavicon(faviconUrl = bookmark.faviconUrl)
                     Text(
                         text = bookmark.domain,
                         style = MaterialTheme.typography.bodySmall,
