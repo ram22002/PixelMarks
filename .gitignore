@@ -8,9 +8,11 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
-*.apk
+apk/
 *.ap_
 *.dex
+docs/
+
 
 # Gradle wrapper jar
 !gradle/wrapper/gradle-wrapper.jar
