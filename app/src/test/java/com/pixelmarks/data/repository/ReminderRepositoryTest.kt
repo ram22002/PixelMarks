@@ -221,4 +221,58 @@ class ReminderRepositoryTest {
         val formattedTomorrow = ReminderFormatter.format(tomorrowTarget, now)
         assertTrue(formattedTomorrow.startsWith("Tomorrow ·"))
     }
+
+    @Test
+    fun testCustomReminderPersistedCorrectly() = runBlocking {
+        val bookmarkId = insertTestBookmark()
+        val customFutureTime = System.currentTimeMillis() + (5 * 24 * 3600 * 1000L) // 5 days later
+
+        val reminderId = reminderRepository.setReminder(bookmarkId, customFutureTime)
+        assertTrue(reminderId > 0)
+
+        val retrieved = reminderRepository.getByBookmarkId(bookmarkId)
+        assertNotNull(retrieved)
+        assertEquals(customFutureTime, retrieved?.reminderAt)
+
+        val bookmark = bookmarkRepository.getById(bookmarkId)
+        assertEquals(customFutureTime, bookmark?.reminderAt)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testCustomReminder_pastTimeRejected() {
+        runBlocking {
+            val bookmarkId = insertTestBookmark()
+            val pastTime = System.currentTimeMillis() - 60000L // 1 minute in the past
+            reminderRepository.setReminder(bookmarkId, pastTime)
+        }
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testCustomReminder_negativeTimeRejected() {
+        runBlocking {
+            val bookmarkId = insertTestBookmark()
+            reminderRepository.setReminder(bookmarkId, -5000L)
+        }
+    }
+
+    @Test
+    fun testExistingReminderUpdatedWithCustomTime() = runBlocking {
+        val bookmarkId = insertTestBookmark()
+        val initialPresetTime = System.currentTimeMillis() + 3600000L
+        val customTime = System.currentTimeMillis() + (10 * 24 * 3600 * 1000L)
+
+        val id1 = reminderRepository.setReminder(bookmarkId, initialPresetTime)
+        val id2 = reminderRepository.setReminder(bookmarkId, customTime)
+
+        // Must update existing reminder id and timestamp without duplicates
+        assertEquals(id1, id2)
+
+        val retrieved = reminderRepository.getByBookmarkId(bookmarkId)
+        assertEquals(customTime, retrieved?.reminderAt)
+
+        val all = reminderRepository.observeAll().first()
+        assertEquals(1, all.size)
+        assertEquals(customTime, all.first().reminderAt)
+    }
 }
+

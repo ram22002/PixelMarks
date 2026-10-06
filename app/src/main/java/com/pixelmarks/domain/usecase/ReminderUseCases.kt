@@ -7,8 +7,11 @@ import kotlinx.coroutines.flow.Flow
 class SetBookmarkReminderUseCase(
     private val reminderRepository: ReminderRepository
 ) {
-    suspend operator fun invoke(bookmarkId: Long, reminderAt: Long): Long =
-        reminderRepository.setReminder(bookmarkId, reminderAt)
+    suspend operator fun invoke(bookmarkId: Long, reminderAt: Long): Long {
+        require(reminderAt > 0) { "Reminder timestamp must be positive" }
+        require(reminderAt > System.currentTimeMillis()) { "Reminder time must be in the future" }
+        return reminderRepository.setReminder(bookmarkId, reminderAt)
+    }
 }
 
 class CancelBookmarkReminderUseCase(

@@ -35,6 +35,8 @@ class ReminderRepositoryImpl(
         reminderDao.getByBookmarkId(bookmarkId)?.toDomain()
 
     override suspend fun setReminder(bookmarkId: Long, reminderAt: Long): Long {
+        require(reminderAt > 0) { "Reminder timestamp must be positive" }
+        require(reminderAt > System.currentTimeMillis()) { "Reminder time must be in the future" }
         val now = System.currentTimeMillis()
         val existing = reminderDao.getByBookmarkId(bookmarkId)
 
