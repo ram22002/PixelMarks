@@ -25,6 +25,7 @@ fun PixelMarksScreenScaffold(
     onNavigateBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
+    snackbarHost: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit
 ) {
     Scaffold(
@@ -56,6 +57,7 @@ fun PixelMarksScreenScaffold(
             )
         },
         bottomBar = bottomBar,
+        snackbarHost = snackbarHost,
         containerColor = MaterialTheme.colorScheme.background,
         content = content
     )

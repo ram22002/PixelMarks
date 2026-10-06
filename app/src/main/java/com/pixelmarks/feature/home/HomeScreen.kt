@@ -2,6 +2,7 @@ package com.pixelmarks.feature.home
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,35 +13,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import com.pixelmarks.core.database.model.MetadataStatus
-import com.pixelmarks.core.image.BookmarkFavicon
-import com.pixelmarks.core.image.BookmarkThumbnail
-import com.pixelmarks.core.image.ImageUrlValidator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.Box
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -49,7 +45,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pixelmarks.app.PixelMarksApplication
+import com.pixelmarks.core.database.model.MetadataStatus
+import com.pixelmarks.core.image.BookmarkFavicon
+import com.pixelmarks.core.image.BookmarkThumbnail
+import com.pixelmarks.core.image.ImageUrlValidator
 import com.pixelmarks.core.model.Bookmark
+import com.pixelmarks.ui.components.BookmarkActionMenu
 import com.pixelmarks.ui.components.PixelMarksScreenScaffold
 import com.pixelmarks.ui.theme.PixelMarksTheme
 import com.pixelmarks.ui.theme.Spacing
@@ -62,22 +63,56 @@ fun HomeScreen(
     onNavigateToReminders: () -> Unit,
     onNavigateToBrowser: () -> Unit,
     onNavigateToConnectPc: () -> Unit,
+    onNavigateToTrash: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(
-        factory = HomeViewModel.provideFactory(
-            (LocalContext.current.applicationContext as PixelMarksApplication).container.observeBookmarksUseCase,
-            (LocalContext.current.applicationContext as PixelMarksApplication).container.deleteBookmarkUseCase
-        )
+        factory = run {
+            val app = LocalContext.current.applicationContext as PixelMarksApplication
+            HomeViewModel.provideFactory(
+                observeBookmarksUseCase = app.container.observeBookmarksUseCase,
+                deleteBookmarkUseCase = app.container.deleteBookmarkUseCase,
+                toggleBookmarkFavoriteUseCase = app.container.toggleBookmarkFavoriteUseCase,
+                toggleBookmarkPinUseCase = app.container.toggleBookmarkPinUseCase,
+                archiveBookmarkUseCase = app.container.archiveBookmarkUseCase,
+                trashBookmarkUseCase = app.container.trashBookmarkUseCase,
+                restoreBookmarkUseCase = app.container.restoreBookmarkUseCase
+            )
+        }
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is HomeEvent.ShowTrashUndo -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = event.message,
+                        actionLabel = "UNDO",
+                        duration = androidx.compose.material3.SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.restoreBookmark(event.bookmarkId)
+                    }
+                }
+            }
+        }
+    }
 
     PixelMarksScreenScaffold(
         title = "PixelMarks",
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         actions = {
             IconButton(onClick = onNavigateToSearch) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search bookmarks"
+                )
+            }
+            IconButton(onClick = onNavigateToTrash) {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = "Trash"
                 )
             }
             IconButton(onClick = onNavigateToAddBookmark) {
@@ -199,7 +234,11 @@ fun HomeScreen(
                     BookmarkListItem(
                         bookmark = bookmark,
                         onClick = { onNavigateToBookmarkDetail(bookmark.id) },
-                        onDelete = { viewModel.deleteBookmark(bookmark.id) }
+                        onEdit = { onNavigateToBookmarkDetail(bookmark.id) },
+                        onDelete = { viewModel.moveToTrash(bookmark) },
+                        onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
+                        onTogglePin = { viewModel.togglePin(bookmark) },
+                        onArchive = { viewModel.archiveBookmark(bookmark) }
                     )
                 }
             }
@@ -272,11 +311,17 @@ fun BookmarkListItem(
     bookmark: Bookmark,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    onToggleFavorite: (() -> Unit)? = null,
+    onTogglePin: (() -> Unit)? = null,
+    onArchive: (() -> Unit)? = null,
+    onUnarchive: (() -> Unit)? = null,
     onMove: (() -> Unit)? = null,
-    onRemoveFromCollection: (() -> Unit)? = null
+    onRemoveFromCollection: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.large,
@@ -302,13 +347,35 @@ fun BookmarkListItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(Spacing.extraSmall)
             ) {
-                Text(
-                    text = bookmark.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = bookmark.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (bookmark.isPinned) {
+                        Icon(
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = "Pinned",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    if (bookmark.isFavorite) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Favorite",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -348,56 +415,17 @@ fun BookmarkListItem(
                 )
             }
 
-            if (onMove != null || onRemoveFromCollection != null) {
-                var menuExpanded by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Bookmark options",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        if (onMove != null) {
-                            DropdownMenuItem(
-                                text = { Text("Move to Collection") },
-                                onClick = {
-                                    menuExpanded = false
-                                    onMove()
-                                }
-                            )
-                        }
-                        if (onRemoveFromCollection != null) {
-                            DropdownMenuItem(
-                                text = { Text("Remove from Collection") },
-                                onClick = {
-                                    menuExpanded = false
-                                    onRemoveFromCollection()
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                menuExpanded = false
-                                onDelete()
-                            }
-                        )
-                    }
-                }
-            } else {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "Delete bookmark",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            BookmarkActionMenu(
+                bookmark = bookmark,
+                onEdit = onEdit,
+                onToggleFavorite = onToggleFavorite,
+                onTogglePin = onTogglePin,
+                onArchive = onArchive,
+                onUnarchive = onUnarchive,
+                onMoveToTrash = onDelete,
+                onMoveToCollection = onMove,
+                onRemoveFromCollection = onRemoveFromCollection
+            )
         }
     }
 }
@@ -412,7 +440,8 @@ private fun HomeScreenPreview() {
             onNavigateToBookmarkDetail = {},
             onNavigateToReminders = {},
             onNavigateToBrowser = {},
-            onNavigateToConnectPc = {}
+            onNavigateToConnectPc = {},
+            onNavigateToTrash = {}
         )
     }
 }

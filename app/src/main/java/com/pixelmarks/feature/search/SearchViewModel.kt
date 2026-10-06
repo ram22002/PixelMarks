@@ -8,10 +8,15 @@ import com.pixelmarks.core.model.BookmarkFilters
 import com.pixelmarks.core.model.BookmarkSortOption
 import com.pixelmarks.core.model.Collection
 import com.pixelmarks.core.model.Tag
+import com.pixelmarks.domain.usecase.ArchiveBookmarkUseCase
 import com.pixelmarks.domain.usecase.DeleteBookmarkUseCase
 import com.pixelmarks.domain.usecase.ObserveCollectionsUseCase
 import com.pixelmarks.domain.usecase.ObserveTagsUseCase
 import com.pixelmarks.domain.usecase.SearchBookmarksUseCase
+import com.pixelmarks.domain.usecase.ToggleBookmarkFavoriteUseCase
+import com.pixelmarks.domain.usecase.ToggleBookmarkPinUseCase
+import com.pixelmarks.domain.usecase.TrashBookmarkUseCase
+import com.pixelmarks.domain.usecase.UnarchiveBookmarkUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -55,7 +60,12 @@ class SearchViewModel(
     private val searchBookmarksUseCase: SearchBookmarksUseCase,
     private val observeCollectionsUseCase: ObserveCollectionsUseCase,
     private val observeTagsUseCase: ObserveTagsUseCase,
-    private val deleteBookmarkUseCase: DeleteBookmarkUseCase
+    private val deleteBookmarkUseCase: DeleteBookmarkUseCase,
+    private val toggleBookmarkFavoriteUseCase: ToggleBookmarkFavoriteUseCase,
+    private val toggleBookmarkPinUseCase: ToggleBookmarkPinUseCase,
+    private val archiveBookmarkUseCase: ArchiveBookmarkUseCase,
+    private val unarchiveBookmarkUseCase: UnarchiveBookmarkUseCase,
+    private val trashBookmarkUseCase: TrashBookmarkUseCase
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -159,6 +169,36 @@ class SearchViewModel(
         _filters.value = BookmarkFilters()
     }
 
+    fun toggleFavorite(bookmark: Bookmark) {
+        viewModelScope.launch {
+            toggleBookmarkFavoriteUseCase(bookmark)
+        }
+    }
+
+    fun togglePin(bookmark: Bookmark) {
+        viewModelScope.launch {
+            toggleBookmarkPinUseCase(bookmark)
+        }
+    }
+
+    fun archiveBookmark(bookmark: Bookmark) {
+        viewModelScope.launch {
+            archiveBookmarkUseCase(bookmark)
+        }
+    }
+
+    fun unarchiveBookmark(bookmark: Bookmark) {
+        viewModelScope.launch {
+            unarchiveBookmarkUseCase(bookmark)
+        }
+    }
+
+    fun moveToTrash(bookmark: Bookmark) {
+        viewModelScope.launch {
+            trashBookmarkUseCase(bookmark)
+        }
+    }
+
     fun deleteBookmark(bookmarkId: Long) {
         viewModelScope.launch {
             deleteBookmarkUseCase(bookmarkId)
@@ -170,7 +210,12 @@ class SearchViewModel(
             searchBookmarksUseCase: SearchBookmarksUseCase,
             observeCollectionsUseCase: ObserveCollectionsUseCase,
             observeTagsUseCase: ObserveTagsUseCase,
-            deleteBookmarkUseCase: DeleteBookmarkUseCase
+            deleteBookmarkUseCase: DeleteBookmarkUseCase,
+            toggleBookmarkFavoriteUseCase: ToggleBookmarkFavoriteUseCase,
+            toggleBookmarkPinUseCase: ToggleBookmarkPinUseCase,
+            archiveBookmarkUseCase: ArchiveBookmarkUseCase,
+            unarchiveBookmarkUseCase: UnarchiveBookmarkUseCase,
+            trashBookmarkUseCase: TrashBookmarkUseCase
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -178,7 +223,12 @@ class SearchViewModel(
                     searchBookmarksUseCase,
                     observeCollectionsUseCase,
                     observeTagsUseCase,
-                    deleteBookmarkUseCase
+                    deleteBookmarkUseCase,
+                    toggleBookmarkFavoriteUseCase,
+                    toggleBookmarkPinUseCase,
+                    archiveBookmarkUseCase,
+                    unarchiveBookmarkUseCase,
+                    trashBookmarkUseCase
                 ) as T
             }
         }

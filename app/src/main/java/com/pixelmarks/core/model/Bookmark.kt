@@ -18,6 +18,8 @@ data class Bookmark(
     val isFavorite: Boolean = false,
     val isPinned: Boolean = false,
     val isArchived: Boolean = false,
+    val isTrashed: Boolean = false,
+    val trashedAt: Long? = null,
     val notes: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),

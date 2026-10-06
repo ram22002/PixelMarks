@@ -34,6 +34,7 @@ sealed class Screen(val route: String) {
     data object ConnectPc : Screen("connect_pc")
     data object ConnectedDevices : Screen("connected_devices")
     data object Backup : Screen("backup")
+    data object Trash : Screen("trash")
 }
 
 /**

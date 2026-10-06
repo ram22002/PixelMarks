@@ -26,6 +26,9 @@ class BookmarkRepositoryImpl(
     override fun observeUnsorted(): Flow<List<Bookmark>> =
         bookmarkDao.observeUnsorted().map { list -> list.map { it.toDomain() } }
 
+    override fun observeById(id: Long): Flow<Bookmark?> =
+        bookmarkDao.observeById(id).map { it?.toDomain() }
+
     override fun observeFavorites(): Flow<List<Bookmark>> =
         bookmarkDao.observeFavorites().map { list -> list.map { it.toDomain() } }
 
@@ -35,11 +38,17 @@ class BookmarkRepositoryImpl(
     override fun observeArchived(): Flow<List<Bookmark>> =
         bookmarkDao.observeArchived().map { list -> list.map { it.toDomain() } }
 
+    override fun observeTrashed(): Flow<List<Bookmark>> =
+        bookmarkDao.observeTrashed().map { list -> list.map { it.toDomain() } }
+
     override fun observeByDomain(domain: String): Flow<List<Bookmark>> =
         bookmarkDao.observeByDomain(domain).map { list -> list.map { it.toDomain() } }
 
     override fun observeTotalCount(): Flow<Int> =
         bookmarkDao.observeCount()
+
+    override fun observeTrashedCount(): Flow<Int> =
+        bookmarkDao.observeTrashedCount()
 
     override fun observeBookmarks(
         query: String,
@@ -77,5 +86,23 @@ class BookmarkRepositoryImpl(
         bookmarkDao.delete(bookmark.toEntity())
 
     override suspend fun deleteById(id: Long) =
+        bookmarkDao.deleteById(id)
+
+    override suspend fun setFavorite(id: Long, isFavorite: Boolean) =
+        bookmarkDao.setFavorite(id, isFavorite)
+
+    override suspend fun setPinned(id: Long, isPinned: Boolean) =
+        bookmarkDao.setPinned(id, isPinned)
+
+    override suspend fun setArchived(id: Long, isArchived: Boolean) =
+        bookmarkDao.setArchived(id, isArchived)
+
+    override suspend fun moveToTrash(id: Long) =
+        bookmarkDao.moveToTrash(id)
+
+    override suspend fun restoreFromTrash(id: Long) =
+        bookmarkDao.restoreFromTrash(id)
+
+    override suspend fun permanentlyDelete(id: Long) =
         bookmarkDao.deleteById(id)
 }

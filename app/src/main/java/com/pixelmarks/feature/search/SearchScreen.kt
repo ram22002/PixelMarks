@@ -64,12 +64,20 @@ fun SearchScreen(
     onNavigateBack: () -> Unit,
     onNavigateToBookmarkDetail: (Long) -> Unit,
     viewModel: SearchViewModel = viewModel(
-        factory = SearchViewModel.provideFactory(
-            (LocalContext.current.applicationContext as PixelMarksApplication).container.searchBookmarksUseCase,
-            (LocalContext.current.applicationContext as PixelMarksApplication).container.observeCollectionsUseCase,
-            (LocalContext.current.applicationContext as PixelMarksApplication).container.observeTagsUseCase,
-            (LocalContext.current.applicationContext as PixelMarksApplication).container.deleteBookmarkUseCase
-        )
+        factory = run {
+            val app = LocalContext.current.applicationContext as PixelMarksApplication
+            SearchViewModel.provideFactory(
+                searchBookmarksUseCase = app.container.searchBookmarksUseCase,
+                observeCollectionsUseCase = app.container.observeCollectionsUseCase,
+                observeTagsUseCase = app.container.observeTagsUseCase,
+                deleteBookmarkUseCase = app.container.deleteBookmarkUseCase,
+                toggleBookmarkFavoriteUseCase = app.container.toggleBookmarkFavoriteUseCase,
+                toggleBookmarkPinUseCase = app.container.toggleBookmarkPinUseCase,
+                archiveBookmarkUseCase = app.container.archiveBookmarkUseCase,
+                unarchiveBookmarkUseCase = app.container.unarchiveBookmarkUseCase,
+                trashBookmarkUseCase = app.container.trashBookmarkUseCase
+            )
+        }
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -435,7 +443,12 @@ fun SearchScreen(
                         BookmarkListItem(
                             bookmark = bookmark,
                             onClick = { onNavigateToBookmarkDetail(bookmark.id) },
-                            onDelete = { viewModel.deleteBookmark(bookmark.id) }
+                            onEdit = { onNavigateToBookmarkDetail(bookmark.id) },
+                            onDelete = { viewModel.moveToTrash(bookmark) },
+                            onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
+                            onTogglePin = { viewModel.togglePin(bookmark) },
+                            onArchive = { viewModel.archiveBookmark(bookmark) },
+                            onUnarchive = { viewModel.unarchiveBookmark(bookmark) }
                         )
                     }
                 }

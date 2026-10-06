@@ -29,7 +29,8 @@ import com.pixelmarks.core.database.model.MetadataStatus
         Index(value = ["updatedAt"]),
         Index(value = ["isFavorite"]),
         Index(value = ["isPinned"]),
-        Index(value = ["isArchived"])
+        Index(value = ["isArchived"]),
+        Index(value = ["isTrashed"])
     ]
 )
 data class BookmarkEntity(
@@ -46,6 +47,8 @@ data class BookmarkEntity(
     val isFavorite: Boolean = false,
     val isPinned: Boolean = false,
     val isArchived: Boolean = false,
+    val isTrashed: Boolean = false,
+    val trashedAt: Long? = null,
     val notes: String? = null,
     val createdAt: Long,
     val updatedAt: Long,

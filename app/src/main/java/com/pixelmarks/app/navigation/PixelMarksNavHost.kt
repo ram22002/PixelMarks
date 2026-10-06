@@ -21,6 +21,7 @@ import com.pixelmarks.feature.search.SearchScreen
 import com.pixelmarks.feature.settings.SettingsScreen
 import com.pixelmarks.feature.tags.TagDetailScreen
 import com.pixelmarks.feature.tags.TagsScreen
+import com.pixelmarks.feature.trash.TrashScreen
 
 @Composable
 fun PixelMarksNavHost(
@@ -42,7 +43,8 @@ fun PixelMarksNavHost(
                 },
                 onNavigateToReminders = { navController.navigate(Screen.Reminders.route) },
                 onNavigateToBrowser = { navController.navigate(Screen.Browser.route) },
-                onNavigateToConnectPc = { navController.navigate(Screen.ConnectPc.route) }
+                onNavigateToConnectPc = { navController.navigate(Screen.ConnectPc.route) },
+                onNavigateToTrash = { navController.navigate(Screen.Trash.route) }
             )
         }
 
@@ -163,6 +165,15 @@ fun PixelMarksNavHost(
         composable(Screen.Backup.route) {
             BackupScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Trash.route) {
+            TrashScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBookmarkDetail = { bookmarkId ->
+                    navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))
+                }
             )
         }
     }

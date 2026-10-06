@@ -11,13 +11,16 @@ import kotlinx.coroutines.flow.Flow
  */
 interface BookmarkRepository {
     fun observeAll(): Flow<List<Bookmark>>
+    fun observeById(id: Long): Flow<Bookmark?>
     fun observeByCollection(collectionId: Long): Flow<List<Bookmark>>
     fun observeUnsorted(): Flow<List<Bookmark>>
     fun observeFavorites(): Flow<List<Bookmark>>
     fun observePinned(): Flow<List<Bookmark>>
     fun observeArchived(): Flow<List<Bookmark>>
+    fun observeTrashed(): Flow<List<Bookmark>>
     fun observeByDomain(domain: String): Flow<List<Bookmark>>
     fun observeTotalCount(): Flow<Int>
+    fun observeTrashedCount(): Flow<Int>
     fun observeBookmarks(
         query: String = "",
         filters: BookmarkFilters = BookmarkFilters(),
@@ -29,4 +32,10 @@ interface BookmarkRepository {
     suspend fun update(bookmark: Bookmark)
     suspend fun delete(bookmark: Bookmark)
     suspend fun deleteById(id: Long)
+    suspend fun setFavorite(id: Long, isFavorite: Boolean)
+    suspend fun setPinned(id: Long, isPinned: Boolean)
+    suspend fun setArchived(id: Long, isArchived: Boolean)
+    suspend fun moveToTrash(id: Long)
+    suspend fun restoreFromTrash(id: Long)
+    suspend fun permanentlyDelete(id: Long)
 }

@@ -13,11 +13,20 @@ import com.pixelmarks.data.repository.MetadataRepositoryImpl
 import com.pixelmarks.data.repository.TagRepository
 import com.pixelmarks.data.repository.TagRepositoryImpl
 import com.pixelmarks.domain.usecase.AddBookmarkUseCase
+import com.pixelmarks.domain.usecase.ArchiveBookmarkUseCase
 import com.pixelmarks.domain.usecase.DeleteBookmarkUseCase
 import com.pixelmarks.domain.usecase.FetchBookmarkMetadataUseCase
 import com.pixelmarks.domain.usecase.GetBookmarkUseCase
+import com.pixelmarks.domain.usecase.ObserveBookmarkByIdUseCase
 import com.pixelmarks.domain.usecase.ObserveBookmarksUseCase
+import com.pixelmarks.domain.usecase.ObserveTrashedBookmarksUseCase
+import com.pixelmarks.domain.usecase.PermanentlyDeleteBookmarkUseCase
+import com.pixelmarks.domain.usecase.RestoreBookmarkUseCase
 import com.pixelmarks.domain.usecase.SearchBookmarksUseCase
+import com.pixelmarks.domain.usecase.ToggleBookmarkFavoriteUseCase
+import com.pixelmarks.domain.usecase.ToggleBookmarkPinUseCase
+import com.pixelmarks.domain.usecase.TrashBookmarkUseCase
+import com.pixelmarks.domain.usecase.UnarchiveBookmarkUseCase
 import coil3.ImageLoader
 import com.pixelmarks.core.image.PixelMarksImageLoader
 import com.pixelmarks.domain.usecase.CreateCollectionUseCase
@@ -52,10 +61,19 @@ interface AppContainer {
 
     val addBookmarkUseCase: AddBookmarkUseCase
     val observeBookmarksUseCase: ObserveBookmarksUseCase
+    val observeBookmarkByIdUseCase: ObserveBookmarkByIdUseCase
     val searchBookmarksUseCase: SearchBookmarksUseCase
     val getBookmarkUseCase: GetBookmarkUseCase
     val deleteBookmarkUseCase: DeleteBookmarkUseCase
     val updateBookmarkUseCase: UpdateBookmarkUseCase
+    val toggleBookmarkFavoriteUseCase: ToggleBookmarkFavoriteUseCase
+    val toggleBookmarkPinUseCase: ToggleBookmarkPinUseCase
+    val archiveBookmarkUseCase: ArchiveBookmarkUseCase
+    val unarchiveBookmarkUseCase: UnarchiveBookmarkUseCase
+    val trashBookmarkUseCase: TrashBookmarkUseCase
+    val restoreBookmarkUseCase: RestoreBookmarkUseCase
+    val permanentlyDeleteBookmarkUseCase: PermanentlyDeleteBookmarkUseCase
+    val observeTrashedBookmarksUseCase: ObserveTrashedBookmarksUseCase
     val fetchBookmarkMetadataUseCase: FetchBookmarkMetadataUseCase
 
     val observeCollectionsUseCase: ObserveCollectionsUseCase
@@ -124,6 +142,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         ObserveBookmarksUseCase(bookmarkRepository)
     }
 
+    override val observeBookmarkByIdUseCase: ObserveBookmarkByIdUseCase by lazy {
+        ObserveBookmarkByIdUseCase(bookmarkRepository)
+    }
+
     override val searchBookmarksUseCase: SearchBookmarksUseCase by lazy {
         SearchBookmarksUseCase(bookmarkRepository)
     }
@@ -138,6 +160,38 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val updateBookmarkUseCase: UpdateBookmarkUseCase by lazy {
         UpdateBookmarkUseCase(bookmarkRepository)
+    }
+
+    override val toggleBookmarkFavoriteUseCase: ToggleBookmarkFavoriteUseCase by lazy {
+        ToggleBookmarkFavoriteUseCase(bookmarkRepository)
+    }
+
+    override val toggleBookmarkPinUseCase: ToggleBookmarkPinUseCase by lazy {
+        ToggleBookmarkPinUseCase(bookmarkRepository)
+    }
+
+    override val archiveBookmarkUseCase: ArchiveBookmarkUseCase by lazy {
+        ArchiveBookmarkUseCase(bookmarkRepository)
+    }
+
+    override val unarchiveBookmarkUseCase: UnarchiveBookmarkUseCase by lazy {
+        UnarchiveBookmarkUseCase(bookmarkRepository)
+    }
+
+    override val trashBookmarkUseCase: TrashBookmarkUseCase by lazy {
+        TrashBookmarkUseCase(bookmarkRepository)
+    }
+
+    override val restoreBookmarkUseCase: RestoreBookmarkUseCase by lazy {
+        RestoreBookmarkUseCase(bookmarkRepository)
+    }
+
+    override val permanentlyDeleteBookmarkUseCase: PermanentlyDeleteBookmarkUseCase by lazy {
+        PermanentlyDeleteBookmarkUseCase(bookmarkRepository)
+    }
+
+    override val observeTrashedBookmarksUseCase: ObserveTrashedBookmarksUseCase by lazy {
+        ObserveTrashedBookmarksUseCase(bookmarkRepository)
     }
 
     override val observeCollectionsUseCase: ObserveCollectionsUseCase by lazy {

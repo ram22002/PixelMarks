@@ -35,7 +35,7 @@ import com.pixelmarks.core.database.entity.TagEntity
         ConnectedDeviceEntity::class,
         BackupRecordEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -51,6 +51,14 @@ abstract class PixelMarksDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "pixelmarks.db"
+
+        val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE bookmarks ADD COLUMN isTrashed INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE bookmarks ADD COLUMN trashedAt INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_bookmarks_isTrashed ON bookmarks(isTrashed)")
+            }
+        }
 
         @Volatile
         private var instance: PixelMarksDatabase? = null
@@ -69,7 +77,8 @@ abstract class PixelMarksDatabase : RoomDatabase() {
                 context,
                 PixelMarksDatabase::class.java,
                 DATABASE_NAME
-            ).build()
+            ).addMigrations(MIGRATION_1_2)
+             .build()
         }
 
         /**
@@ -79,7 +88,8 @@ abstract class PixelMarksDatabase : RoomDatabase() {
             return Room.inMemoryDatabaseBuilder(
                 context,
                 PixelMarksDatabase::class.java
-            ).build()
+            ).addMigrations(MIGRATION_1_2)
+             .build()
         }
     }
 }
