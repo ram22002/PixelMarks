@@ -5,6 +5,9 @@ import com.pixelmarks.core.model.Bookmark
 import com.pixelmarks.core.util.UrlUtils
 import com.pixelmarks.data.repository.BookmarkRepository
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
 sealed interface AddBookmarkResult {
     data class Success(val bookmark: Bookmark) : AddBookmarkResult
     data class Duplicate(val existing: Bookmark) : AddBookmarkResult
@@ -14,10 +17,12 @@ sealed interface AddBookmarkResult {
 
 /**
  * Use case orchestrating URL validation, normalization, duplicate checking,
- * and persistence for adding bookmarks.
+ * persistence, and asynchronous metadata enrichment for adding bookmarks.
  */
 class AddBookmarkUseCase(
-    private val bookmarkRepository: BookmarkRepository
+    private val bookmarkRepository: BookmarkRepository,
+    private val fetchBookmarkMetadataUseCase: FetchBookmarkMetadataUseCase? = null,
+    private val coroutineScope: CoroutineScope? = null
 ) {
     suspend operator fun invoke(
         rawUrl: String,
@@ -75,7 +80,18 @@ class AddBookmarkUseCase(
             )
 
             val generatedId = bookmarkRepository.insert(newBookmark)
-            AddBookmarkResult.Success(newBookmark.copy(id = generatedId))
+            val savedBookmark = newBookmark.copy(id = generatedId)
+
+            // Trigger asynchronous metadata enrichment without blocking or gating the save result
+            coroutineScope?.launch {
+                try {
+                    fetchBookmarkMetadataUseCase?.invoke(generatedId)
+                } catch (ignored: Exception) {
+                    // Metadata extraction is an enrichment step; never fail or cancel save
+                }
+            }
+
+            AddBookmarkResult.Success(savedBookmark)
         } catch (e: Exception) {
             AddBookmarkResult.Error(e.message ?: "Failed to save bookmark")
         }

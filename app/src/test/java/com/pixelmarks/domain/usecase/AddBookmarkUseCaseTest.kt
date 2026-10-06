@@ -92,4 +92,29 @@ class AddBookmarkUseCaseTest {
         val matches = repository.findByNormalizedUrl("https://example.com/tools")
         assertEquals(2, matches.size)
     }
+
+    @Test
+    fun testBookmarkSavesImmediatelyEvenIfMetadataExtractionFails() = runBlocking {
+        val failingMetadataRepository = object : com.pixelmarks.data.repository.MetadataRepository {
+            override suspend fun fetchMetadata(url: String): com.pixelmarks.core.model.MetadataFetchResult {
+                throw RuntimeException("Network crash")
+            }
+        }
+        val fetchMetadataUseCase = FetchBookmarkMetadataUseCase(repository, failingMetadataRepository)
+        val useCaseWithFailingMetadata = AddBookmarkUseCase(
+            bookmarkRepository = repository,
+            fetchBookmarkMetadataUseCase = fetchMetadataUseCase,
+            coroutineScope = this
+        )
+
+        val result = useCaseWithFailingMetadata("https://resilient.example.com")
+        assertTrue(result is AddBookmarkResult.Success)
+        val success = result as AddBookmarkResult.Success
+        assertTrue(success.bookmark.id > 0)
+
+        // Bookmark is guaranteed to be persisted in SQLite
+        val persisted = repository.getById(success.bookmark.id)
+        org.junit.Assert.assertNotNull(persisted)
+        assertEquals("https://resilient.example.com", persisted?.url)
+    }
 }

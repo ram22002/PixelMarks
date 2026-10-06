@@ -63,12 +63,17 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // Networking & HTML Parsing
+    implementation(libs.okhttp)
+    implementation(libs.jsoup)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.androidx.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
