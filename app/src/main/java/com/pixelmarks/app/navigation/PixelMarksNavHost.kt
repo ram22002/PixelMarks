@@ -37,7 +37,9 @@ fun PixelMarksNavHost(
             HomeScreen(
                 onNavigateToSearch = { navController.navigate(Screen.Search.route) },
                 onNavigateToAddBookmark = { navController.navigate(Screen.AddBookmark.route) },
-                onNavigateToBookmarkDetail = { navController.navigate(Screen.BookmarkDetail.createRoute(1L)) },
+                onNavigateToBookmarkDetail = { bookmarkId ->
+                    navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))
+                },
                 onNavigateToReminders = { navController.navigate(Screen.Reminders.route) },
                 onNavigateToBrowser = { navController.navigate(Screen.Browser.route) },
                 onNavigateToConnectPc = { navController.navigate(Screen.ConnectPc.route) }

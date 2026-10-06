@@ -40,32 +40,3 @@ fun BookmarkDetailScreen(
         }
     }
 }
-
-@Composable
-fun AddBookmarkScreen(
-    onNavigateBack: () -> Unit
-) {
-    PixelMarksScreenScaffold(
-        title = "Add Bookmark",
-        onNavigateBack = onNavigateBack
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(Spacing.medium),
-            verticalArrangement = Arrangement.spacedBy(Spacing.medium)
-        ) {
-            Text(
-                text = "Add New Bookmark",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "URL input, title, collection and tag selection will be available here.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-    }
-}
