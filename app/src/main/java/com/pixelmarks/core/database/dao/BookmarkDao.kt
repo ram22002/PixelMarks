@@ -120,4 +120,7 @@ interface BookmarkDao {
 
     @Query("UPDATE bookmarks SET visitCount = visitCount + 1, lastOpenedAt = :openedAt WHERE id = :id")
     suspend fun incrementVisitCount(id: Long, openedAt: Long)
+
+    @Query("SELECT * FROM bookmarks")
+    suspend fun getAll(): List<BookmarkEntity>
 }

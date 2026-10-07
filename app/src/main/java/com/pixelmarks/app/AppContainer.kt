@@ -62,6 +62,12 @@ import com.pixelmarks.domain.usecase.GetBrowserPreferenceUseCase
 import com.pixelmarks.domain.usecase.ObserveBrowserPreferenceUseCase
 import com.pixelmarks.domain.usecase.RecordBookmarkVisitUseCase
 import com.pixelmarks.domain.usecase.SetBrowserPreferenceUseCase
+import com.pixelmarks.data.repository.BackupRepository
+import com.pixelmarks.data.repository.BackupRepositoryImpl
+import com.pixelmarks.domain.usecase.CreateBackupUseCase
+import com.pixelmarks.domain.usecase.InspectBackupUseCase
+import com.pixelmarks.domain.usecase.ObserveLatestBackupUseCase
+import com.pixelmarks.domain.usecase.RestoreBackupUseCase
 
 /**
  * Application dependency container providing singleton instances of repositories and use cases.
@@ -119,6 +125,12 @@ interface AppContainer {
     val setBrowserPreferenceUseCase: SetBrowserPreferenceUseCase
     val getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase
     val recordBookmarkVisitUseCase: RecordBookmarkVisitUseCase
+
+    val backupRepository: BackupRepository
+    val createBackupUseCase: CreateBackupUseCase
+    val inspectBackupUseCase: InspectBackupUseCase
+    val restoreBackupUseCase: RestoreBackupUseCase
+    val observeLatestBackupUseCase: ObserveLatestBackupUseCase
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -325,5 +337,25 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val recordBookmarkVisitUseCase: RecordBookmarkVisitUseCase by lazy {
         RecordBookmarkVisitUseCase(bookmarkRepository)
+    }
+
+    override val backupRepository: BackupRepository by lazy {
+        BackupRepositoryImpl(context, database, browserPreferenceRepository)
+    }
+
+    override val createBackupUseCase: CreateBackupUseCase by lazy {
+        CreateBackupUseCase(backupRepository)
+    }
+
+    override val inspectBackupUseCase: InspectBackupUseCase by lazy {
+        InspectBackupUseCase(backupRepository)
+    }
+
+    override val restoreBackupUseCase: RestoreBackupUseCase by lazy {
+        RestoreBackupUseCase(backupRepository)
+    }
+
+    override val observeLatestBackupUseCase: ObserveLatestBackupUseCase by lazy {
+        ObserveLatestBackupUseCase(backupRepository)
     }
 }

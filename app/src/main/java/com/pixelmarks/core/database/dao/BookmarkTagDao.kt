@@ -34,6 +34,12 @@ interface BookmarkTagDao {
     @Query("SELECT * FROM bookmark_tag_cross_ref")
     fun observeAllCrossRefs(): Flow<List<BookmarkTagCrossRef>>
 
+    @Query("SELECT * FROM bookmark_tag_cross_ref")
+    suspend fun getAllCrossRefs(): List<BookmarkTagCrossRef>
+
+    @Query("DELETE FROM bookmark_tag_cross_ref")
+    suspend fun deleteAll()
+
     @Query("""
         SELECT t.* FROM tags t
         INNER JOIN bookmark_tag_cross_ref ref ON t.id = ref.tagId

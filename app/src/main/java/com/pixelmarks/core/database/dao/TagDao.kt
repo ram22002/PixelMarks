@@ -38,4 +38,10 @@ interface TagDao {
 
     @Query("SELECT * FROM tags ORDER BY name ASC")
     fun observeAll(): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM tags ORDER BY id ASC")
+    suspend fun getAll(): List<TagEntity>
+
+    @Query("DELETE FROM tags")
+    suspend fun deleteAll()
 }

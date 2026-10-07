@@ -47,4 +47,10 @@ interface ReminderDao {
 
     @Query("SELECT * FROM reminders ORDER BY reminderAt ASC")
     fun observeAll(): Flow<List<ReminderEntity>>
+
+    @Query("SELECT * FROM reminders")
+    suspend fun getAll(): List<ReminderEntity>
+
+    @Query("DELETE FROM reminders")
+    suspend fun deleteAll()
 }

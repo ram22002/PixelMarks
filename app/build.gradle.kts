@@ -68,6 +68,7 @@ dependencies {
     // Networking & HTML Parsing
     implementation(libs.okhttp)
     implementation(libs.jsoup)
+    implementation(libs.gson)
 
     // Image Loading (Coil 3)
     implementation(libs.coil.compose)

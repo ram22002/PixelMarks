@@ -44,4 +44,10 @@ interface CollectionDao {
 
     @Query("SELECT * FROM collections ORDER BY position ASC, name ASC")
     fun observeAll(): Flow<List<CollectionEntity>>
+
+    @Query("SELECT * FROM collections ORDER BY id ASC")
+    suspend fun getAll(): List<CollectionEntity>
+
+    @Query("DELETE FROM collections")
+    suspend fun deleteAll()
 }
