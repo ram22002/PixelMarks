@@ -56,6 +56,12 @@ import com.pixelmarks.domain.usecase.MarkReminderCompletedUseCase
 import com.pixelmarks.domain.usecase.ObserveBookmarkReminderUseCase
 import com.pixelmarks.domain.usecase.ObserveUpcomingRemindersUseCase
 import com.pixelmarks.domain.usecase.SetBookmarkReminderUseCase
+import com.pixelmarks.data.repository.BrowserPreferenceRepository
+import com.pixelmarks.data.repository.BrowserPreferenceRepositoryImpl
+import com.pixelmarks.domain.usecase.GetBrowserPreferenceUseCase
+import com.pixelmarks.domain.usecase.ObserveBrowserPreferenceUseCase
+import com.pixelmarks.domain.usecase.RecordBookmarkVisitUseCase
+import com.pixelmarks.domain.usecase.SetBrowserPreferenceUseCase
 
 /**
  * Application dependency container providing singleton instances of repositories and use cases.
@@ -107,6 +113,12 @@ interface AppContainer {
     val observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase
     val observeUpcomingRemindersUseCase: ObserveUpcomingRemindersUseCase
     val markReminderCompletedUseCase: MarkReminderCompletedUseCase
+
+    val browserPreferenceRepository: BrowserPreferenceRepository
+    val observeBrowserPreferenceUseCase: ObserveBrowserPreferenceUseCase
+    val setBrowserPreferenceUseCase: SetBrowserPreferenceUseCase
+    val getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase
+    val recordBookmarkVisitUseCase: RecordBookmarkVisitUseCase
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -293,5 +305,25 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val markReminderCompletedUseCase: MarkReminderCompletedUseCase by lazy {
         MarkReminderCompletedUseCase(reminderRepository)
+    }
+
+    override val browserPreferenceRepository: BrowserPreferenceRepository by lazy {
+        BrowserPreferenceRepositoryImpl(context)
+    }
+
+    override val observeBrowserPreferenceUseCase: ObserveBrowserPreferenceUseCase by lazy {
+        ObserveBrowserPreferenceUseCase(browserPreferenceRepository)
+    }
+
+    override val setBrowserPreferenceUseCase: SetBrowserPreferenceUseCase by lazy {
+        SetBrowserPreferenceUseCase(browserPreferenceRepository)
+    }
+
+    override val getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase by lazy {
+        GetBrowserPreferenceUseCase(browserPreferenceRepository)
+    }
+
+    override val recordBookmarkVisitUseCase: RecordBookmarkVisitUseCase by lazy {
+        RecordBookmarkVisitUseCase(bookmarkRepository)
     }
 }

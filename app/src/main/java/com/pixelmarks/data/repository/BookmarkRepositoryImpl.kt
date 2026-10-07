@@ -105,4 +105,7 @@ class BookmarkRepositoryImpl(
 
     override suspend fun permanentlyDelete(id: Long) =
         bookmarkDao.deleteById(id)
+
+    override suspend fun recordVisit(id: Long, openedAt: Long) =
+        bookmarkDao.incrementVisitCount(id, openedAt)
 }

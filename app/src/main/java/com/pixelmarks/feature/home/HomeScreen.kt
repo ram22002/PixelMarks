@@ -51,6 +51,13 @@ import com.pixelmarks.core.image.BookmarkThumbnail
 import com.pixelmarks.core.image.ImageUrlValidator
 import com.pixelmarks.core.model.Bookmark
 import com.pixelmarks.ui.components.BookmarkActionMenu
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import com.pixelmarks.core.browser.BrowserLauncher
+import com.pixelmarks.core.browser.BrowserPreference
+import com.pixelmarks.feature.browser.OpenLinkBottomSheet
+import kotlinx.coroutines.launch
 import com.pixelmarks.ui.components.PixelMarksScreenScaffold
 import com.pixelmarks.ui.theme.PixelMarksTheme
 import com.pixelmarks.ui.theme.Spacing
@@ -61,7 +68,7 @@ fun HomeScreen(
     onNavigateToAddBookmark: () -> Unit,
     onNavigateToBookmarkDetail: (Long) -> Unit,
     onNavigateToReminders: () -> Unit,
-    onNavigateToBrowser: () -> Unit,
+    onNavigateToBrowser: (String) -> Unit = {},
     onNavigateToConnectPc: () -> Unit,
     onNavigateToTrash: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(
@@ -81,6 +88,25 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var showAskEveryTimeSheet by remember { mutableStateOf(false) }
+    var askEveryTimeUrl by remember { mutableStateOf("") }
+
+    if (showAskEveryTimeSheet) {
+        OpenLinkBottomSheet(
+            url = askEveryTimeUrl,
+            onDismiss = { showAskEveryTimeSheet = false },
+            onSelectMode = { mode ->
+                when (mode) {
+                    BrowserPreference.IN_APP -> onNavigateToBrowser(askEveryTimeUrl)
+                    BrowserPreference.SYSTEM_PREFERRED -> BrowserLauncher.launchSystemPreferred(context, askEveryTimeUrl)
+                    BrowserPreference.DEFAULT_BROWSER -> BrowserLauncher.launchDefaultBrowser(context, askEveryTimeUrl)
+                    else -> BrowserLauncher.launchSystemPreferred(context, askEveryTimeUrl)
+                }
+            }
+        )
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
@@ -235,6 +261,23 @@ fun HomeScreen(
                         bookmark = bookmark,
                         onClick = { onNavigateToBookmarkDetail(bookmark.id) },
                         onEdit = { onNavigateToBookmarkDetail(bookmark.id) },
+                        onOpen = {
+                            coroutineScope.launch {
+                                val app = context.applicationContext as PixelMarksApplication
+                                app.container.recordBookmarkVisitUseCase(bookmark.id)
+                                val pref = app.container.getBrowserPreferenceUseCase()
+                                BrowserLauncher.openUrl(
+                                    context = context,
+                                    url = bookmark.url,
+                                    preference = pref,
+                                    onNavigateToInApp = onNavigateToBrowser,
+                                    onShowAskEveryTimeSheet = { targetUrl ->
+                                        askEveryTimeUrl = targetUrl
+                                        showAskEveryTimeSheet = true
+                                    }
+                                )
+                            }
+                        },
                         onDelete = { viewModel.moveToTrash(bookmark) },
                         onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
                         onTogglePin = { viewModel.togglePin(bookmark) },
@@ -285,7 +328,7 @@ fun HomeScreen(
                         Text("Reminders")
                     }
                     OutlinedButton(
-                        onClick = onNavigateToBrowser,
+                        onClick = { onNavigateToBrowser("") },
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Browser")
@@ -311,6 +354,7 @@ fun BookmarkListItem(
     bookmark: Bookmark,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onOpen: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
     onToggleFavorite: (() -> Unit)? = null,
     onTogglePin: (() -> Unit)? = null,
@@ -417,6 +461,7 @@ fun BookmarkListItem(
 
             BookmarkActionMenu(
                 bookmark = bookmark,
+                onOpen = onOpen,
                 onEdit = onEdit,
                 onToggleFavorite = onToggleFavorite,
                 onTogglePin = onTogglePin,

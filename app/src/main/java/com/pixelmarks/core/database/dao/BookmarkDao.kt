@@ -117,4 +117,7 @@ interface BookmarkDao {
         collectionId: Long?,
         tagId: Long?
     ): Flow<List<BookmarkEntity>>
+
+    @Query("UPDATE bookmarks SET visitCount = visitCount + 1, lastOpenedAt = :openedAt WHERE id = :id")
+    suspend fun incrementVisitCount(id: Long, openedAt: Long)
 }

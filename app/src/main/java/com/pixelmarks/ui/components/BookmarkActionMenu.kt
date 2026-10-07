@@ -2,6 +2,7 @@ package com.pixelmarks.ui.components
 
 import android.content.Intent
 import android.net.Uri
+import com.pixelmarks.core.browser.BrowserLauncher
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
@@ -107,10 +108,7 @@ fun BookmarkActionMenu(
                         if (onOpen != null) {
                             onOpen()
                         } else {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(bookmark.url))
-                                context.startActivity(intent)
-                            } catch (_: Exception) {}
+                            BrowserLauncher.launchDefaultBrowser(context, bookmark.url)
                         }
                     }
                 )

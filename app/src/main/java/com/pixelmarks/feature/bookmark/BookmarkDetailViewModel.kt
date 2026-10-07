@@ -34,6 +34,9 @@ import kotlinx.coroutines.launch
 
 import com.pixelmarks.core.model.Reminder
 import com.pixelmarks.domain.usecase.ObserveBookmarkReminderUseCase
+import com.pixelmarks.core.browser.BrowserPreference
+import com.pixelmarks.domain.usecase.GetBrowserPreferenceUseCase
+import com.pixelmarks.domain.usecase.RecordBookmarkVisitUseCase
 
 data class BookmarkDetailUiState(
     val bookmark: Bookmark? = null,
@@ -66,8 +69,22 @@ class BookmarkDetailViewModel(
     private val observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
     private val setBookmarkReminderUseCase: SetBookmarkReminderUseCase? = null,
     private val cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null,
-    private val observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase? = null
+    private val observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase? = null,
+    private val recordBookmarkVisitUseCase: RecordBookmarkVisitUseCase? = null,
+    private val getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase? = null
 ) : ViewModel() {
+
+    fun recordVisit() {
+        recordBookmarkVisitUseCase?.let { useCase ->
+            viewModelScope.launch {
+                useCase(bookmarkId)
+            }
+        }
+    }
+
+    suspend fun getBrowserPreference(): BrowserPreference {
+        return getBrowserPreferenceUseCase?.invoke() ?: BrowserPreference.DEFAULT
+    }
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     private val _collections = MutableStateFlow<List<Collection>>(emptyList())
@@ -239,7 +256,9 @@ class BookmarkDetailViewModel(
             observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
             setBookmarkReminderUseCase: SetBookmarkReminderUseCase? = null,
             cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null,
-            observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase? = null
+            observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase? = null,
+            recordBookmarkVisitUseCase: RecordBookmarkVisitUseCase? = null,
+            getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -263,7 +282,9 @@ class BookmarkDetailViewModel(
                     observeCollectionsUseCase = observeCollectionsUseCase,
                     setBookmarkReminderUseCase = setBookmarkReminderUseCase,
                     cancelBookmarkReminderUseCase = cancelBookmarkReminderUseCase,
-                    observeBookmarkReminderUseCase = observeBookmarkReminderUseCase
+                    observeBookmarkReminderUseCase = observeBookmarkReminderUseCase,
+                    recordBookmarkVisitUseCase = recordBookmarkVisitUseCase,
+                    getBrowserPreferenceUseCase = getBrowserPreferenceUseCase
                 ) as T
             }
         }

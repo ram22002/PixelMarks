@@ -5,6 +5,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.pixelmarks.core.browser.BrowserLauncher
+import com.pixelmarks.core.browser.BrowserPreference
+import com.pixelmarks.feature.browser.OpenLinkBottomSheet
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -100,6 +103,7 @@ fun BookmarkDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEditBookmark: (Long) -> Unit = {},
     onNavigateToTagDetail: (Long) -> Unit = {},
+    onNavigateToBrowser: (String) -> Unit = {},
     viewModel: BookmarkDetailViewModel = viewModel(
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
@@ -123,7 +127,9 @@ fun BookmarkDetailScreen(
                 observeCollectionsUseCase = app.container.observeCollectionsUseCase,
                 setBookmarkReminderUseCase = app.container.setBookmarkReminderUseCase,
                 cancelBookmarkReminderUseCase = app.container.cancelBookmarkReminderUseCase,
-                observeBookmarkReminderUseCase = app.container.observeBookmarkReminderUseCase
+                observeBookmarkReminderUseCase = app.container.observeBookmarkReminderUseCase,
+                recordBookmarkVisitUseCase = app.container.recordBookmarkVisitUseCase,
+                getBrowserPreferenceUseCase = app.container.getBrowserPreferenceUseCase
             )
         }
     )
@@ -141,6 +147,8 @@ fun BookmarkDetailScreen(
     var showExpirationDialog by remember { mutableStateOf(false) }
     var showEditNoteDialog by remember { mutableStateOf(false) }
     var editingNoteText by remember { mutableStateOf("") }
+    var showAskEveryTimeSheet by remember { mutableStateOf(false) }
+    var askEveryTimeUrl by remember { mutableStateOf("") }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { error ->
@@ -268,6 +276,21 @@ fun BookmarkDetailScreen(
         )
     }
 
+    if (showAskEveryTimeSheet) {
+        OpenLinkBottomSheet(
+            url = askEveryTimeUrl,
+            onDismiss = { showAskEveryTimeSheet = false },
+            onSelectMode = { mode ->
+                when (mode) {
+                    BrowserPreference.IN_APP -> onNavigateToBrowser(askEveryTimeUrl)
+                    BrowserPreference.SYSTEM_PREFERRED -> BrowserLauncher.launchSystemPreferred(context, askEveryTimeUrl)
+                    BrowserPreference.DEFAULT_BROWSER -> BrowserLauncher.launchDefaultBrowser(context, askEveryTimeUrl)
+                    else -> BrowserLauncher.launchSystemPreferred(context, askEveryTimeUrl)
+                }
+            }
+        )
+    }
+
     val current = uiState.bookmark
 
     fun copyLinkToClipboard() {
@@ -295,15 +318,19 @@ fun BookmarkDetailScreen(
 
     fun openInBrowser() {
         if (current == null) return
-        try {
-            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(current.url)).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(browserIntent)
-        } catch (_: Exception) {
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar("Unable to open browser for this link")
-            }
+        viewModel.recordVisit()
+        coroutineScope.launch {
+            val pref = viewModel.getBrowserPreference()
+            BrowserLauncher.openUrl(
+                context = context,
+                url = current.url,
+                preference = pref,
+                onNavigateToInApp = onNavigateToBrowser,
+                onShowAskEveryTimeSheet = { targetUrl ->
+                    askEveryTimeUrl = targetUrl
+                    showAskEveryTimeSheet = true
+                }
+            )
         }
     }
 
@@ -461,7 +488,9 @@ fun BookmarkDetailScreen(
 
                     // URL & Open in Browser Button
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = ::openInBrowser),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {

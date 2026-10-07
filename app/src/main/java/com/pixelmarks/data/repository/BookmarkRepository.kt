@@ -38,4 +38,5 @@ interface BookmarkRepository {
     suspend fun moveToTrash(id: Long)
     suspend fun restoreFromTrash(id: Long)
     suspend fun permanentlyDelete(id: Long)
+    suspend fun recordVisit(id: Long, openedAt: Long = System.currentTimeMillis())
 }

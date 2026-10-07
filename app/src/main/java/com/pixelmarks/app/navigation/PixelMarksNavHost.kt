@@ -43,7 +43,7 @@ fun PixelMarksNavHost(
                     navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))
                 },
                 onNavigateToReminders = { navController.navigate(Screen.Reminders.route) },
-                onNavigateToBrowser = { navController.navigate(Screen.Browser.route) },
+                onNavigateToBrowser = { url -> navController.navigate(Screen.Browser.createRoute(url)) },
                 onNavigateToConnectPc = { navController.navigate(Screen.ConnectPc.route) },
                 onNavigateToTrash = { navController.navigate(Screen.Trash.route) }
             )
@@ -122,6 +122,9 @@ fun PixelMarksNavHost(
                 },
                 onNavigateToTagDetail = { tagId ->
                     navController.navigate(Screen.TagDetail.createRoute(tagId))
+                },
+                onNavigateToBrowser = { url ->
+                    navController.navigate(Screen.Browser.createRoute(url))
                 }
             )
         }
@@ -170,8 +173,19 @@ fun PixelMarksNavHost(
             )
         }
 
-        composable(Screen.Browser.route) {
+        composable(
+            route = Screen.Browser.route,
+            arguments = listOf(
+                navArgument("url") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
+            val rawUrl = backStackEntry.arguments?.getString("url") ?: ""
+            val decodedUrl = android.net.Uri.decode(rawUrl)
             BrowserScreen(
+                initialUrl = decodedUrl,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

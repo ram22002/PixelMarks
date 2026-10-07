@@ -33,7 +33,9 @@ sealed class Screen(val route: String) {
         fun createRoute(tagId: Long = 1L) = "tag_detail/$tagId"
     }
     data object Reminders : Screen("reminders")
-    data object Browser : Screen("browser")
+    data object Browser : Screen("browser?url={url}") {
+        fun createRoute(url: String = "") = "browser?url=${android.net.Uri.encode(url)}"
+    }
     data object ConnectPc : Screen("connect_pc")
     data object ConnectedDevices : Screen("connected_devices")
     data object Backup : Screen("backup")
