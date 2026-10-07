@@ -95,7 +95,7 @@ class DatabaseMigrationTest {
             context,
             PixelMarksDatabase::class.java,
             testDbName
-        ).addMigrations(PixelMarksDatabase.MIGRATION_1_2)
+        ).addMigrations(PixelMarksDatabase.MIGRATION_1_2, PixelMarksDatabase.MIGRATION_2_3)
             .build()
 
         val dao = database!!.bookmarkDao()
@@ -152,6 +152,55 @@ class DatabaseMigrationTest {
 
         // Active should have item 1 again
         assertEquals(1, dao.observeAll().first().size)
+    }
+
+    @Test
+    fun testMigration2To3PreservesDataAndAddsIsPrivateColumns() = runBlocking {
+        val config = SupportSQLiteOpenHelper.Configuration.builder(context)
+            .name(testDbName)
+            .callback(object : SupportSQLiteOpenHelper.Callback(2) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    createV1Schema(db)
+                    PixelMarksDatabase.MIGRATION_1_2.migrate(db)
+                }
+
+                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+            })
+            .build()
+
+        val helper = FrameworkSQLiteOpenHelperFactory().create(config)
+        val v2Db = helper.writableDatabase
+
+        val now = 1700000000000L
+        v2Db.execSQL(
+            """
+            INSERT INTO bookmarks (
+                id, url, normalizedUrl, title, description, domain,
+                faviconUrl, thumbnailUrl, collectionId, isFavorite, isPinned,
+                isArchived, isTrashed, trashedAt, notes, createdAt, updatedAt, lastOpenedAt,
+                visitCount, reminderAt, metadataStatus, metadataUpdatedAt
+            ) VALUES (
+                10, 'https://v2test.com', 'https://v2test.com', 'V2 Test Bookmark', NULL, 'v2test.com',
+                NULL, NULL, NULL, 0, 0,
+                0, 0, NULL, NULL, $now, $now, NULL,
+                1, NULL, 'SUCCESS', $now
+            )
+            """.trimIndent()
+        )
+        v2Db.close()
+
+        database = Room.databaseBuilder(
+            context,
+            PixelMarksDatabase::class.java,
+            testDbName
+        ).addMigrations(PixelMarksDatabase.MIGRATION_2_3)
+            .build()
+
+        val dao = database!!.bookmarkDao()
+        val item = dao.getById(10L)
+        assertNotNull(item)
+        assertEquals("V2 Test Bookmark", item?.title)
+        assertFalse(item!!.isPrivate)
     }
 
     private fun createV1Schema(db: SupportSQLiteDatabase) {

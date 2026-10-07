@@ -68,11 +68,27 @@ import com.pixelmarks.domain.usecase.CreateBackupUseCase
 import com.pixelmarks.domain.usecase.InspectBackupUseCase
 import com.pixelmarks.domain.usecase.ObserveLatestBackupUseCase
 import com.pixelmarks.domain.usecase.RestoreBackupUseCase
+import com.pixelmarks.data.repository.SecurityPreferencesRepository
+import com.pixelmarks.data.repository.SecurityPreferencesRepositoryImpl
+import com.pixelmarks.core.security.biometric.BiometricAuthManager
+import com.pixelmarks.core.security.AppLockManager
+import com.pixelmarks.domain.usecase.ObserveAppLockSettingsUseCase
+import com.pixelmarks.domain.usecase.SetAppLockEnabledUseCase
+import com.pixelmarks.domain.usecase.SetAppLockTimeoutUseCase
+import com.pixelmarks.domain.usecase.CheckBiometricCapabilityUseCase
+import com.pixelmarks.domain.usecase.ManageAppLockUseCase
+
+import com.pixelmarks.core.security.PrivateModeManager
+import com.pixelmarks.core.security.PrivateModeManagerImpl
+import com.pixelmarks.data.repository.PrivatePreferencesRepository
+import com.pixelmarks.data.repository.PrivatePreferencesRepositoryImpl
 
 /**
  * Application dependency container providing singleton instances of repositories and use cases.
  */
 interface AppContainer {
+    val privateModeManager: PrivateModeManager
+    val privatePreferencesRepository: PrivatePreferencesRepository
     val bookmarkRepository: BookmarkRepository
     val collectionRepository: CollectionRepository
     val tagRepository: TagRepository
@@ -131,6 +147,15 @@ interface AppContainer {
     val inspectBackupUseCase: InspectBackupUseCase
     val restoreBackupUseCase: RestoreBackupUseCase
     val observeLatestBackupUseCase: ObserveLatestBackupUseCase
+
+    val securityPreferencesRepository: SecurityPreferencesRepository
+    val biometricAuthManager: BiometricAuthManager
+    val appLockManager: AppLockManager
+    val observeAppLockSettingsUseCase: ObserveAppLockSettingsUseCase
+    val setAppLockEnabledUseCase: SetAppLockEnabledUseCase
+    val setAppLockTimeoutUseCase: SetAppLockTimeoutUseCase
+    val checkBiometricCapabilityUseCase: CheckBiometricCapabilityUseCase
+    val manageAppLockUseCase: ManageAppLockUseCase
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -175,6 +200,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             fetchBookmarkMetadataUseCase = fetchBookmarkMetadataUseCase,
             tagRepository = tagRepository,
             reminderRepository = reminderRepository,
+            collectionRepository = collectionRepository,
             coroutineScope = applicationScope
         )
     }
@@ -256,7 +282,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val moveBookmarkUseCase: MoveBookmarkUseCase by lazy {
-        MoveBookmarkUseCase(bookmarkRepository)
+        MoveBookmarkUseCase(bookmarkRepository, collectionRepository)
     }
 
     override val observeTagsUseCase: ObserveTagsUseCase by lazy {
@@ -357,5 +383,45 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val observeLatestBackupUseCase: ObserveLatestBackupUseCase by lazy {
         ObserveLatestBackupUseCase(backupRepository)
+    }
+
+    override val securityPreferencesRepository: SecurityPreferencesRepository by lazy {
+        SecurityPreferencesRepositoryImpl(context)
+    }
+
+    override val biometricAuthManager: BiometricAuthManager by lazy {
+        BiometricAuthManager(context)
+    }
+
+    override val appLockManager: AppLockManager by lazy {
+        AppLockManager(securityPreferencesRepository)
+    }
+
+    override val observeAppLockSettingsUseCase: ObserveAppLockSettingsUseCase by lazy {
+        ObserveAppLockSettingsUseCase(securityPreferencesRepository)
+    }
+
+    override val setAppLockEnabledUseCase: SetAppLockEnabledUseCase by lazy {
+        SetAppLockEnabledUseCase(securityPreferencesRepository, appLockManager)
+    }
+
+    override val setAppLockTimeoutUseCase: SetAppLockTimeoutUseCase by lazy {
+        SetAppLockTimeoutUseCase(securityPreferencesRepository)
+    }
+
+    override val checkBiometricCapabilityUseCase: CheckBiometricCapabilityUseCase by lazy {
+        CheckBiometricCapabilityUseCase(biometricAuthManager)
+    }
+
+    override val manageAppLockUseCase: ManageAppLockUseCase by lazy {
+        ManageAppLockUseCase(appLockManager)
+    }
+
+    override val privateModeManager: PrivateModeManager by lazy {
+        PrivateModeManagerImpl()
+    }
+
+    override val privatePreferencesRepository: PrivatePreferencesRepository by lazy {
+        PrivatePreferencesRepositoryImpl(context)
     }
 }

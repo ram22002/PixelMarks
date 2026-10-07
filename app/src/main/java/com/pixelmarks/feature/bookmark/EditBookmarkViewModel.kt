@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.pixelmarks.core.security.PrivateModeManager
 
 data class EditBookmarkUiState(
     val bookmarkId: Long = 0,
@@ -32,6 +33,7 @@ data class EditBookmarkUiState(
     val domain: String = "",
     val thumbnailUrl: String? = null,
     val faviconUrl: String? = null,
+    val isPrivate: Boolean = false,
     val selectedCollectionId: Long? = null,
     val availableCollections: List<Collection> = emptyList(),
     val selectedTagIds: Set<Long> = emptySet(),
@@ -51,7 +53,8 @@ class EditBookmarkViewModel(
     private val collectionRepository: CollectionRepository,
     private val reminderRepository: ReminderRepository? = null,
     private val metadataRepository: MetadataRepository? = null,
-    private val createTagUseCase: CreateTagUseCase? = null
+    private val createTagUseCase: CreateTagUseCase? = null,
+    private val privateModeManager: PrivateModeManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EditBookmarkUiState(bookmarkId = bookmarkId))
@@ -65,13 +68,15 @@ class EditBookmarkViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val bookmark = bookmarkRepository.getById(bookmarkId)
-            if (bookmark == null) {
+            val isPrivateActive = privateModeManager?.isPrivateActive() ?: false
+            if (bookmark == null || (bookmark.isPrivate && !isPrivateActive)) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = "Bookmark not found") }
                 return@launch
             }
 
-            val collections = collectionRepository.observeAll().firstOrNull() ?: emptyList()
-            val allTags = tagRepository.observeAll().firstOrNull() ?: emptyList()
+            val isPrivate = bookmark.isPrivate
+            val collections = collectionRepository.observeAll(isPrivate = isPrivate).firstOrNull() ?: emptyList()
+            val allTags = tagRepository.observeAll(isPrivate = isPrivate).firstOrNull() ?: emptyList()
             val assignedTags = tagRepository.observeTagsForBookmark(bookmarkId).firstOrNull() ?: emptyList()
             val reminder = reminderRepository?.getByBookmarkId(bookmarkId)
 
@@ -86,6 +91,7 @@ class EditBookmarkViewModel(
                     domain = bookmark.domain,
                     thumbnailUrl = bookmark.thumbnailUrl,
                     faviconUrl = bookmark.faviconUrl,
+                    isPrivate = isPrivate,
                     selectedCollectionId = bookmark.collectionId,
                     availableCollections = collections,
                     selectedTagIds = assignedTags.map { t -> t.id }.toSet(),
@@ -98,10 +104,28 @@ class EditBookmarkViewModel(
         }
     }
 
+    fun requestTogglePrivacy(newIsPrivate: Boolean) {
+        if (_uiState.value.isPrivate == newIsPrivate) return
+        viewModelScope.launch {
+            val collections = collectionRepository.observeAll(isPrivate = newIsPrivate).firstOrNull() ?: emptyList()
+            val allTags = tagRepository.observeAll(isPrivate = newIsPrivate).firstOrNull() ?: emptyList()
+            _uiState.update {
+                it.copy(
+                    isPrivate = newIsPrivate,
+                    selectedCollectionId = null,
+                    selectedTagIds = emptySet(),
+                    availableCollections = collections,
+                    availableTags = allTags.sortedBy { t -> t.name.lowercase() }
+                )
+            }
+        }
+    }
+
     fun onUrlChanged(newUrl: String) {
-        val domain = if (UrlUtils.isValidUrl(newUrl.trim())) {
-            UrlUtils.extractDomain(UrlUtils.normalizeUrl(newUrl.trim()))
-        } else _uiState.value.domain
+        val trimmed = newUrl.trim()
+        val domain = if (UrlUtils.isValidUrl(trimmed)) {
+            UrlUtils.extractDomain(UrlUtils.normalizeUrl(trimmed))
+        } else ""
 
         _uiState.update {
             it.copy(
@@ -125,7 +149,34 @@ class EditBookmarkViewModel(
     }
 
     fun onCollectionSelected(collectionId: Long?) {
-        _uiState.update { it.copy(selectedCollectionId = collectionId) }
+        _uiState.update {
+            it.copy(selectedCollectionId = if (it.selectedCollectionId == collectionId) null else collectionId)
+        }
+    }
+
+    fun onTagToggled(tagId: Long) {
+        _uiState.update { state ->
+            val updated = if (state.selectedTagIds.contains(tagId)) {
+                state.selectedTagIds - tagId
+            } else {
+                state.selectedTagIds + tagId
+            }
+            state.copy(selectedTagIds = updated)
+        }
+    }
+
+    fun onReminderSet(timestamp: Long?) {
+        _uiState.update { it.copy(reminderAt = timestamp) }
+    }
+
+    fun onReminderChanged(timestamp: Long?) = onReminderSet(timestamp)
+
+    fun onImageReplaced(newImageUrl: String) {
+        _uiState.update { it.copy(thumbnailUrl = newImageUrl) }
+    }
+
+    fun onImageRemoved() {
+        _uiState.update { it.copy(thumbnailUrl = null) }
     }
 
     fun onTagsSelected(tagIds: Set<Long>) {
@@ -136,29 +187,41 @@ class EditBookmarkViewModel(
         _uiState.update { it.copy(selectedTagIds = it.selectedTagIds - tagId) }
     }
 
-    fun onReminderChanged(timestamp: Long?) {
-        _uiState.update { it.copy(reminderAt = timestamp) }
-    }
+    fun createTag(name: String, onSuccess: (Tag) -> Unit = {}) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty() || createTagUseCase == null) return
 
-    fun onImageReplaced(imageUrl: String?) {
-        _uiState.update { it.copy(thumbnailUrl = imageUrl) }
-    }
-
-    fun onImageRemoved() {
-        _uiState.update { it.copy(thumbnailUrl = null) }
-    }
-
-    fun createTag(name: String, onCreated: (Tag) -> Unit) {
-        if (createTagUseCase == null) return
         viewModelScope.launch {
-            when (val result = createTagUseCase(name)) {
-                is CreateTagResult.Success -> onCreated(result.tag)
-                is CreateTagResult.InvalidName -> _uiState.update { it.copy(errorMessage = result.message) }
-                is CreateTagResult.DuplicateName -> _uiState.update { it.copy(errorMessage = result.message) }
-                is CreateTagResult.Error -> _uiState.update { it.copy(errorMessage = result.message) }
+            when (val result = createTagUseCase(name = trimmed, isPrivate = _uiState.value.isPrivate)) {
+                is CreateTagResult.Success -> {
+                    _uiState.update { state ->
+                        state.copy(
+                            selectedTagIds = state.selectedTagIds + result.tag.id,
+                            errorMessage = null
+                        )
+                    }
+                    onSuccess(result.tag)
+                }
+                is CreateTagResult.DuplicateName -> {
+                    val existing = _uiState.value.availableTags.find { it.name.equals(trimmed, ignoreCase = true) }
+                    if (existing != null) {
+                        _uiState.update { state ->
+                            state.copy(selectedTagIds = state.selectedTagIds + existing.id)
+                        }
+                        onSuccess(existing)
+                    }
+                }
+                is CreateTagResult.InvalidName -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+                is CreateTagResult.Error -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
             }
         }
     }
+
+    fun createAndSelectTag(name: String) = createTag(name)
 
     fun saveBookmark() {
         val current = _uiState.value.originalBookmark ?: return
@@ -170,21 +233,21 @@ class EditBookmarkViewModel(
         }
 
         if (!UrlUtils.isValidUrl(currentUrl)) {
-            _uiState.update { it.copy(errorMessage = "Please enter a valid web URL") }
+            _uiState.update { it.copy(errorMessage = "Please enter a valid web URL (e.g. example.com)") }
             return
         }
-
-        val normalized = UrlUtils.normalizeUrl(currentUrl)
-        val urlChanged = normalized != current.normalizedUrl
 
         _uiState.update { it.copy(isSaving = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                // If URL changed, check if it duplicates another existing bookmark (different ID)
+                val normalized = UrlUtils.normalizeUrl(currentUrl)
+                val urlChanged = normalized != current.normalizedUrl
+
+                // Duplicate collision check if URL changed
                 if (urlChanged) {
-                    val existing = bookmarkRepository.findByNormalizedUrl(normalized)
-                    val duplicateOfAnother = existing.firstOrNull { it.id != bookmarkId }
+                    val duplicates = bookmarkRepository.findByNormalizedUrl(normalized, isPrivate = _uiState.value.isPrivate)
+                    val duplicateOfAnother = duplicates.firstOrNull { it.id != bookmarkId }
                     if (duplicateOfAnother != null) {
                         _uiState.update {
                             it.copy(
@@ -208,6 +271,7 @@ class EditBookmarkViewModel(
                     domain = updatedDomain,
                     thumbnailUrl = _uiState.value.thumbnailUrl?.trim()?.ifEmpty { null },
                     collectionId = _uiState.value.selectedCollectionId,
+                    isPrivate = _uiState.value.isPrivate,
                     notes = _uiState.value.notes.trim().ifEmpty { null },
                     reminderAt = _uiState.value.reminderAt,
                     updatedAt = now
@@ -232,7 +296,6 @@ class EditBookmarkViewModel(
                                 val meta = result.metadata
                                 val latest = bookmarkRepository.getById(bookmarkId)
                                 if (latest != null) {
-                                    // User custom edits are preserved!
                                     val enriched = latest.copy(
                                         faviconUrl = latest.faviconUrl ?: meta.faviconUrl,
                                         thumbnailUrl = latest.thumbnailUrl ?: meta.imageUrl,
@@ -276,7 +339,8 @@ class EditBookmarkViewModel(
             collectionRepository: CollectionRepository,
             reminderRepository: ReminderRepository? = null,
             metadataRepository: MetadataRepository? = null,
-            createTagUseCase: CreateTagUseCase? = null
+            createTagUseCase: CreateTagUseCase? = null,
+            privateModeManager: PrivateModeManager? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -288,7 +352,8 @@ class EditBookmarkViewModel(
                         collectionRepository = collectionRepository,
                         reminderRepository = reminderRepository,
                         metadataRepository = metadataRepository,
-                        createTagUseCase = createTagUseCase
+                        createTagUseCase = createTagUseCase,
+                        privateModeManager = privateModeManager
                     ) as T
                 }
             }

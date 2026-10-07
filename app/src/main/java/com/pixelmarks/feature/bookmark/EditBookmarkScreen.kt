@@ -32,9 +32,11 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Title
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
@@ -43,6 +45,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
@@ -99,7 +102,8 @@ fun EditBookmarkScreen(
                 collectionRepository = app.container.collectionRepository,
                 reminderRepository = app.container.reminderRepository,
                 metadataRepository = app.container.metadataRepository,
-                createTagUseCase = app.container.createTagUseCase
+                createTagUseCase = app.container.createTagUseCase,
+                privateModeManager = app.container.privateModeManager
             )
         }
     )
@@ -206,8 +210,61 @@ fun EditBookmarkScreen(
         )
     }
 
+    var showPrivacyConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showPrivacyConfirmDialog) {
+        val targetPrivate = !uiState.isPrivate
+        val selectedColName = uiState.availableCollections.firstOrNull { it.id == uiState.selectedCollectionId }?.name
+        val selectedTagNames = uiState.availableTags.filter { it.id in uiState.selectedTagIds }.map { it.name }
+        val associationsSummary = buildString {
+            if (selectedColName != null) {
+                append("collection \"$selectedColName\"")
+            }
+            if (selectedTagNames.isNotEmpty()) {
+                if (selectedColName != null) append(" and ")
+                append("tag(s) ${selectedTagNames.joinToString { "\"$it\"" }}")
+            }
+        }
+
+        val dialogTitle = if (targetPrivate) "Move to Secure Folder?" else "Make Bookmark Public?"
+        val dialogMsg = if (targetPrivate) {
+            if (associationsSummary.isNotBlank()) {
+                "Moving this bookmark to Secure Folder will isolate it from normal mode. Currently assigned to $associationsSummary. These public associations will be unlinked."
+            } else {
+                "Moving this bookmark to Secure Folder will isolate it from normal mode."
+            }
+        } else {
+            if (associationsSummary.isNotBlank()) {
+                "Making this bookmark public will make it visible in normal mode. Currently assigned to private $associationsSummary. These private associations will be removed to prevent privacy leaks."
+            } else {
+                "Making this bookmark public will make it visible in normal mode."
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { showPrivacyConfirmDialog = false },
+            title = { Text(dialogTitle, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) },
+            text = { Text(dialogMsg) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPrivacyConfirmDialog = false
+                        viewModel.requestTogglePrivacy(targetPrivate)
+                    }
+                ) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPrivacyConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     PixelMarksScreenScaffold(
-        title = "Edit Bookmark",
+        title = if (uiState.isPrivate) "Edit Private Bookmark 🔒" else "Edit Bookmark",
         onNavigateBack = onNavigateBack
     ) { paddingValues ->
         Box(
@@ -335,6 +392,50 @@ fun EditBookmarkScreen(
                         maxLines = 4,
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    // Privacy Toggle Card
+                    OutlinedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.outlinedCardColors(
+                            containerColor = if (uiState.isPrivate) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            }
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = Spacing.medium, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = if (uiState.isPrivate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(end = Spacing.medium)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Private Bookmark",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (uiState.isPrivate) "Stored in Secure Folder" else "Accessible in normal mode",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = uiState.isPrivate,
+                                onCheckedChange = { showPrivacyConfirmDialog = true }
+                            )
+                        }
+                    }
 
                     // Collection Selector
                     val selectedCol = uiState.availableCollections.firstOrNull { it.id == uiState.selectedCollectionId }

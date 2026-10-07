@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.AlertDialog
@@ -46,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,12 +56,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -86,6 +92,7 @@ import java.util.Locale
 @Composable
 fun AddBookmarkScreen(
     initialUrl: String? = null,
+    initialCollectionId: Long? = null,
     onNavigateBack: () -> Unit,
     onNavigateToBookmarkDetail: (Long) -> Unit = {},
     onNavigateToEditBookmark: (Long) -> Unit = {},
@@ -98,7 +105,9 @@ fun AddBookmarkScreen(
                 observeCollectionsUseCase = app.container.observeCollectionsUseCase,
                 observeTagsUseCase = app.container.observeTagsUseCase,
                 createTagUseCase = app.container.createTagUseCase,
-                initialUrl = initialUrl
+                privateModeManager = app.container.privateModeManager,
+                initialUrl = initialUrl,
+                initialCollectionId = initialCollectionId
             )
         }
     )
@@ -109,6 +118,62 @@ fun AddBookmarkScreen(
     var showCreateTagDialog by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
     var showExpirationDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val app = context.applicationContext as PixelMarksApplication
+    val activity = context as? androidx.fragment.app.FragmentActivity
+    val coroutineScope = rememberCoroutineScope()
+    var showPasswordPrompt by remember { mutableStateOf(false) }
+
+    fun requestEnablePrivateMode() {
+        if (app.container.privateModeManager.isPrivateActive()) {
+            viewModel.onPrivacyChanged(true)
+            return
+        }
+        coroutineScope.launch {
+            val method = app.container.privatePreferencesRepository.authMethod.first()
+            if (method == com.pixelmarks.core.security.model.PrivateAuthMethod.CUSTOM_PASSWORD) {
+                showPasswordPrompt = true
+            } else if (activity != null) {
+                app.container.biometricAuthManager.authenticate(
+                    activity = activity,
+                    title = "Secure Folder",
+                    subtitle = "Authenticate to save bookmark in Secure Folder",
+                    onSuccess = {
+                        app.container.privateModeManager.enterPrivateMode()
+                        viewModel.onPrivacyChanged(true)
+                    },
+                    onError = { _, _ -> }
+                )
+            }
+        }
+    }
+
+    if (showPasswordPrompt) {
+        com.pixelmarks.feature.security.SecureFolderPasswordDialog(
+            onDismiss = { showPasswordPrompt = false },
+            onSuccess = {
+                showPasswordPrompt = false
+                app.container.privateModeManager.enterPrivateMode()
+                viewModel.onPrivacyChanged(true)
+            },
+            onFallbackAuth = if (activity != null) {
+                {
+                    showPasswordPrompt = false
+                    app.container.biometricAuthManager.authenticate(
+                        activity = activity,
+                        title = "Secure Folder Recovery",
+                        subtitle = "Authenticate to enter Private Mode",
+                        onSuccess = {
+                            app.container.privateModeManager.enterPrivateMode()
+                            viewModel.onPrivacyChanged(true)
+                        },
+                        onError = { _, _ -> }
+                    )
+                }
+            } else null
+        )
+    }
 
     // When save succeeds, return to previous screen
     LaunchedEffect(uiState.isSavedSuccessfully) {
@@ -253,7 +318,7 @@ fun AddBookmarkScreen(
     }
 
     PixelMarksScreenScaffold(
-        title = "Save Bookmark",
+        title = if (uiState.isPrivate) "Save Private Bookmark 🔒" else "Save Bookmark",
         onNavigateBack = onNavigateBack
     ) { paddingValues ->
         Column(
@@ -432,6 +497,56 @@ fun AddBookmarkScreen(
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Privacy Toggle Card
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.outlinedCardColors(
+                    containerColor = if (uiState.isPrivate) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    }
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.medium, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = if (uiState.isPrivate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = Spacing.medium)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Private Bookmark",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (uiState.isPrivate) "Stored in Secure Folder" else "Accessible in normal mode",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = uiState.isPrivate,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                requestEnablePrivateMode()
+                            } else {
+                                viewModel.onPrivacyChanged(false)
+                            }
+                        }
+                    )
+                }
+            }
 
             // Collection Selector
             val selectedCol = uiState.availableCollections.firstOrNull { it.id == uiState.selectedCollectionId }

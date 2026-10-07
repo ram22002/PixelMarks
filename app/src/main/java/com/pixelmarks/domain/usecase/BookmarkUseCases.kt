@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 class ObserveBookmarksUseCase(
     private val bookmarkRepository: BookmarkRepository
 ) {
-    operator fun invoke(): Flow<List<Bookmark>> = bookmarkRepository.observeAll()
+    operator fun invoke(isPrivate: Boolean = false): Flow<List<Bookmark>> = bookmarkRepository.observeAll(isPrivate)
 }
 
 /**
@@ -152,7 +152,7 @@ class PermanentlyDeleteBookmarkUseCase(
 class ObserveTrashedBookmarksUseCase(
     private val bookmarkRepository: BookmarkRepository
 ) {
-    operator fun invoke(): Flow<List<Bookmark>> = bookmarkRepository.observeTrashed()
+    operator fun invoke(isPrivate: Boolean = false): Flow<List<Bookmark>> = bookmarkRepository.observeTrashed(isPrivate)
 }
 
 /**

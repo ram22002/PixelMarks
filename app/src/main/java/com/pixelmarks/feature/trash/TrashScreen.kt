@@ -60,7 +60,8 @@ fun TrashScreen(
             TrashViewModel.provideFactory(
                 observeTrashedBookmarksUseCase = app.container.observeTrashedBookmarksUseCase,
                 restoreBookmarkUseCase = app.container.restoreBookmarkUseCase,
-                permanentlyDeleteBookmarkUseCase = app.container.permanentlyDeleteBookmarkUseCase
+                permanentlyDeleteBookmarkUseCase = app.container.permanentlyDeleteBookmarkUseCase,
+                privateModeManager = app.container.privateModeManager
             )
         }
     )
@@ -103,7 +104,7 @@ fun TrashScreen(
     }
 
     PixelMarksScreenScaffold(
-        title = "Trash",
+        title = if (uiState.isPrivateMode) "Trash 🔒 Secure Folder" else "Trash",
         onNavigateBack = onNavigateBack
     ) { paddingValues ->
         Box(

@@ -25,6 +25,9 @@ import com.pixelmarks.domain.usecase.ToggleBookmarkPinUseCase
 import com.pixelmarks.domain.usecase.TrashBookmarkUseCase
 import com.pixelmarks.domain.usecase.UnarchiveBookmarkUseCase
 import com.pixelmarks.domain.usecase.UpdateBookmarkUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +40,10 @@ import com.pixelmarks.domain.usecase.ObserveBookmarkReminderUseCase
 import com.pixelmarks.core.browser.BrowserPreference
 import com.pixelmarks.domain.usecase.GetBrowserPreferenceUseCase
 import com.pixelmarks.domain.usecase.RecordBookmarkVisitUseCase
+import com.pixelmarks.core.security.PrivateModeManager
+import com.pixelmarks.core.security.model.PrivacyMode
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 data class BookmarkDetailUiState(
     val bookmark: Bookmark? = null,
@@ -71,7 +78,8 @@ class BookmarkDetailViewModel(
     private val cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null,
     private val observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase? = null,
     private val recordBookmarkVisitUseCase: RecordBookmarkVisitUseCase? = null,
-    private val getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase? = null
+    private val getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase? = null,
+    private val privateModeManager: PrivateModeManager? = null
 ) : ViewModel() {
 
     fun recordVisit() {
@@ -87,40 +95,50 @@ class BookmarkDetailViewModel(
     }
 
     private val _errorMessage = MutableStateFlow<String?>(null)
-    private val _collections = MutableStateFlow<List<Collection>>(emptyList())
+    private val reminderFlow = observeBookmarkReminderUseCase?.invoke(bookmarkId) ?: flowOf(null)
 
-    init {
-        observeCollectionsUseCase?.let { useCase ->
-            viewModelScope.launch {
-                useCase().collect { cols ->
-                    _collections.value = cols
+    private val isPrivateActiveFlow: Flow<Boolean> =
+        privateModeManager?.mode?.map { it == PrivacyMode.PRIVATE } ?: flowOf(false)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<BookmarkDetailUiState> = isPrivateActiveFlow.flatMapLatest { isPrivateActive ->
+        observeBookmarkByIdUseCase(bookmarkId).flatMapLatest { bookmark ->
+            if (bookmark == null || (bookmark.isPrivate && !isPrivateActive)) {
+                flowOf(
+                    BookmarkDetailUiState(
+                        bookmark = null,
+                        isLoading = false,
+                        errorMessage = "Bookmark not found"
+                    )
+                )
+            } else {
+                val isPrivate = bookmark.isPrivate
+                val collectionsFlow = observeCollectionsUseCase?.invoke(includeHidden = true, isPrivate = isPrivate) ?: flowOf(emptyList())
+                val tagsFlow = observeTagsUseCase(isPrivate = isPrivate)
+                val assignedTagsFlow = observeBookmarkTagsUseCase(bookmarkId)
+
+                combine(
+                    assignedTagsFlow,
+                    tagsFlow,
+                    collectionsFlow,
+                    reminderFlow
+                ) { assignedTags, allTags, collections, reminder ->
+                    val assignedCol = bookmark.collectionId?.let { id -> collections.firstOrNull { it.id == id } }
+                    BookmarkDetailUiState(
+                        bookmark = bookmark,
+                        assignedTags = assignedTags,
+                        allTags = allTags,
+                        availableCollections = collections,
+                        assignedCollection = assignedCol,
+                        reminder = reminder,
+                        isLoading = false,
+                        errorMessage = null
+                    )
                 }
             }
         }
-    }
-
-    private val reminderFlow = observeBookmarkReminderUseCase?.invoke(bookmarkId) ?: kotlinx.coroutines.flow.flowOf(null)
-
-    val uiState: StateFlow<BookmarkDetailUiState> = combine(
-        observeBookmarkByIdUseCase(bookmarkId),
-        observeBookmarkTagsUseCase(bookmarkId),
-        observeTagsUseCase(),
-        _collections,
-        reminderFlow
-    ) { bookmark, assignedTags, allTags, collections, reminder ->
-        val assignedCol = bookmark?.collectionId?.let { id -> collections.firstOrNull { it.id == id } }
-        BookmarkDetailUiState(
-            bookmark = bookmark,
-            assignedTags = assignedTags,
-            allTags = allTags,
-            availableCollections = collections,
-            assignedCollection = assignedCol,
-            reminder = reminder,
-            isLoading = bookmark == null,
-            errorMessage = null
-        )
     }.combine(_errorMessage) { state, err ->
-        state.copy(errorMessage = err)
+        state.copy(errorMessage = err ?: state.errorMessage)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -186,8 +204,9 @@ class BookmarkDetailViewModel(
     }
 
     fun createTag(name: String, onSuccess: (Tag) -> Unit) {
+        val isPrivate = uiState.value.bookmark?.isPrivate ?: false
         viewModelScope.launch {
-            when (val result = createTagUseCase(name)) {
+            when (val result = createTagUseCase(name, isPrivate = isPrivate)) {
                 is CreateTagResult.Success -> {
                     onSuccess(result.tag)
                 }
@@ -258,7 +277,8 @@ class BookmarkDetailViewModel(
             cancelBookmarkReminderUseCase: CancelBookmarkReminderUseCase? = null,
             observeBookmarkReminderUseCase: ObserveBookmarkReminderUseCase? = null,
             recordBookmarkVisitUseCase: RecordBookmarkVisitUseCase? = null,
-            getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase? = null
+            getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase? = null,
+            privateModeManager: PrivateModeManager? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -284,7 +304,8 @@ class BookmarkDetailViewModel(
                     cancelBookmarkReminderUseCase = cancelBookmarkReminderUseCase,
                     observeBookmarkReminderUseCase = observeBookmarkReminderUseCase,
                     recordBookmarkVisitUseCase = recordBookmarkVisitUseCase,
-                    getBrowserPreferenceUseCase = getBrowserPreferenceUseCase
+                    getBrowserPreferenceUseCase = getBrowserPreferenceUseCase,
+                    privateModeManager = privateModeManager
                 ) as T
             }
         }

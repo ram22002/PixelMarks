@@ -3,7 +3,7 @@ package com.pixelmarks.feature.share
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -18,7 +18,7 @@ import com.pixelmarks.ui.theme.PixelMarksTheme
  * Extracts web URLs from text shared by Instagram, YouTube, Reddit, Chrome, etc.,
  * and hosts the PixelMarks save bookmark flow.
  */
-class ShareHandlerActivity : ComponentActivity() {
+class ShareHandlerActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

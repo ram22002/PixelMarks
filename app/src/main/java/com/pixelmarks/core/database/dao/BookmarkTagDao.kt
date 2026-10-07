@@ -59,16 +59,16 @@ interface BookmarkTagDao {
     @Query("""
         SELECT b.* FROM bookmarks b
         INNER JOIN bookmark_tag_cross_ref ref ON b.id = ref.bookmarkId
-        WHERE ref.tagId = :tagId AND b.isTrashed = 0
+        WHERE ref.tagId = :tagId AND b.isTrashed = 0 AND b.isPrivate = :isPrivate
         ORDER BY b.isPinned DESC, b.createdAt DESC
     """)
-    suspend fun getBookmarksForTag(tagId: Long): List<BookmarkEntity>
+    suspend fun getBookmarksForTag(tagId: Long, isPrivate: Boolean = false): List<BookmarkEntity>
 
     @Query("""
         SELECT b.* FROM bookmarks b
         INNER JOIN bookmark_tag_cross_ref ref ON b.id = ref.bookmarkId
-        WHERE ref.tagId = :tagId AND b.isTrashed = 0
+        WHERE ref.tagId = :tagId AND b.isTrashed = 0 AND b.isPrivate = :isPrivate
         ORDER BY b.isPinned DESC, b.createdAt DESC
     """)
-    fun observeBookmarksForTag(tagId: Long): Flow<List<BookmarkEntity>>
+    fun observeBookmarksForTag(tagId: Long, isPrivate: Boolean = false): Flow<List<BookmarkEntity>>
 }

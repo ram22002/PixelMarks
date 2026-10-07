@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pixelmarks.core.model.Collection
+import com.pixelmarks.core.security.PrivateModeManager
+import com.pixelmarks.core.security.model.PrivacyMode
 import com.pixelmarks.domain.usecase.CreateCollectionResult
 import com.pixelmarks.domain.usecase.CreateCollectionUseCase
 import com.pixelmarks.domain.usecase.DeleteCollectionUseCase
@@ -11,12 +13,13 @@ import com.pixelmarks.domain.usecase.ObserveBookmarksUseCase
 import com.pixelmarks.domain.usecase.ObserveCollectionsUseCase
 import com.pixelmarks.domain.usecase.UpdateCollectionResult
 import com.pixelmarks.domain.usecase.UpdateCollectionUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class CollectionsUiState(
@@ -24,6 +27,7 @@ data class CollectionsUiState(
     val bookmarkCounts: Map<Long, Int> = emptyMap(),
     val childCounts: Map<Long, Int> = emptyMap(),
     val isLoading: Boolean = false,
+    val isPrivateMode: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -32,59 +36,81 @@ class CollectionsViewModel(
     private val observeBookmarksUseCase: ObserveBookmarksUseCase,
     private val createCollectionUseCase: CreateCollectionUseCase,
     private val updateCollectionUseCase: UpdateCollectionUseCase,
-    private val deleteCollectionUseCase: DeleteCollectionUseCase
+    private val deleteCollectionUseCase: DeleteCollectionUseCase,
+    private val privateModeManager: PrivateModeManager
 ) : ViewModel() {
 
     private val _errorState = MutableStateFlow<String?>(null)
 
-    val uiState: StateFlow<CollectionsUiState> = combine(
-        observeCollectionsUseCase(),
-        observeBookmarksUseCase(),
-        _errorState
-    ) { collections, bookmarks, error ->
-        val bookmarkCounts = mutableMapOf<Long, Int>()
-        for (bm in bookmarks) {
-            val colId = bm.collectionId
-            if (colId != null) {
-                bookmarkCounts[colId] = (bookmarkCounts[colId] ?: 0) + 1
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<CollectionsUiState> = privateModeManager.mode
+        .flatMapLatest { mode ->
+            val isPrivate = mode == PrivacyMode.PRIVATE
+            combine(
+                observeCollectionsUseCase(isPrivate = isPrivate),
+                observeBookmarksUseCase(isPrivate = isPrivate),
+                _errorState
+            ) { collections, bookmarks, error ->
+                val bookmarkCounts = mutableMapOf<Long, Int>()
+                for (bm in bookmarks) {
+                    val colId = bm.collectionId
+                    if (colId != null) {
+                        bookmarkCounts[colId] = (bookmarkCounts[colId] ?: 0) + 1
+                    }
+                }
+
+                val childCounts = mutableMapOf<Long, Int>()
+                for (col in collections) {
+                    val pId = col.parentId
+                    if (pId != null) {
+                        childCounts[pId] = (childCounts[pId] ?: 0) + 1
+                    }
+                }
+
+                CollectionsUiState(
+                    collections = collections,
+                    bookmarkCounts = bookmarkCounts,
+                    childCounts = childCounts,
+                    isLoading = false,
+                    isPrivateMode = isPrivate,
+                    errorMessage = error
+                )
             }
         }
-
-        val childCounts = mutableMapOf<Long, Int>()
-        for (col in collections) {
-            val pId = col.parentId
-            if (pId != null) {
-                childCounts[pId] = (childCounts[pId] ?: 0) + 1
-            }
-        }
-
-        CollectionsUiState(
-            collections = collections,
-            bookmarkCounts = bookmarkCounts,
-            childCounts = childCounts,
-            isLoading = false,
-            errorMessage = error
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = CollectionsUiState(isLoading = true)
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = CollectionsUiState(isLoading = true)
-    )
 
     fun createCollection(
         name: String,
         parentId: Long? = null,
         icon: String? = null,
         color: String? = null,
+        isLocked: Boolean = false,
+        isHidden: Boolean = false,
         onSuccess: () -> Unit = {}
     ) {
+        val isPrivate = privateModeManager.isPrivateActive()
         viewModelScope.launch {
-            when (val result = createCollectionUseCase(name, parentId, icon, color)) {
+            when (val result = createCollectionUseCase(
+                name = name,
+                parentId = parentId,
+                icon = icon,
+                color = color,
+                isLocked = isLocked,
+                isHidden = isHidden,
+                isPrivate = isPrivate
+            )) {
                 is CreateCollectionResult.Success -> {
                     _errorState.value = null
                     onSuccess()
                 }
                 is CreateCollectionResult.InvalidName -> {
+                    _errorState.value = result.message
+                }
+                is CreateCollectionResult.InvalidHierarchy -> {
                     _errorState.value = result.message
                 }
                 is CreateCollectionResult.DuplicateName -> {
@@ -103,10 +129,12 @@ class CollectionsViewModel(
         newParentId: Long? = null,
         icon: String? = null,
         color: String? = null,
+        isLocked: Boolean? = null,
+        isHidden: Boolean? = null,
         onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            when (val result = updateCollectionUseCase(collectionId, newName, newParentId, icon, color)) {
+            when (val result = updateCollectionUseCase(collectionId, newName, newParentId, icon, color, isLocked, isHidden)) {
                 is UpdateCollectionResult.Success -> {
                     _errorState.value = null
                     onSuccess()
@@ -146,7 +174,8 @@ class CollectionsViewModel(
             observeBookmarksUseCase: ObserveBookmarksUseCase,
             createCollectionUseCase: CreateCollectionUseCase,
             updateCollectionUseCase: UpdateCollectionUseCase,
-            deleteCollectionUseCase: DeleteCollectionUseCase
+            deleteCollectionUseCase: DeleteCollectionUseCase,
+            privateModeManager: PrivateModeManager
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -155,7 +184,8 @@ class CollectionsViewModel(
                     observeBookmarksUseCase,
                     createCollectionUseCase,
                     updateCollectionUseCase,
-                    deleteCollectionUseCase
+                    deleteCollectionUseCase,
+                    privateModeManager
                 ) as T
             }
         }

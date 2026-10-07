@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Work
@@ -52,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import com.pixelmarks.core.model.Collection
 import com.pixelmarks.ui.theme.Spacing
 
@@ -95,7 +98,7 @@ fun CreateEditCollectionDialog(
     defaultParentId: Long? = null,
     availableParents: List<Collection>,
     onDismiss: () -> Unit,
-    onSave: (name: String, parentId: Long?, icon: String?, color: String?) -> Unit
+    onSave: (name: String, parentId: Long?, icon: String?, color: String?, isLocked: Boolean, isHidden: Boolean) -> Unit
 ) {
     var name by remember { mutableStateOf(initialCollection?.name ?: "") }
     var selectedParentId by remember {
@@ -106,6 +109,12 @@ fun CreateEditCollectionDialog(
     }
     var selectedIcon by remember {
         mutableStateOf(initialCollection?.icon ?: "folder")
+    }
+    var isLocked by remember {
+        mutableStateOf(initialCollection?.isLocked ?: false)
+    }
+    var isHidden by remember {
+        mutableStateOf(initialCollection?.isHidden ?: false)
     }
     var isParentDropdownExpanded by remember { mutableStateOf(false) }
     var validationError by remember { mutableStateOf<String?>(null) }
@@ -239,6 +248,67 @@ fun CreateEditCollectionDialog(
                         }
                     }
                 }
+
+                // Privacy Section
+                androidx.compose.material3.HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                Text(
+                    text = "Privacy",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Lock collection",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Require authentication to open",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = isLocked,
+                        onCheckedChange = { checked ->
+                            isLocked = checked
+                            if (!checked) isHidden = false
+                        }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Hide collection",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Hide from normal collection lists and search",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = isHidden,
+                        onCheckedChange = { checked ->
+                            isHidden = checked
+                            if (checked) isLocked = true // Hidden collection automatically requires protection
+                        }
+                    )
+                }
             }
         },
         confirmButton = {
@@ -248,7 +318,7 @@ fun CreateEditCollectionDialog(
                     if (trimmed.isEmpty()) {
                         validationError = "Name cannot be empty"
                     } else {
-                        onSave(trimmed, selectedParentId, selectedIcon, selectedColor)
+                        onSave(trimmed, selectedParentId, selectedIcon, selectedColor, isLocked, isHidden)
                     }
                 }
             ) {
@@ -372,8 +442,19 @@ fun SelectCollectionDialog(
                         Text(
                             text = col.name,
                             style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(start = 8.dp)
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .padding(start = 8.dp)
                         )
+                        if (col.isLocked || col.isHidden) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Private collection",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }

@@ -25,6 +25,7 @@ class AddBookmarkUseCase(
     private val fetchBookmarkMetadataUseCase: FetchBookmarkMetadataUseCase? = null,
     private val tagRepository: TagRepository? = null,
     private val reminderRepository: ReminderRepository? = null,
+    private val collectionRepository: com.pixelmarks.data.repository.CollectionRepository? = null,
     private val coroutineScope: CoroutineScope? = null
 ) {
     suspend operator fun invoke(
@@ -37,7 +38,8 @@ class AddBookmarkUseCase(
         reminderAt: Long? = null,
         collectionId: Long? = null,
         tagIds: Set<Long> = emptySet(),
-        forceSave: Boolean = false
+        forceSave: Boolean = false,
+        isPrivate: Boolean = false
     ): AddBookmarkResult {
         val trimmed = rawUrl.trim()
         if (trimmed.isEmpty()) {
@@ -52,8 +54,28 @@ class AddBookmarkUseCase(
             val normalizedUrl = UrlUtils.normalizeUrl(trimmed)
             val domain = UrlUtils.extractDomain(normalizedUrl)
 
+            if (collectionId != null && collectionRepository != null) {
+                val col = collectionRepository.getById(collectionId)
+                if (col != null && col.isPrivate != isPrivate) {
+                    return AddBookmarkResult.Error(
+                        "Cannot link bookmark to a collection of different privacy level."
+                    )
+                }
+            }
+
+            if (tagIds.isNotEmpty() && tagRepository != null) {
+                for (tagId in tagIds) {
+                    val tag = tagRepository.getById(tagId)
+                    if (tag != null && tag.isPrivate != isPrivate) {
+                        return AddBookmarkResult.Error(
+                            "Cannot link bookmark to a tag of different privacy level."
+                        )
+                    }
+                }
+            }
+
             if (!forceSave) {
-                val existing = bookmarkRepository.findByNormalizedUrl(normalizedUrl)
+                val existing = bookmarkRepository.findByNormalizedUrl(normalizedUrl, isPrivate = isPrivate)
                 if (existing.isNotEmpty()) {
                     return AddBookmarkResult.Duplicate(existing.first())
                 }
@@ -78,6 +100,7 @@ class AddBookmarkUseCase(
                 isFavorite = false,
                 isPinned = false,
                 isArchived = false,
+                isPrivate = isPrivate,
                 notes = notes?.trim()?.ifEmpty { null },
                 createdAt = now,
                 updatedAt = now,

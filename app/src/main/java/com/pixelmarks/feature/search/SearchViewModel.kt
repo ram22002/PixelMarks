@@ -8,6 +8,8 @@ import com.pixelmarks.core.model.BookmarkFilters
 import com.pixelmarks.core.model.BookmarkSortOption
 import com.pixelmarks.core.model.Collection
 import com.pixelmarks.core.model.Tag
+import com.pixelmarks.core.security.PrivateModeManager
+import com.pixelmarks.core.security.model.PrivacyMode
 import com.pixelmarks.domain.usecase.ArchiveBookmarkUseCase
 import com.pixelmarks.domain.usecase.DeleteBookmarkUseCase
 import com.pixelmarks.domain.usecase.ObserveCollectionsUseCase
@@ -43,7 +45,8 @@ data class SearchUiState(
     val availableCollections: List<Collection> = emptyList(),
     val availableTags: List<Tag> = emptyList(),
     val totalBookmarksCount: Int = 0,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isPrivateMode: Boolean = false
 )
 
 private data class SearchMetadata(
@@ -65,7 +68,8 @@ class SearchViewModel(
     private val toggleBookmarkPinUseCase: ToggleBookmarkPinUseCase,
     private val archiveBookmarkUseCase: ArchiveBookmarkUseCase,
     private val unarchiveBookmarkUseCase: UnarchiveBookmarkUseCase,
-    private val trashBookmarkUseCase: TrashBookmarkUseCase
+    private val trashBookmarkUseCase: TrashBookmarkUseCase,
+    private val privateModeManager: PrivateModeManager
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -77,6 +81,8 @@ class SearchViewModel(
     private val _sortOption = MutableStateFlow(BookmarkSortOption.NEWEST)
     val sortOption: StateFlow<BookmarkSortOption> = _sortOption.asStateFlow()
 
+    private val isPrivateFlow: Flow<Boolean> = privateModeManager.mode.map { it == PrivacyMode.PRIVATE }
+
     // 250ms debounce on keystrokes, immediate 0ms reset when query is empty
     private val debouncedQuery: Flow<String> = _query
         .map { it.trim() }
@@ -86,37 +92,48 @@ class SearchViewModel(
     private val searchFlow: Flow<List<Bookmark>> = combine(
         debouncedQuery,
         _filters,
-        _sortOption
-    ) { q, f, s ->
-        Triple(q, f, s)
-    }.flatMapLatest { (q, f, s) ->
-        searchBookmarksUseCase(query = q, filters = f, sort = s)
+        _sortOption,
+        isPrivateFlow
+    ) { q, f, s, isPrivate ->
+        searchBookmarksUseCase(query = q, filters = f, sort = s, isPrivate = isPrivate)
+    }.flatMapLatest { it }
+
+    private val metadataFlow: Flow<SearchMetadata> = isPrivateFlow.flatMapLatest { isPrivate ->
+        combine(
+            observeCollectionsUseCase(isPrivate = isPrivate),
+            observeTagsUseCase(isPrivate = isPrivate),
+            searchBookmarksUseCase.observeTotalCount(isPrivate = isPrivate)
+        ) { collections, tags, totalCount ->
+            SearchMetadata(collections, tags, totalCount)
+        }
     }
 
-    private val metadataFlow: Flow<SearchMetadata> = combine(
-        observeCollectionsUseCase(),
-        observeTagsUseCase(),
-        searchBookmarksUseCase.observeTotalCount()
-    ) { collections, tags, totalCount ->
-        SearchMetadata(collections, tags, totalCount)
+    private data class SearchParams(
+        val query: String,
+        val filters: BookmarkFilters,
+        val sortOption: BookmarkSortOption,
+        val isPrivate: Boolean
+    )
+
+    private val searchParamsFlow = combine(_query, _filters, _sortOption, isPrivateFlow) { q, f, s, isPrivate ->
+        SearchParams(q, f, s, isPrivate)
     }
 
     val uiState: StateFlow<SearchUiState> = combine(
-        _query,
-        _filters,
-        _sortOption,
+        searchParamsFlow,
         searchFlow,
         metadataFlow
-    ) { q, f, s, bookmarks, metadata ->
+    ) { params, bookmarks, metadata ->
         SearchUiState(
-            query = q,
-            filters = f,
-            sortOption = s,
+            query = params.query,
+            filters = params.filters,
+            sortOption = params.sortOption,
             bookmarks = bookmarks,
             availableCollections = metadata.collections,
             availableTags = metadata.tags,
             totalBookmarksCount = metadata.totalCount,
-            isLoading = false
+            isLoading = false,
+            isPrivateMode = params.isPrivate
         )
     }.stateIn(
         scope = viewModelScope,
@@ -215,7 +232,8 @@ class SearchViewModel(
             toggleBookmarkPinUseCase: ToggleBookmarkPinUseCase,
             archiveBookmarkUseCase: ArchiveBookmarkUseCase,
             unarchiveBookmarkUseCase: UnarchiveBookmarkUseCase,
-            trashBookmarkUseCase: TrashBookmarkUseCase
+            trashBookmarkUseCase: TrashBookmarkUseCase,
+            privateModeManager: PrivateModeManager
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -228,7 +246,8 @@ class SearchViewModel(
                     toggleBookmarkPinUseCase,
                     archiveBookmarkUseCase,
                     unarchiveBookmarkUseCase,
-                    trashBookmarkUseCase
+                    trashBookmarkUseCase,
+                    privateModeManager
                 ) as T
             }
         }

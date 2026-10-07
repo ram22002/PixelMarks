@@ -22,7 +22,8 @@ import androidx.room.PrimaryKey
     indices = [
         Index(value = ["parentId"]),
         Index(value = ["name"]),
-        Index(value = ["domain"])
+        Index(value = ["domain"]),
+        Index(value = ["isPrivate"])
     ]
 )
 data class CollectionEntity(
@@ -35,6 +36,7 @@ data class CollectionEntity(
     val position: Int = 0,
     val isLocked: Boolean = false,
     val isHidden: Boolean = false,
+    val isPrivate: Boolean = false,
     val isDomain: Boolean = false,
     val domain: String? = null,
     val createdAt: Long,

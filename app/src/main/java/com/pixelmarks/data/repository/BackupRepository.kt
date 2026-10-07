@@ -440,6 +440,7 @@ class BackupRepositoryImpl(
         lastOpenedAt = lastOpenedAt,
         visitCount = visitCount,
         reminderAt = reminderAt,
+        isPrivate = isPrivate,
         metadataStatus = metadataStatus.name,
         metadataUpdatedAt = metadataUpdatedAt
     )
@@ -459,6 +460,7 @@ class BackupRepositoryImpl(
         isArchived = isArchived,
         isTrashed = isTrashed,
         trashedAt = trashedAt,
+        isPrivate = isPrivate,
         notes = notes,
         createdAt = createdAt,
         updatedAt = updatedAt,
@@ -478,6 +480,7 @@ class BackupRepositoryImpl(
         position = position,
         isLocked = isLocked,
         isHidden = isHidden,
+        isPrivate = isPrivate,
         isDomain = isDomain,
         domain = domain,
         createdAt = createdAt,
@@ -493,6 +496,7 @@ class BackupRepositoryImpl(
         position = position,
         isLocked = isLocked,
         isHidden = isHidden,
+        isPrivate = isPrivate,
         isDomain = isDomain,
         domain = domain,
         createdAt = createdAt,
@@ -503,6 +507,7 @@ class BackupRepositoryImpl(
         id = id,
         name = name,
         color = color,
+        isPrivate = isPrivate,
         createdAt = createdAt
     )
 
@@ -510,6 +515,7 @@ class BackupRepositoryImpl(
         id = id,
         name = name,
         color = color,
+        isPrivate = isPrivate,
         createdAt = createdAt
     )
 

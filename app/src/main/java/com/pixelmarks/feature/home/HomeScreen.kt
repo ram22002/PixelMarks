@@ -81,7 +81,8 @@ fun HomeScreen(
                 toggleBookmarkPinUseCase = app.container.toggleBookmarkPinUseCase,
                 archiveBookmarkUseCase = app.container.archiveBookmarkUseCase,
                 trashBookmarkUseCase = app.container.trashBookmarkUseCase,
-                restoreBookmarkUseCase = app.container.restoreBookmarkUseCase
+                restoreBookmarkUseCase = app.container.restoreBookmarkUseCase,
+                privateModeManager = app.container.privateModeManager
             )
         }
     )
@@ -126,7 +127,7 @@ fun HomeScreen(
     }
 
     PixelMarksScreenScaffold(
-        title = "PixelMarks",
+        title = if (uiState.isPrivateMode) "🔒 Secure Folder" else "PixelMarks",
         snackbarHost = { SnackbarHost(snackbarHostState) },
         actions = {
             IconButton(onClick = onNavigateToSearch) {

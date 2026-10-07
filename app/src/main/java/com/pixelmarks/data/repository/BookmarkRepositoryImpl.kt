@@ -17,43 +17,44 @@ class BookmarkRepositoryImpl(
     private val bookmarkDao: BookmarkDao
 ) : BookmarkRepository {
 
-    override fun observeAll(): Flow<List<Bookmark>> =
-        bookmarkDao.observeAll().map { list -> list.map { it.toDomain() } }
+    override fun observeAll(isPrivate: Boolean): Flow<List<Bookmark>> =
+        bookmarkDao.observeAll(isPrivate).map { list -> list.map { it.toDomain() } }
 
-    override fun observeByCollection(collectionId: Long): Flow<List<Bookmark>> =
-        bookmarkDao.observeByCollection(collectionId).map { list -> list.map { it.toDomain() } }
+    override fun observeByCollection(collectionId: Long, isPrivate: Boolean): Flow<List<Bookmark>> =
+        bookmarkDao.observeByCollection(collectionId, isPrivate).map { list -> list.map { it.toDomain() } }
 
-    override fun observeUnsorted(): Flow<List<Bookmark>> =
-        bookmarkDao.observeUnsorted().map { list -> list.map { it.toDomain() } }
+    override fun observeUnsorted(isPrivate: Boolean): Flow<List<Bookmark>> =
+        bookmarkDao.observeUnsorted(isPrivate).map { list -> list.map { it.toDomain() } }
 
     override fun observeById(id: Long): Flow<Bookmark?> =
         bookmarkDao.observeById(id).map { it?.toDomain() }
 
-    override fun observeFavorites(): Flow<List<Bookmark>> =
-        bookmarkDao.observeFavorites().map { list -> list.map { it.toDomain() } }
+    override fun observeFavorites(isPrivate: Boolean): Flow<List<Bookmark>> =
+        bookmarkDao.observeFavorites(isPrivate).map { list -> list.map { it.toDomain() } }
 
-    override fun observePinned(): Flow<List<Bookmark>> =
-        bookmarkDao.observePinned().map { list -> list.map { it.toDomain() } }
+    override fun observePinned(isPrivate: Boolean): Flow<List<Bookmark>> =
+        bookmarkDao.observePinned(isPrivate).map { list -> list.map { it.toDomain() } }
 
-    override fun observeArchived(): Flow<List<Bookmark>> =
-        bookmarkDao.observeArchived().map { list -> list.map { it.toDomain() } }
+    override fun observeArchived(isPrivate: Boolean): Flow<List<Bookmark>> =
+        bookmarkDao.observeArchived(isPrivate).map { list -> list.map { it.toDomain() } }
 
-    override fun observeTrashed(): Flow<List<Bookmark>> =
-        bookmarkDao.observeTrashed().map { list -> list.map { it.toDomain() } }
+    override fun observeTrashed(isPrivate: Boolean): Flow<List<Bookmark>> =
+        bookmarkDao.observeTrashed(isPrivate).map { list -> list.map { it.toDomain() } }
 
-    override fun observeByDomain(domain: String): Flow<List<Bookmark>> =
-        bookmarkDao.observeByDomain(domain).map { list -> list.map { it.toDomain() } }
+    override fun observeByDomain(domain: String, isPrivate: Boolean): Flow<List<Bookmark>> =
+        bookmarkDao.observeByDomain(domain, isPrivate).map { list -> list.map { it.toDomain() } }
 
-    override fun observeTotalCount(): Flow<Int> =
-        bookmarkDao.observeCount()
+    override fun observeTotalCount(isPrivate: Boolean): Flow<Int> =
+        bookmarkDao.observeCount(isPrivate)
 
-    override fun observeTrashedCount(): Flow<Int> =
-        bookmarkDao.observeTrashedCount()
+    override fun observeTrashedCount(isPrivate: Boolean): Flow<Int> =
+        bookmarkDao.observeTrashedCount(isPrivate)
 
     override fun observeBookmarks(
         query: String,
         filters: BookmarkFilters,
-        sort: BookmarkSortOption
+        sort: BookmarkSortOption,
+        isPrivate: Boolean
     ): Flow<List<Bookmark>> {
         val trimmedQuery = query.trim()
         val escapedQuery = SearchQueryUtils.escapeSqlLike(trimmedQuery)
@@ -64,7 +65,8 @@ class BookmarkRepositoryImpl(
             pinnedOnly = filters.pinnedOnly,
             archivedOnly = filters.archivedOnly,
             collectionId = filters.collectionId,
-            tagId = filters.tagId
+            tagId = filters.tagId,
+            isPrivate = isPrivate
         ).map { entities ->
             entities.map { it.toDomain() }.sortedWith(sort.comparator)
         }
@@ -73,8 +75,11 @@ class BookmarkRepositoryImpl(
     override suspend fun getById(id: Long): Bookmark? =
         bookmarkDao.getById(id)?.toDomain()
 
-    override suspend fun findByNormalizedUrl(normalizedUrl: String): List<Bookmark> =
-        bookmarkDao.getByNormalizedUrl(normalizedUrl).map { it.toDomain() }
+    override suspend fun findByNormalizedUrl(normalizedUrl: String, isPrivate: Boolean): List<Bookmark> =
+        bookmarkDao.getByNormalizedUrlAndPrivacy(normalizedUrl, isPrivate).map { it.toDomain() }
+
+    override suspend fun getAllByPrivacy(isPrivate: Boolean): List<Bookmark> =
+        bookmarkDao.getAllByPrivacy(isPrivate).map { it.toDomain() }
 
     override suspend fun insert(bookmark: Bookmark): Long =
         bookmarkDao.insert(bookmark.toEntity())

@@ -14,14 +14,17 @@ class CollectionRepositoryImpl(
     private val collectionDao: CollectionDao
 ) : CollectionRepository {
 
-    override fun observeRootCollections(): Flow<List<Collection>> =
-        collectionDao.observeRootCollections().map { list -> list.map { it.toDomain() } }
+    override fun observeRootCollections(isPrivate: Boolean): Flow<List<Collection>> =
+        collectionDao.observeRootCollections(isPrivate).map { list -> list.map { it.toDomain() } }
 
-    override fun observeChildren(parentId: Long): Flow<List<Collection>> =
-        collectionDao.observeChildren(parentId).map { list -> list.map { it.toDomain() } }
+    override fun observeChildren(parentId: Long, isPrivate: Boolean): Flow<List<Collection>> =
+        collectionDao.observeChildren(parentId, isPrivate).map { list -> list.map { it.toDomain() } }
 
-    override fun observeAll(): Flow<List<Collection>> =
-        collectionDao.observeAll().map { list -> list.map { it.toDomain() } }
+    override fun observeAll(isPrivate: Boolean): Flow<List<Collection>> =
+        collectionDao.observeAll(isPrivate).map { list -> list.map { it.toDomain() } }
+
+    override suspend fun getAllByPrivacy(isPrivate: Boolean): List<Collection> =
+        collectionDao.getAllByPrivacy(isPrivate).map { it.toDomain() }
 
     override suspend fun getById(id: Long): Collection? =
         collectionDao.getById(id)?.toDomain()

@@ -19,7 +19,10 @@ sealed class Screen(val route: String) {
 
     // Secondary / Modal Destinations
     data object Search : Screen("search")
-    data object AddBookmark : Screen("add_bookmark")
+    data object AddBookmark : Screen("add_bookmark?collectionId={collectionId}") {
+        fun createRoute(collectionId: Long? = null) =
+            if (collectionId != null) "add_bookmark?collectionId=$collectionId" else "add_bookmark"
+    }
     data object EditBookmark : Screen("edit_bookmark/{bookmarkId}") {
         fun createRoute(bookmarkId: Long) = "edit_bookmark/$bookmarkId"
     }

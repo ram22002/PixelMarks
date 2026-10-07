@@ -7,6 +7,7 @@ import com.pixelmarks.core.model.Bookmark
 import com.pixelmarks.core.model.Collection
 import com.pixelmarks.core.model.MetadataFetchResult
 import com.pixelmarks.core.model.Tag
+import com.pixelmarks.core.security.PrivateModeManager
 import com.pixelmarks.core.util.UrlUtils
 import com.pixelmarks.data.repository.MetadataRepository
 import com.pixelmarks.domain.usecase.AddBookmarkResult
@@ -32,6 +33,7 @@ data class AddBookmarkUiState(
     val previewFaviconUrl: String? = null,
     val isLoadingMetadata: Boolean = false,
     val reminderAt: Long? = null,
+    val isPrivate: Boolean = false,
     val selectedCollectionId: Long? = null,
     val availableCollections: List<Collection> = emptyList(),
     val selectedTagIds: Set<Long> = emptySet(),
@@ -49,33 +51,63 @@ class AddBookmarkViewModel(
     private val observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
     private val observeTagsUseCase: ObserveTagsUseCase? = null,
     private val createTagUseCase: CreateTagUseCase? = null,
-    initialUrl: String? = null
+    private val privateModeManager: PrivateModeManager? = null,
+    initialUrl: String? = null,
+    initialCollectionId: Long? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddBookmarkUiState())
     val uiState: StateFlow<AddBookmarkUiState> = _uiState.asStateFlow()
 
     private var metadataJob: Job? = null
+    private var collectionsJob: Job? = null
+    private var tagsJob: Job? = null
 
     init {
+        val initialPrivacy = privateModeManager?.isPrivateActive() ?: false
+        _uiState.update { it.copy(isPrivate = initialPrivacy) }
+
+        if (initialCollectionId != null && initialCollectionId > 0) {
+            _uiState.update { it.copy(selectedCollectionId = initialCollectionId) }
+        }
+
+        loadCollectionsAndTags(initialPrivacy)
+
+        if (!initialUrl.isNullOrBlank()) {
+            onUrlChanged(initialUrl)
+        }
+    }
+
+    private fun loadCollectionsAndTags(isPrivate: Boolean) {
+        collectionsJob?.cancel()
+        tagsJob?.cancel()
+
         observeCollectionsUseCase?.let { useCase ->
-            viewModelScope.launch {
-                useCase().collect { collections ->
+            collectionsJob = viewModelScope.launch {
+                useCase(isPrivate = isPrivate).collect { collections ->
                     _uiState.update { it.copy(availableCollections = collections) }
                 }
             }
         }
         observeTagsUseCase?.let { useCase ->
-            viewModelScope.launch {
-                useCase().collect { tags ->
+            tagsJob = viewModelScope.launch {
+                useCase(isPrivate = isPrivate).collect { tags ->
                     _uiState.update { it.copy(availableTags = tags.sortedBy { t -> t.name.lowercase() }) }
                 }
             }
         }
+    }
 
-        if (!initialUrl.isNullOrBlank()) {
-            onUrlChanged(initialUrl)
+    fun onPrivacyChanged(isPrivate: Boolean) {
+        if (_uiState.value.isPrivate == isPrivate) return
+        _uiState.update {
+            it.copy(
+                isPrivate = isPrivate,
+                selectedCollectionId = null,
+                selectedTagIds = emptySet()
+            )
         }
+        loadCollectionsAndTags(isPrivate)
     }
 
     fun onUrlChanged(newUrl: String) {
@@ -95,35 +127,6 @@ class AddBookmarkViewModel(
         fetchPreviewIfValid(trimmed)
     }
 
-    private fun fetchPreviewIfValid(trimmedUrl: String) {
-        if (!UrlUtils.isValidUrl(trimmedUrl)) return
-        val normalized = UrlUtils.normalizeUrl(trimmedUrl)
-
-        metadataJob?.cancel()
-        metadataJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingMetadata = true) }
-            try {
-                val result = metadataRepository?.fetchMetadata(normalized)
-                if (result is MetadataFetchResult.Success) {
-                    val meta = result.metadata
-                    _uiState.update { current ->
-                        current.copy(
-                            isLoadingMetadata = false,
-                            title = if (current.title.isBlank() && !meta.title.isNullOrBlank()) meta.title.trim() else current.title,
-                            description = if (current.description.isBlank() && !meta.description.isNullOrBlank()) meta.description.trim() else current.description,
-                            previewThumbnailUrl = current.previewThumbnailUrl ?: meta.imageUrl,
-                            previewFaviconUrl = current.previewFaviconUrl ?: meta.faviconUrl
-                        )
-                    }
-                } else {
-                    _uiState.update { it.copy(isLoadingMetadata = false) }
-                }
-            } catch (_: Exception) {
-                _uiState.update { it.copy(isLoadingMetadata = false) }
-            }
-        }
-    }
-
     fun onTitleChanged(newTitle: String) {
         _uiState.update { it.copy(title = newTitle) }
     }
@@ -136,17 +139,28 @@ class AddBookmarkViewModel(
         _uiState.update { it.copy(notes = newNotes) }
     }
 
-    fun onReminderChanged(timestamp: Long?) {
+    fun onCollectionSelected(collectionId: Long?) {
+        _uiState.update {
+            it.copy(selectedCollectionId = if (it.selectedCollectionId == collectionId) null else collectionId)
+        }
+    }
+
+    fun onTagToggled(tagId: Long) {
+        _uiState.update { state ->
+            val updated = if (state.selectedTagIds.contains(tagId)) {
+                state.selectedTagIds - tagId
+            } else {
+                state.selectedTagIds + tagId
+            }
+            state.copy(selectedTagIds = updated)
+        }
+    }
+
+    fun onReminderSet(timestamp: Long?) {
         _uiState.update { it.copy(reminderAt = timestamp) }
     }
 
-    fun onThumbnailChanged(imageUrl: String?) {
-        _uiState.update { it.copy(previewThumbnailUrl = imageUrl) }
-    }
-
-    fun onCollectionSelected(collectionId: Long?) {
-        _uiState.update { it.copy(selectedCollectionId = collectionId) }
-    }
+    fun onReminderChanged(timestamp: Long?) = onReminderSet(timestamp)
 
     fun onTagsSelected(tagIds: Set<Long>) {
         _uiState.update { it.copy(selectedTagIds = tagIds) }
@@ -156,21 +170,79 @@ class AddBookmarkViewModel(
         _uiState.update { it.copy(selectedTagIds = it.selectedTagIds - tagId) }
     }
 
-    fun createTag(name: String, onCreated: (Tag) -> Unit) {
-        if (createTagUseCase == null) return
+    fun createTag(name: String, onSuccess: (Tag) -> Unit = {}) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty() || createTagUseCase == null) return
+
         viewModelScope.launch {
-            when (val result = createTagUseCase(name)) {
+            when (val result = createTagUseCase(name = trimmed, isPrivate = _uiState.value.isPrivate)) {
                 is CreateTagResult.Success -> {
-                    onCreated(result.tag)
+                    _uiState.update { state ->
+                        state.copy(
+                            selectedTagIds = state.selectedTagIds + result.tag.id,
+                            errorMessage = null
+                        )
+                    }
+                    onSuccess(result.tag)
+                }
+                is CreateTagResult.DuplicateName -> {
+                    val existing = _uiState.value.availableTags.find { it.name.equals(trimmed, ignoreCase = true) }
+                    if (existing != null) {
+                        _uiState.update { state ->
+                            state.copy(selectedTagIds = state.selectedTagIds + existing.id)
+                        }
+                        onSuccess(existing)
+                    }
                 }
                 is CreateTagResult.InvalidName -> {
                     _uiState.update { it.copy(errorMessage = result.message) }
                 }
-                is CreateTagResult.DuplicateName -> {
-                    _uiState.update { it.copy(errorMessage = result.message) }
-                }
                 is CreateTagResult.Error -> {
                     _uiState.update { it.copy(errorMessage = result.message) }
+                }
+            }
+        }
+    }
+
+    fun createAndSelectTag(name: String) = createTag(name)
+
+    private fun fetchPreviewIfValid(trimmedUrl: String) {
+        if (!UrlUtils.isValidUrl(trimmedUrl) || metadataRepository == null) {
+            return
+        }
+
+        metadataJob?.cancel()
+        metadataJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMetadata = true) }
+            val normalized = UrlUtils.normalizeUrl(trimmedUrl)
+            when (val result = metadataRepository.fetchMetadata(normalized)) {
+                is MetadataFetchResult.Success -> {
+                    val meta = result.metadata
+                    _uiState.update { state ->
+                        val currentTitle = state.title
+                        val autoTitle = if (currentTitle.isBlank() && !meta.title.isNullOrBlank()) {
+                            meta.title
+                        } else currentTitle
+
+                        val currentDesc = state.description
+                        val autoDesc = if (currentDesc.isBlank() && !meta.description.isNullOrBlank()) {
+                            meta.description
+                        } else currentDesc
+
+                        state.copy(
+                            title = autoTitle,
+                            description = autoDesc,
+                            previewThumbnailUrl = meta.imageUrl ?: state.previewThumbnailUrl,
+                            previewFaviconUrl = meta.faviconUrl ?: state.previewFaviconUrl,
+                            isLoadingMetadata = false
+                        )
+                    }
+                }
+                is MetadataFetchResult.Failed -> {
+                    _uiState.update { it.copy(isLoadingMetadata = false) }
+                }
+                else -> {
+                    _uiState.update { it.copy(isLoadingMetadata = false) }
                 }
             }
         }
@@ -183,6 +255,7 @@ class AddBookmarkViewModel(
             return
         }
 
+        val isPrivate = _uiState.value.isPrivate
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
             when (val result = addBookmarkUseCase(
@@ -195,7 +268,8 @@ class AddBookmarkViewModel(
                 reminderAt = _uiState.value.reminderAt,
                 collectionId = _uiState.value.selectedCollectionId,
                 tagIds = _uiState.value.selectedTagIds,
-                forceSave = false
+                forceSave = false,
+                isPrivate = isPrivate
             )) {
                 is AddBookmarkResult.Success -> {
                     _uiState.update {
@@ -238,6 +312,7 @@ class AddBookmarkViewModel(
 
     fun saveAnyway() {
         val currentUrl = _uiState.value.url.trim()
+        val isPrivate = _uiState.value.isPrivate
         _uiState.update { it.copy(isLoading = true, duplicateBookmark = null, errorMessage = null) }
         viewModelScope.launch {
             when (val result = addBookmarkUseCase(
@@ -250,14 +325,25 @@ class AddBookmarkViewModel(
                 reminderAt = _uiState.value.reminderAt,
                 collectionId = _uiState.value.selectedCollectionId,
                 tagIds = _uiState.value.selectedTagIds,
-                forceSave = true
+                forceSave = true,
+                isPrivate = isPrivate
             )) {
                 is AddBookmarkResult.Success -> {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             isSavedSuccessfully = true,
-                            savedBookmarkId = result.bookmark.id
+                            savedBookmarkId = result.bookmark.id,
+                            errorMessage = null
+                        )
+                    }
+                }
+                is AddBookmarkResult.Duplicate -> {}
+                is AddBookmarkResult.InvalidUrl -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.message
                         )
                     }
                 }
@@ -268,9 +354,6 @@ class AddBookmarkViewModel(
                             errorMessage = result.message
                         )
                     }
-                }
-                else -> {
-                    _uiState.update { it.copy(isLoading = false) }
                 }
             }
         }
@@ -291,7 +374,9 @@ class AddBookmarkViewModel(
             observeCollectionsUseCase: ObserveCollectionsUseCase? = null,
             observeTagsUseCase: ObserveTagsUseCase? = null,
             createTagUseCase: CreateTagUseCase? = null,
-            initialUrl: String? = null
+            privateModeManager: PrivateModeManager? = null,
+            initialUrl: String? = null,
+            initialCollectionId: Long? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -302,7 +387,9 @@ class AddBookmarkViewModel(
                         observeCollectionsUseCase = observeCollectionsUseCase,
                         observeTagsUseCase = observeTagsUseCase,
                         createTagUseCase = createTagUseCase,
-                        initialUrl = initialUrl
+                        privateModeManager = privateModeManager,
+                        initialUrl = initialUrl,
+                        initialCollectionId = initialCollectionId
                     ) as T
                 }
             }

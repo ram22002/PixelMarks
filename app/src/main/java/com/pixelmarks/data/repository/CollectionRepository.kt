@@ -7,9 +7,10 @@ import kotlinx.coroutines.flow.Flow
  * Repository interface for Collection domain operations.
  */
 interface CollectionRepository {
-    fun observeRootCollections(): Flow<List<Collection>>
-    fun observeChildren(parentId: Long): Flow<List<Collection>>
-    fun observeAll(): Flow<List<Collection>>
+    fun observeRootCollections(isPrivate: Boolean = false): Flow<List<Collection>>
+    fun observeChildren(parentId: Long, isPrivate: Boolean = false): Flow<List<Collection>>
+    fun observeAll(isPrivate: Boolean = false): Flow<List<Collection>>
+    suspend fun getAllByPrivacy(isPrivate: Boolean): List<Collection>
     suspend fun getById(id: Long): Collection?
     suspend fun getByDomain(domain: String): Collection?
     suspend fun insert(collection: Collection): Long

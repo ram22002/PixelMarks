@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -22,8 +23,13 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.launch
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -62,6 +68,7 @@ fun CollectionDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToCollectionDetail: (Long) -> Unit = {},
     onNavigateToBookmarkDetail: (Long) -> Unit = {},
+    onNavigateToAddBookmark: (Long) -> Unit = {},
     viewModel: CollectionDetailViewModel = viewModel(
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
@@ -74,7 +81,8 @@ fun CollectionDetailScreen(
                 updateCollectionUseCase = app.container.updateCollectionUseCase,
                 deleteCollectionUseCase = app.container.deleteCollectionUseCase,
                 moveBookmarkUseCase = app.container.moveBookmarkUseCase,
-                deleteBookmarkUseCase = app.container.deleteBookmarkUseCase
+                deleteBookmarkUseCase = app.container.deleteBookmarkUseCase,
+                privateModeManager = app.container.privateModeManager
             )
         }
     )
@@ -101,19 +109,58 @@ fun CollectionDetailScreen(
         }
     }
 
+    val context = LocalContext.current
+    val app = context.applicationContext as PixelMarksApplication
+    val activity = context as? androidx.fragment.app.FragmentActivity
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
+    val unlockedCollectionIds by app.container.appLockManager.unlockedCollectionIds.collectAsState()
+    val isPrivateSessionUnlocked by app.container.appLockManager.isPrivateSessionUnlocked.collectAsState()
+    val isCollectionUnlocked = isPrivateSessionUnlocked || unlockedCollectionIds.contains(collectionId)
+
+    fun triggerUnlock() {
+        if (activity != null) {
+            val name = uiState.collection?.name ?: "Collection"
+            app.container.biometricAuthManager.authenticate(
+                activity = activity,
+                title = "Unlock Collection",
+                subtitle = "Authenticate to view \"$name\"",
+                onSuccess = {
+                    app.container.appLockManager.unlockCollection(collectionId)
+                },
+                onError = { _: Int, errString: CharSequence ->
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(errString.toString())
+                    }
+                }
+            )
+        }
+    }
+
+    LaunchedEffect(uiState.collection, isCollectionUnlocked) {
+        if (uiState.collection?.isLocked == true && !isCollectionUnlocked) {
+            triggerUnlock()
+        }
+    }
+
     // Dialogs
     if (showCreateSubCollectionDialog) {
         CreateEditCollectionDialog(
             defaultParentId = collectionId,
             availableParents = uiState.allCollections,
             onDismiss = { showCreateSubCollectionDialog = false },
-            onSave = { name, _, icon, color ->
-                viewModel.createChildCollection(
-                    name = name,
-                    icon = icon,
-                    color = color,
-                    onSuccess = { showCreateSubCollectionDialog = false }
-                )
+            onSave = { name, _, icon, color, isLocked, isHidden ->
+                coroutineScope.launch {
+                    app.container.createCollectionUseCase(
+                        name = name,
+                        parentId = collectionId,
+                        icon = icon,
+                        color = color,
+                        isLocked = isLocked,
+                        isHidden = isHidden
+                    )
+                    showCreateSubCollectionDialog = false
+                }
             }
         )
     }
@@ -123,14 +170,19 @@ fun CollectionDetailScreen(
             initialCollection = uiState.collection,
             availableParents = uiState.allCollections,
             onDismiss = { showEditCollectionDialog = false },
-            onSave = { name, parentId, icon, color ->
-                viewModel.updateCollection(
-                    newName = name,
-                    newParentId = parentId,
-                    icon = icon,
-                    color = color,
-                    onSuccess = { showEditCollectionDialog = false }
-                )
+            onSave = { name, parentId, icon, color, isLocked, isHidden ->
+                coroutineScope.launch {
+                    app.container.updateCollectionUseCase(
+                        collectionId = collectionId,
+                        newName = name,
+                        newParentId = parentId,
+                        icon = icon,
+                        color = color,
+                        isLocked = isLocked,
+                        isHidden = isHidden
+                    )
+                    showEditCollectionDialog = false
+                }
             }
         )
     }
@@ -181,6 +233,20 @@ fun CollectionDetailScreen(
                     contentDescription = "Delete collection"
                 )
             }
+        },
+        floatingActionButton = {
+            if (uiState.collection != null && (!uiState.collection!!.isLocked || isCollectionUnlocked)) {
+                FloatingActionButton(
+                    onClick = { onNavigateToAddBookmark(collectionId) },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add bookmark"
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         Box(
@@ -205,6 +271,58 @@ fun CollectionDetailScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            } else if (uiState.collection!!.isLocked && !isCollectionUnlocked) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(Spacing.large),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(Spacing.medium))
+
+                    Text(
+                        text = "Collection is Locked",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+
+                    Spacer(modifier = Modifier.height(Spacing.small))
+
+                    Text(
+                        text = "Authenticate to view bookmarks inside \"${uiState.collection!!.name}\"",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(Spacing.large))
+
+                    Button(onClick = { triggerUnlock() }) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("Unlock Collection")
+                    }
                 }
             } else {
                 val currentCollection = uiState.collection!!
@@ -350,6 +468,16 @@ fun CollectionDetailScreen(
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                    Spacer(modifier = Modifier.height(Spacing.small))
+                                    Button(onClick = { onNavigateToAddBookmark(collectionId) }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(Spacing.extraSmall))
+                                        Text("Add Bookmark")
+                                    }
                                 }
                             }
                         }

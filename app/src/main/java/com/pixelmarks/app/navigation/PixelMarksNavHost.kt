@@ -82,8 +82,18 @@ fun PixelMarksNavHost(
             )
         }
 
-        composable(Screen.AddBookmark.route) {
+        composable(
+            route = Screen.AddBookmark.route,
+            arguments = listOf(
+                navArgument("collectionId") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                }
+            )
+        ) { backStackEntry ->
+            val initialColId = backStackEntry.arguments?.getLong("collectionId")?.takeIf { it > 0 }
             AddBookmarkScreen(
+                initialCollectionId = initialColId,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToBookmarkDetail = { id ->
                     navController.navigate(Screen.BookmarkDetail.createRoute(id))
@@ -144,6 +154,9 @@ fun PixelMarksNavHost(
                 },
                 onNavigateToBookmarkDetail = { bookmarkId ->
                     navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))
+                },
+                onNavigateToAddBookmark = { colId ->
+                    navController.navigate(Screen.AddBookmark.createRoute(colId))
                 }
             )
         }

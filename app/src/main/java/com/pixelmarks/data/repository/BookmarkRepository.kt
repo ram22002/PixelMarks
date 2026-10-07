@@ -10,24 +10,26 @@ import kotlinx.coroutines.flow.Flow
  * Acts as the boundary between the domain layer and Room persistence.
  */
 interface BookmarkRepository {
-    fun observeAll(): Flow<List<Bookmark>>
+    fun observeAll(isPrivate: Boolean = false): Flow<List<Bookmark>>
     fun observeById(id: Long): Flow<Bookmark?>
-    fun observeByCollection(collectionId: Long): Flow<List<Bookmark>>
-    fun observeUnsorted(): Flow<List<Bookmark>>
-    fun observeFavorites(): Flow<List<Bookmark>>
-    fun observePinned(): Flow<List<Bookmark>>
-    fun observeArchived(): Flow<List<Bookmark>>
-    fun observeTrashed(): Flow<List<Bookmark>>
-    fun observeByDomain(domain: String): Flow<List<Bookmark>>
-    fun observeTotalCount(): Flow<Int>
-    fun observeTrashedCount(): Flow<Int>
+    fun observeByCollection(collectionId: Long, isPrivate: Boolean = false): Flow<List<Bookmark>>
+    fun observeUnsorted(isPrivate: Boolean = false): Flow<List<Bookmark>>
+    fun observeFavorites(isPrivate: Boolean = false): Flow<List<Bookmark>>
+    fun observePinned(isPrivate: Boolean = false): Flow<List<Bookmark>>
+    fun observeArchived(isPrivate: Boolean = false): Flow<List<Bookmark>>
+    fun observeTrashed(isPrivate: Boolean = false): Flow<List<Bookmark>>
+    fun observeByDomain(domain: String, isPrivate: Boolean = false): Flow<List<Bookmark>>
+    fun observeTotalCount(isPrivate: Boolean = false): Flow<Int>
+    fun observeTrashedCount(isPrivate: Boolean = false): Flow<Int>
     fun observeBookmarks(
         query: String = "",
         filters: BookmarkFilters = BookmarkFilters(),
-        sort: BookmarkSortOption = BookmarkSortOption.NEWEST
+        sort: BookmarkSortOption = BookmarkSortOption.NEWEST,
+        isPrivate: Boolean = false
     ): Flow<List<Bookmark>>
     suspend fun getById(id: Long): Bookmark?
-    suspend fun findByNormalizedUrl(normalizedUrl: String): List<Bookmark>
+    suspend fun findByNormalizedUrl(normalizedUrl: String, isPrivate: Boolean = false): List<Bookmark>
+    suspend fun getAllByPrivacy(isPrivate: Boolean): List<Bookmark>
     suspend fun insert(bookmark: Bookmark): Long
     suspend fun update(bookmark: Bookmark)
     suspend fun delete(bookmark: Bookmark)

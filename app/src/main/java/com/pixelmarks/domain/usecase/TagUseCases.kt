@@ -27,7 +27,7 @@ sealed interface UpdateTagResult {
 class ObserveTagsUseCase(
     private val tagRepository: TagRepository
 ) {
-    operator fun invoke(): Flow<List<Tag>> = tagRepository.observeAll()
+    operator fun invoke(isPrivate: Boolean = false): Flow<List<Tag>> = tagRepository.observeAll(isPrivate)
 
     fun observeTagCounts(): Flow<Map<Long, Int>> =
         tagRepository.observeAllCrossRefs().map { list ->
@@ -50,14 +50,18 @@ class GetTagUseCase(
 class CreateTagUseCase(
     private val tagRepository: TagRepository
 ) {
-    suspend operator fun invoke(name: String, color: String? = null): CreateTagResult {
+    suspend operator fun invoke(
+        name: String,
+        color: String? = null,
+        isPrivate: Boolean = false
+    ): CreateTagResult {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) {
             return CreateTagResult.InvalidName("Tag name cannot be empty")
         }
 
         return try {
-            val allTags = tagRepository.observeAll().first()
+            val allTags = tagRepository.observeAll(isPrivate).first()
             if (allTags.any { it.name.equals(trimmed, ignoreCase = true) }) {
                 return CreateTagResult.DuplicateName("A tag with this name already exists")
             }
@@ -65,6 +69,7 @@ class CreateTagUseCase(
             val newTag = Tag(
                 name = trimmed,
                 color = color,
+                isPrivate = isPrivate,
                 createdAt = System.currentTimeMillis()
             )
             val generatedId = tagRepository.insert(newTag)
@@ -90,7 +95,7 @@ class UpdateTagUseCase(
         val existing = tagRepository.getById(tagId)
             ?: return UpdateTagResult.Error("Tag not found")
 
-        val allTags = tagRepository.observeAll().first()
+        val allTags = tagRepository.observeAll(existing.isPrivate).first()
         if (allTags.any { it.id != tagId && it.name.equals(trimmed, ignoreCase = true) }) {
             return UpdateTagResult.DuplicateName("A tag with this name already exists")
         }
@@ -141,8 +146,8 @@ class ObserveBookmarkTagsUseCase(
 class ObserveBookmarksByTagUseCase(
     private val tagRepository: TagRepository
 ) {
-    operator fun invoke(tagId: Long): Flow<List<Bookmark>> =
-        tagRepository.observeBookmarksForTag(tagId)
+    operator fun invoke(tagId: Long, isPrivate: Boolean = false): Flow<List<Bookmark>> =
+        tagRepository.observeBookmarksForTag(tagId, isPrivate)
 }
 
 /**

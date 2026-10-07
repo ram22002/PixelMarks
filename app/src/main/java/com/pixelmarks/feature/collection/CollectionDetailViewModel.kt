@@ -15,12 +15,20 @@ import com.pixelmarks.domain.usecase.MoveBookmarkUseCase
 import com.pixelmarks.domain.usecase.ObserveCollectionsUseCase
 import com.pixelmarks.domain.usecase.UpdateCollectionResult
 import com.pixelmarks.domain.usecase.UpdateCollectionUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import com.pixelmarks.core.security.PrivateModeManager
+import com.pixelmarks.core.security.model.PrivacyMode
 
 data class CollectionDetailUiState(
     val collection: Collection? = null,
@@ -42,32 +50,55 @@ class CollectionDetailViewModel(
     private val updateCollectionUseCase: UpdateCollectionUseCase,
     private val deleteCollectionUseCase: DeleteCollectionUseCase,
     private val moveBookmarkUseCase: MoveBookmarkUseCase,
-    private val deleteBookmarkUseCase: DeleteBookmarkUseCase
+    private val deleteBookmarkUseCase: DeleteBookmarkUseCase,
+    private val privateModeManager: PrivateModeManager? = null
 ) : ViewModel() {
 
     private val _isDeleted = MutableStateFlow(false)
     private val _errorMessage = MutableStateFlow<String?>(null)
 
-    val uiState: StateFlow<CollectionDetailUiState> = combine(
-        observeCollectionsUseCase(),
-        bookmarkRepository.observeByCollection(collectionId),
-        _isDeleted,
-        _errorMessage
-    ) { allCols, bookmarks, isDel, err ->
-        val current = allCols.firstOrNull { it.id == collectionId }
-        val parent = current?.parentId?.let { pId -> allCols.firstOrNull { it.id == pId } }
-        val children = allCols.filter { it.parentId == collectionId }.sortedBy { it.position }
+    private val isPrivateActiveFlow: Flow<Boolean> =
+        privateModeManager?.mode?.map { it == PrivacyMode.PRIVATE } ?: flowOf(false)
 
-        CollectionDetailUiState(
-            collection = current,
-            parentCollection = parent,
-            childCollections = children,
-            bookmarks = bookmarks,
-            allCollections = allCols,
-            isLoading = current == null && !isDel,
-            isDeleted = isDel,
-            errorMessage = err
-        )
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<CollectionDetailUiState> = isPrivateActiveFlow.flatMapLatest { isPrivateActive: Boolean ->
+        flow {
+            val col = getCollectionUseCase(collectionId)
+            emit(col)
+        }.flatMapLatest { col: Collection? ->
+            val colIsPrivate = col?.isPrivate ?: false
+            if (col == null || (colIsPrivate && !isPrivateActive)) {
+                flowOf(
+                    CollectionDetailUiState(
+                        collection = null,
+                        isLoading = false,
+                        errorMessage = "Collection not found"
+                    )
+                )
+            } else {
+                combine(
+                    observeCollectionsUseCase(includeHidden = true, isPrivate = col.isPrivate),
+                    bookmarkRepository.observeByCollection(collectionId, isPrivate = col.isPrivate),
+                    _isDeleted,
+                    _errorMessage
+                ) { allCols, bookmarks, isDel, err ->
+                    val current = allCols.firstOrNull { it.id == collectionId }
+                    val parent = current?.parentId?.let { pId -> allCols.firstOrNull { it.id == pId } }
+                    val children = allCols.filter { it.parentId == collectionId }.sortedBy { it.position }
+
+                    CollectionDetailUiState(
+                        collection = current,
+                        parentCollection = parent,
+                        childCollections = children,
+                        bookmarks = bookmarks,
+                        allCollections = allCols,
+                        isLoading = false,
+                        isDeleted = isDel,
+                        errorMessage = err
+                    )
+                }
+            }
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -80,13 +111,17 @@ class CollectionDetailViewModel(
         color: String? = null,
         onSuccess: () -> Unit = {}
     ) {
+        val isPrivate = uiState.value.collection?.isPrivate ?: false
         viewModelScope.launch {
-            when (val result = createCollectionUseCase(name, parentId = collectionId, icon, color)) {
+            when (val result = createCollectionUseCase(name, parentId = collectionId, icon = icon, color = color, isPrivate = isPrivate)) {
                 is CreateCollectionResult.Success -> {
                     _errorMessage.value = null
                     onSuccess()
                 }
                 is CreateCollectionResult.InvalidName -> {
+                    _errorMessage.value = result.message
+                }
+                is CreateCollectionResult.InvalidHierarchy -> {
                     _errorMessage.value = result.message
                 }
                 is CreateCollectionResult.DuplicateName -> {
@@ -169,7 +204,8 @@ class CollectionDetailViewModel(
             updateCollectionUseCase: UpdateCollectionUseCase,
             deleteCollectionUseCase: DeleteCollectionUseCase,
             moveBookmarkUseCase: MoveBookmarkUseCase,
-            deleteBookmarkUseCase: DeleteBookmarkUseCase
+            deleteBookmarkUseCase: DeleteBookmarkUseCase,
+            privateModeManager: PrivateModeManager? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -182,7 +218,8 @@ class CollectionDetailViewModel(
                     updateCollectionUseCase,
                     deleteCollectionUseCase,
                     moveBookmarkUseCase,
-                    deleteBookmarkUseCase
+                    deleteBookmarkUseCase,
+                    privateModeManager
                 ) as T
             }
         }

@@ -63,7 +63,8 @@ fun TagsScreen(
                 observeTagsUseCase = app.container.observeTagsUseCase,
                 createTagUseCase = app.container.createTagUseCase,
                 updateTagUseCase = app.container.updateTagUseCase,
-                deleteTagUseCase = app.container.deleteTagUseCase
+                deleteTagUseCase = app.container.deleteTagUseCase,
+                privateModeManager = app.container.privateModeManager
             )
         }
     )
@@ -122,7 +123,7 @@ fun TagsScreen(
     }
 
     PixelMarksScreenScaffold(
-        title = "Tags",
+        title = if (uiState.isPrivateMode) "Tags 🔒 Secure Folder" else "Tags",
         actions = {
             IconButton(onClick = { showCreateDialog = true }) {
                 Icon(

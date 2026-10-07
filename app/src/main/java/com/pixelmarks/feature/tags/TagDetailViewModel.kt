@@ -12,10 +12,17 @@ import com.pixelmarks.domain.usecase.ObserveBookmarksByTagUseCase
 import com.pixelmarks.domain.usecase.ObserveTagsUseCase
 import com.pixelmarks.domain.usecase.UpdateTagResult
 import com.pixelmarks.domain.usecase.UpdateTagUseCase
+import com.pixelmarks.core.security.PrivateModeManager
+import com.pixelmarks.core.security.model.PrivacyMode
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -33,26 +40,34 @@ class TagDetailViewModel(
     private val observeBookmarksByTagUseCase: ObserveBookmarksByTagUseCase,
     private val updateTagUseCase: UpdateTagUseCase,
     private val deleteTagUseCase: DeleteTagUseCase,
-    private val deleteBookmarkUseCase: DeleteBookmarkUseCase
+    private val deleteBookmarkUseCase: DeleteBookmarkUseCase,
+    private val privateModeManager: PrivateModeManager? = null
 ) : ViewModel() {
 
     private val _isDeleted = MutableStateFlow(false)
     private val _errorMessage = MutableStateFlow<String?>(null)
 
-    val uiState: StateFlow<TagDetailUiState> = combine(
-        observeTagsUseCase(),
-        observeBookmarksByTagUseCase(tagId),
-        _isDeleted,
-        _errorMessage
-    ) { allTags, bookmarks, isDel, err ->
-        val currentTag = allTags.firstOrNull { it.id == tagId }
-        TagDetailUiState(
-            tag = currentTag,
-            bookmarks = bookmarks,
-            isLoading = currentTag == null && !isDel,
-            isDeleted = isDel,
-            errorMessage = err
-        )
+    private val isPrivateMode: Flow<Boolean> =
+        privateModeManager?.mode?.map { it == PrivacyMode.PRIVATE }
+            ?: flowOf(false)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<TagDetailUiState> = isPrivateMode.flatMapLatest { isPrivate ->
+        combine(
+            observeTagsUseCase(isPrivate = isPrivate),
+            observeBookmarksByTagUseCase(tagId, isPrivate = isPrivate),
+            _isDeleted,
+            _errorMessage
+        ) { allTags, bookmarks, isDel, err ->
+            val currentTag = allTags.firstOrNull { it.id == tagId }
+            TagDetailUiState(
+                tag = currentTag,
+                bookmarks = bookmarks,
+                isLoading = currentTag == null && !isDel,
+                isDeleted = isDel,
+                errorMessage = err
+            )
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -112,7 +127,8 @@ class TagDetailViewModel(
             observeBookmarksByTagUseCase: ObserveBookmarksByTagUseCase,
             updateTagUseCase: UpdateTagUseCase,
             deleteTagUseCase: DeleteTagUseCase,
-            deleteBookmarkUseCase: DeleteBookmarkUseCase
+            deleteBookmarkUseCase: DeleteBookmarkUseCase,
+            privateModeManager: PrivateModeManager? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -122,7 +138,8 @@ class TagDetailViewModel(
                     observeBookmarksByTagUseCase,
                     updateTagUseCase,
                     deleteTagUseCase,
-                    deleteBookmarkUseCase
+                    deleteBookmarkUseCase,
+                    privateModeManager
                 ) as T
             }
         }

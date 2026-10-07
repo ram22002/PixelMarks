@@ -18,14 +18,17 @@ class TagRepositoryImpl(
     private val bookmarkTagDao: BookmarkTagDao
 ) : TagRepository {
 
-    override fun observeAll(): Flow<List<Tag>> =
-        tagDao.observeAll().map { list -> list.map { it.toDomain() } }
+    override fun observeAll(isPrivate: Boolean): Flow<List<Tag>> =
+        tagDao.observeAll(isPrivate).map { list -> list.map { it.toDomain() } }
+
+    override suspend fun getAllByPrivacy(isPrivate: Boolean): List<Tag> =
+        tagDao.getAllByPrivacy(isPrivate).map { it.toDomain() }
 
     override suspend fun getById(id: Long): Tag? =
         tagDao.getById(id)?.toDomain()
 
-    override suspend fun getByName(name: String): Tag? =
-        tagDao.getByName(name)?.toDomain()
+    override suspend fun getByName(name: String, isPrivate: Boolean): Tag? =
+        tagDao.getByName(name, isPrivate)?.toDomain()
 
     override suspend fun insert(tag: Tag): Long =
         tagDao.insert(tag.toEntity())
@@ -56,8 +59,8 @@ class TagRepositoryImpl(
     override fun observeTagsForBookmark(bookmarkId: Long): Flow<List<Tag>> =
         bookmarkTagDao.observeTagsForBookmark(bookmarkId).map { list -> list.map { it.toDomain() } }
 
-    override fun observeBookmarksForTag(tagId: Long): Flow<List<Bookmark>> =
-        bookmarkTagDao.observeBookmarksForTag(tagId).map { list -> list.map { it.toDomain() } }
+    override fun observeBookmarksForTag(tagId: Long, isPrivate: Boolean): Flow<List<Bookmark>> =
+        bookmarkTagDao.observeBookmarksForTag(tagId, isPrivate).map { list -> list.map { it.toDomain() } }
 
     override fun observeAllCrossRefs(): Flow<List<BookmarkTagCrossRef>> =
         bookmarkTagDao.observeAllCrossRefs()

@@ -42,35 +42,72 @@ interface BookmarkDao {
     @Query("SELECT * FROM bookmarks WHERE normalizedUrl = :normalizedUrl")
     suspend fun getByNormalizedUrl(normalizedUrl: String): List<BookmarkEntity>
 
-    @Query("SELECT * FROM bookmarks WHERE isArchived = 0 AND isTrashed = 0 ORDER BY isPinned DESC, createdAt DESC")
-    fun observeAll(): Flow<List<BookmarkEntity>>
+    @Query("""
+        SELECT * FROM bookmarks 
+        WHERE isArchived = 0 
+          AND isTrashed = 0 
+          AND isPrivate = :isPrivate
+        ORDER BY isPinned DESC, createdAt DESC
+    """)
+    fun observeAll(isPrivate: Boolean = false): Flow<List<BookmarkEntity>>
 
-    @Query("SELECT * FROM bookmarks WHERE collectionId = :collectionId AND isArchived = 0 AND isTrashed = 0 ORDER BY isPinned DESC, createdAt DESC")
-    fun observeByCollection(collectionId: Long): Flow<List<BookmarkEntity>>
+    @Query("SELECT * FROM bookmarks WHERE collectionId = :collectionId AND isArchived = 0 AND isTrashed = 0 AND isPrivate = :isPrivate ORDER BY isPinned DESC, createdAt DESC")
+    fun observeByCollection(collectionId: Long, isPrivate: Boolean = false): Flow<List<BookmarkEntity>>
 
-    @Query("SELECT * FROM bookmarks WHERE collectionId IS NULL AND isArchived = 0 AND isTrashed = 0 ORDER BY isPinned DESC, createdAt DESC")
-    fun observeUnsorted(): Flow<List<BookmarkEntity>>
+    @Query("SELECT * FROM bookmarks WHERE collectionId IS NULL AND isArchived = 0 AND isTrashed = 0 AND isPrivate = :isPrivate ORDER BY isPinned DESC, createdAt DESC")
+    fun observeUnsorted(isPrivate: Boolean = false): Flow<List<BookmarkEntity>>
 
-    @Query("SELECT * FROM bookmarks WHERE isFavorite = 1 AND isArchived = 0 AND isTrashed = 0 ORDER BY createdAt DESC")
-    fun observeFavorites(): Flow<List<BookmarkEntity>>
+    @Query("""
+        SELECT * FROM bookmarks 
+        WHERE isFavorite = 1 
+          AND isArchived = 0 
+          AND isTrashed = 0 
+          AND isPrivate = :isPrivate
+        ORDER BY createdAt DESC
+    """)
+    fun observeFavorites(isPrivate: Boolean = false): Flow<List<BookmarkEntity>>
 
-    @Query("SELECT * FROM bookmarks WHERE isPinned = 1 AND isArchived = 0 AND isTrashed = 0 ORDER BY createdAt DESC")
-    fun observePinned(): Flow<List<BookmarkEntity>>
+    @Query("""
+        SELECT * FROM bookmarks 
+        WHERE isPinned = 1 
+          AND isArchived = 0 
+          AND isTrashed = 0 
+          AND isPrivate = :isPrivate
+        ORDER BY createdAt DESC
+    """)
+    fun observePinned(isPrivate: Boolean = false): Flow<List<BookmarkEntity>>
 
-    @Query("SELECT * FROM bookmarks WHERE isArchived = 1 AND isTrashed = 0 ORDER BY createdAt DESC")
-    fun observeArchived(): Flow<List<BookmarkEntity>>
+    @Query("""
+        SELECT * FROM bookmarks 
+        WHERE isArchived = 1 
+          AND isTrashed = 0 
+          AND isPrivate = :isPrivate
+        ORDER BY createdAt DESC
+    """)
+    fun observeArchived(isPrivate: Boolean = false): Flow<List<BookmarkEntity>>
 
-    @Query("SELECT * FROM bookmarks WHERE domain = :domain AND isArchived = 0 AND isTrashed = 0 ORDER BY createdAt DESC")
-    fun observeByDomain(domain: String): Flow<List<BookmarkEntity>>
+    @Query("""
+        SELECT * FROM bookmarks 
+        WHERE domain = :domain 
+          AND isArchived = 0 
+          AND isTrashed = 0 
+          AND isPrivate = :isPrivate
+        ORDER BY createdAt DESC
+    """)
+    fun observeByDomain(domain: String, isPrivate: Boolean = false): Flow<List<BookmarkEntity>>
 
-    @Query("SELECT COUNT(*) FROM bookmarks WHERE isTrashed = 0")
-    fun observeCount(): Flow<Int>
+    @Query("""
+        SELECT COUNT(*) FROM bookmarks 
+        WHERE isTrashed = 0 
+          AND isPrivate = :isPrivate
+    """)
+    fun observeCount(isPrivate: Boolean = false): Flow<Int>
 
-    @Query("SELECT * FROM bookmarks WHERE isTrashed = 1 ORDER BY trashedAt DESC, createdAt DESC")
-    fun observeTrashed(): Flow<List<BookmarkEntity>>
+    @Query("SELECT * FROM bookmarks WHERE isTrashed = 1 AND isPrivate = :isPrivate ORDER BY trashedAt DESC, createdAt DESC")
+    fun observeTrashed(isPrivate: Boolean = false): Flow<List<BookmarkEntity>>
 
-    @Query("SELECT COUNT(*) FROM bookmarks WHERE isTrashed = 1")
-    fun observeTrashedCount(): Flow<Int>
+    @Query("SELECT COUNT(*) FROM bookmarks WHERE isTrashed = 1 AND isPrivate = :isPrivate")
+    fun observeTrashedCount(isPrivate: Boolean = false): Flow<Int>
 
     @Query("UPDATE bookmarks SET isFavorite = :isFavorite, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setFavorite(id: Long, isFavorite: Boolean, updatedAt: Long = System.currentTimeMillis())
@@ -93,6 +130,7 @@ interface BookmarkDao {
         LEFT JOIN tags t ON ref.tagId = t.id
         WHERE b.isArchived = :archivedOnly
           AND b.isTrashed = 0
+          AND b.isPrivate = :isPrivate
           AND (:favoriteOnly = 0 OR b.isFavorite = 1)
           AND (:pinnedOnly = 0 OR b.isPinned = 1)
           AND (:collectionId IS NULL OR b.collectionId = :collectionId)
@@ -115,11 +153,18 @@ interface BookmarkDao {
         pinnedOnly: Boolean,
         archivedOnly: Boolean,
         collectionId: Long?,
-        tagId: Long?
+        tagId: Long?,
+        isPrivate: Boolean = false
     ): Flow<List<BookmarkEntity>>
 
     @Query("UPDATE bookmarks SET visitCount = visitCount + 1, lastOpenedAt = :openedAt WHERE id = :id")
     suspend fun incrementVisitCount(id: Long, openedAt: Long)
+
+    @Query("SELECT * FROM bookmarks WHERE normalizedUrl = :normalizedUrl AND isPrivate = :isPrivate AND isTrashed = 0")
+    suspend fun getByNormalizedUrlAndPrivacy(normalizedUrl: String, isPrivate: Boolean): List<BookmarkEntity>
+
+    @Query("SELECT * FROM bookmarks WHERE isPrivate = :isPrivate AND isArchived = 0 AND isTrashed = 0")
+    suspend fun getAllByPrivacy(isPrivate: Boolean): List<BookmarkEntity>
 
     @Query("SELECT * FROM bookmarks")
     suspend fun getAll(): List<BookmarkEntity>

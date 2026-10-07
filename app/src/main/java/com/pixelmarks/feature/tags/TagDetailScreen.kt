@@ -58,7 +58,8 @@ fun TagDetailScreen(
                 observeBookmarksByTagUseCase = app.container.observeBookmarksByTagUseCase,
                 updateTagUseCase = app.container.updateTagUseCase,
                 deleteTagUseCase = app.container.deleteTagUseCase,
-                deleteBookmarkUseCase = app.container.deleteBookmarkUseCase
+                deleteBookmarkUseCase = app.container.deleteBookmarkUseCase,
+                privateModeManager = app.container.privateModeManager
             )
         }
     )

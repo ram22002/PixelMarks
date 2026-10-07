@@ -20,9 +20,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import com.pixelmarks.core.security.PrivateModeManager
+import com.pixelmarks.core.security.model.PrivacyMode
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+
 data class HomeUiState(
     val bookmarks: List<Bookmark> = emptyList(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isPrivateMode: Boolean = false
 )
 
 sealed interface HomeEvent {
@@ -30,21 +36,27 @@ sealed interface HomeEvent {
 }
 
 class HomeViewModel(
-    observeBookmarksUseCase: ObserveBookmarksUseCase,
+    private val observeBookmarksUseCase: ObserveBookmarksUseCase,
     private val deleteBookmarkUseCase: DeleteBookmarkUseCase,
     private val toggleBookmarkFavoriteUseCase: ToggleBookmarkFavoriteUseCase,
     private val toggleBookmarkPinUseCase: ToggleBookmarkPinUseCase,
     private val archiveBookmarkUseCase: ArchiveBookmarkUseCase,
     private val trashBookmarkUseCase: TrashBookmarkUseCase,
-    private val restoreBookmarkUseCase: RestoreBookmarkUseCase
+    private val restoreBookmarkUseCase: RestoreBookmarkUseCase,
+    private val privateModeManager: PrivateModeManager
 ) : ViewModel() {
 
-    val uiState: StateFlow<HomeUiState> = observeBookmarksUseCase()
-        .map { bookmarks ->
-            HomeUiState(
-                bookmarks = bookmarks,
-                isLoading = false
-            )
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<HomeUiState> = privateModeManager.mode
+        .flatMapLatest { mode ->
+            val isPrivate = mode == PrivacyMode.PRIVATE
+            observeBookmarksUseCase(isPrivate = isPrivate).map { bookmarks ->
+                HomeUiState(
+                    bookmarks = bookmarks,
+                    isLoading = false,
+                    isPrivateMode = isPrivate
+                )
+            }
         }
         .stateIn(
             scope = viewModelScope,
@@ -100,7 +112,8 @@ class HomeViewModel(
             toggleBookmarkPinUseCase: ToggleBookmarkPinUseCase,
             archiveBookmarkUseCase: ArchiveBookmarkUseCase,
             trashBookmarkUseCase: TrashBookmarkUseCase,
-            restoreBookmarkUseCase: RestoreBookmarkUseCase
+            restoreBookmarkUseCase: RestoreBookmarkUseCase,
+            privateModeManager: PrivateModeManager
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -112,7 +125,8 @@ class HomeViewModel(
                         toggleBookmarkPinUseCase,
                         archiveBookmarkUseCase,
                         trashBookmarkUseCase,
-                        restoreBookmarkUseCase
+                        restoreBookmarkUseCase,
+                        privateModeManager
                     ) as T
                 }
             }

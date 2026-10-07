@@ -12,6 +12,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.pixelmarks.app.MainActivity
 import com.pixelmarks.app.R
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 object ReminderScheduler {
 
@@ -104,16 +107,20 @@ object ReminderScheduler {
             alarmManager.cancel(pendingIntent)
         }
     }
-}
-
-class ReminderAlarmReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        ReminderScheduler.createNotificationChannel(context)
-
-        val reminderId = intent.getLongExtra(ReminderScheduler.EXTRA_REMINDER_ID, 0L)
-        val bookmarkId = intent.getLongExtra(ReminderScheduler.EXTRA_BOOKMARK_ID, 0L)
-        val title = intent.getStringExtra(ReminderScheduler.EXTRA_TITLE) ?: "Bookmark Reminder"
-        val url = intent.getStringExtra(ReminderScheduler.EXTRA_URL) ?: ""
+    fun buildNotification(
+        context: Context,
+        reminderId: Long,
+        bookmarkId: Long,
+        title: String,
+        url: String,
+        isSensitive: Boolean
+    ): NotificationCompat.Builder {
+        val displayTitle = if (isSensitive) "Bookmark reminder" else title
+        val displayText = if (isSensitive) {
+            "You have a bookmark reminder."
+        } else {
+            if (url.isNotBlank()) "Time to read: $url" else "Scheduled read-later reminder"
+        }
 
         val contentIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -126,22 +133,77 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, ReminderScheduler.CHANNEL_ID)
+        val publicNotification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(title)
-            .setContentText(if (url.isNotBlank()) "Time to read: $url" else "Scheduled read-later reminder")
+            .setContentTitle("Bookmark reminder")
+            .setContentText("You have a bookmark reminder.")
+            .setContentIntent(contentPendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        return NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(displayTitle)
+            .setContentText(displayText)
             .setAutoCancel(true)
             .setContentIntent(contentPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(if (isSensitive) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC)
+            .setPublicVersion(publicNotification)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .build()
+    }
+}
+
+class ReminderAlarmReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        ReminderScheduler.createNotificationChannel(context)
+
+        val reminderId = intent.getLongExtra(ReminderScheduler.EXTRA_REMINDER_ID, 0L)
+        val bookmarkId = intent.getLongExtra(ReminderScheduler.EXTRA_BOOKMARK_ID, 0L)
+        val title = intent.getStringExtra(ReminderScheduler.EXTRA_TITLE) ?: "Bookmark Reminder"
+        val url = intent.getStringExtra(ReminderScheduler.EXTRA_URL) ?: ""
+
+        val app = context.applicationContext as? com.pixelmarks.app.PixelMarksApplication
+        val appContainer = app?.container
+        var isSensitive = false
+
+        if (appContainer != null) {
+            try {
+                runBlocking {
+                    val appLockEnabled = withTimeoutOrNull(1000L) {
+                        appContainer.securityPreferencesRepository.observeAppLockEnabled().first()
+                    } ?: false
+                    val bookmark = kotlinx.coroutines.withTimeoutOrNull(1000L) {
+                        appContainer.bookmarkRepository.getById(bookmarkId)
+                    }
+                    val isCollectionProtected = if (bookmark?.collectionId != null) {
+                        val col = appContainer.collectionRepository.getById(bookmark.collectionId)
+                        col?.isLocked == true || col?.isHidden == true || col?.isPrivate == true
+                    } else false
+
+                    if (appLockEnabled || isCollectionProtected || bookmark?.isPrivate == true) {
+                        isSensitive = true
+                    }
+                }
+            } catch (_: Exception) {
+                // Ignore fallback to safe default
+            }
+        }
+
+        val notificationBuilder = ReminderScheduler.buildNotification(
+            context = context,
+            reminderId = reminderId,
+            bookmarkId = bookmarkId,
+            title = title,
+            url = url,
+            isSensitive = isSensitive
+        )
 
         try {
             val notificationManager = NotificationManagerCompat.from(context)
             if (notificationManager.areNotificationsEnabled()) {
-                notificationManager.notify(reminderId.toInt(), notification)
+                notificationManager.notify(reminderId.toInt(), notificationBuilder.build())
             }
         } catch (_: SecurityException) {
             // Android 13+ POST_NOTIFICATIONS runtime permission denied

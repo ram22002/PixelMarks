@@ -4,16 +4,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.pixelmarks.core.model.Tag
+import com.pixelmarks.core.security.PrivateModeManager
+import com.pixelmarks.core.security.model.PrivacyMode
 import com.pixelmarks.domain.usecase.CreateTagResult
 import com.pixelmarks.domain.usecase.CreateTagUseCase
 import com.pixelmarks.domain.usecase.DeleteTagUseCase
 import com.pixelmarks.domain.usecase.ObserveTagsUseCase
 import com.pixelmarks.domain.usecase.UpdateTagResult
 import com.pixelmarks.domain.usecase.UpdateTagUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -21,6 +25,7 @@ data class TagsUiState(
     val tags: List<Tag> = emptyList(),
     val bookmarkCounts: Map<Long, Int> = emptyMap(),
     val isLoading: Boolean = false,
+    val isPrivateMode: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -28,35 +33,44 @@ class TagsViewModel(
     private val observeTagsUseCase: ObserveTagsUseCase,
     private val createTagUseCase: CreateTagUseCase,
     private val updateTagUseCase: UpdateTagUseCase,
-    private val deleteTagUseCase: DeleteTagUseCase
+    private val deleteTagUseCase: DeleteTagUseCase,
+    private val privateModeManager: PrivateModeManager
 ) : ViewModel() {
 
     private val _errorState = MutableStateFlow<String?>(null)
 
-    val uiState: StateFlow<TagsUiState> = combine(
-        observeTagsUseCase(),
-        observeTagsUseCase.observeTagCounts(),
-        _errorState
-    ) { tags, counts, error ->
-        TagsUiState(
-            tags = tags.sortedBy { it.name.lowercase() },
-            bookmarkCounts = counts,
-            isLoading = false,
-            errorMessage = error
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<TagsUiState> = privateModeManager.mode
+        .flatMapLatest { mode ->
+            val isPrivate = mode == PrivacyMode.PRIVATE
+            combine(
+                observeTagsUseCase(isPrivate = isPrivate),
+                observeTagsUseCase.observeTagCounts(),
+                _errorState
+            ) { tags, counts, error ->
+                TagsUiState(
+                    tags = tags.sortedBy { it.name.lowercase() },
+                    bookmarkCounts = counts,
+                    isLoading = false,
+                    isPrivateMode = isPrivate,
+                    errorMessage = error
+                )
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = TagsUiState(isLoading = true)
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = TagsUiState(isLoading = true)
-    )
 
     fun createTag(
         name: String,
         color: String? = null,
         onSuccess: () -> Unit = {}
     ) {
+        val isPrivate = privateModeManager.isPrivateActive()
         viewModelScope.launch {
-            when (val result = createTagUseCase(name, color)) {
+            when (val result = createTagUseCase(name, color, isPrivate)) {
                 is CreateTagResult.Success -> {
                     _errorState.value = null
                     onSuccess()
@@ -117,7 +131,8 @@ class TagsViewModel(
             observeTagsUseCase: ObserveTagsUseCase,
             createTagUseCase: CreateTagUseCase,
             updateTagUseCase: UpdateTagUseCase,
-            deleteTagUseCase: DeleteTagUseCase
+            deleteTagUseCase: DeleteTagUseCase,
+            privateModeManager: PrivateModeManager
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -125,7 +140,8 @@ class TagsViewModel(
                     observeTagsUseCase,
                     createTagUseCase,
                     updateTagUseCase,
-                    deleteTagUseCase
+                    deleteTagUseCase,
+                    privateModeManager
                 ) as T
             }
         }

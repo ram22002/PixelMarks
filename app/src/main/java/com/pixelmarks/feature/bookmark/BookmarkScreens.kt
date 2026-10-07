@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.HourglassBottom
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.RestoreFromTrash
@@ -129,7 +131,8 @@ fun BookmarkDetailScreen(
                 cancelBookmarkReminderUseCase = app.container.cancelBookmarkReminderUseCase,
                 observeBookmarkReminderUseCase = app.container.observeBookmarkReminderUseCase,
                 recordBookmarkVisitUseCase = app.container.recordBookmarkVisitUseCase,
-                getBrowserPreferenceUseCase = app.container.getBrowserPreferenceUseCase
+                getBrowserPreferenceUseCase = app.container.getBrowserPreferenceUseCase,
+                privateModeManager = app.container.privateModeManager
             )
         }
     )
@@ -138,6 +141,38 @@ fun BookmarkDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val app = context.applicationContext as PixelMarksApplication
+    val activity = context as? androidx.fragment.app.FragmentActivity
+    val unlockedCollectionIds by app.container.appLockManager.unlockedCollectionIds.collectAsState()
+    val isPrivateSessionUnlocked by app.container.appLockManager.isPrivateSessionUnlocked.collectAsState()
+
+    val currentCollection = uiState.assignedCollection
+    val isProtected = currentCollection?.isLocked == true || currentCollection?.isHidden == true
+    val isCollectionUnlocked = currentCollection == null || isPrivateSessionUnlocked || unlockedCollectionIds.contains(currentCollection.id)
+
+    fun triggerBookmarkUnlock() {
+        if (activity != null && currentCollection != null) {
+            app.container.biometricAuthManager.authenticate(
+                activity = activity,
+                title = "Unlock Bookmark",
+                subtitle = "Authenticate to view protected bookmark",
+                onSuccess = {
+                    app.container.appLockManager.unlockCollection(currentCollection.id)
+                },
+                onError = { _: Int, errString: CharSequence ->
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(errString.toString())
+                    }
+                }
+            )
+        }
+    }
+
+    LaunchedEffect(isProtected, isCollectionUnlocked) {
+        if (isProtected && !isCollectionUnlocked) {
+            triggerBookmarkUnlock()
+        }
+    }
 
     var showSelectTagsDialog by remember { mutableStateOf(false) }
     var showCreateTagDialog by remember { mutableStateOf(false) }
@@ -338,7 +373,7 @@ fun BookmarkDetailScreen(
         title = "Bookmark Detail",
         onNavigateBack = onNavigateBack,
         actions = {
-            if (current != null) {
+            if (current != null && (!isProtected || isCollectionUnlocked)) {
                 if (current.isTrashed) {
                     IconButton(onClick = { viewModel.restore { onNavigateBack() } }) {
                         Icon(
@@ -400,7 +435,60 @@ fun BookmarkDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(Spacing.medium)
             ) {
                 if (current != null) {
-                    if (current.isTrashed) {
+                    if (isProtected && !isCollectionUnlocked) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Spacing.large),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(Spacing.medium))
+
+                            Text(
+                                text = "Bookmark is Protected",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+
+                            Spacer(modifier = Modifier.height(Spacing.small))
+
+                            Text(
+                                text = "This bookmark belongs to a locked or private collection. Authenticate to view details.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(Spacing.large))
+
+                            Button(onClick = { triggerBookmarkUnlock() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text("Unlock Bookmark")
+                            }
+                        }
+                    } else if (current.isTrashed) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(

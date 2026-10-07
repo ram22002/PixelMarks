@@ -11,7 +11,8 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "tags",
     indices = [
-        Index(value = ["name"], unique = true)
+        Index(value = ["name", "isPrivate"], unique = true),
+        Index(value = ["isPrivate"])
     ]
 )
 data class TagEntity(
@@ -19,5 +20,6 @@ data class TagEntity(
     val id: Long = 0,
     val name: String,
     val color: String? = null,
+    val isPrivate: Boolean = false,
     val createdAt: Long
 )

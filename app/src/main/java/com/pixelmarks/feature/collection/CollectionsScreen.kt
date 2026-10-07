@@ -20,8 +20,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SubdirectoryArrowRight
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -103,11 +107,17 @@ fun CollectionsScreen(
                 observeBookmarksUseCase = app.container.observeBookmarksUseCase,
                 createCollectionUseCase = app.container.createCollectionUseCase,
                 updateCollectionUseCase = app.container.updateCollectionUseCase,
-                deleteCollectionUseCase = app.container.deleteCollectionUseCase
+                deleteCollectionUseCase = app.container.deleteCollectionUseCase,
+                privateModeManager = app.container.privateModeManager
             )
         }
     )
 ) {
+    val context = LocalContext.current
+    val app = context.applicationContext as PixelMarksApplication
+    val activity = context as? androidx.fragment.app.FragmentActivity
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -131,12 +141,14 @@ fun CollectionsScreen(
                 showCreateDialog = false
                 createParentId = null
             },
-            onSave = { name, parentId, icon, color ->
+            onSave = { name, parentId, icon, color, isLocked, isHidden ->
                 viewModel.createCollection(
                     name = name,
                     parentId = parentId,
                     icon = icon,
                     color = color,
+                    isLocked = isLocked,
+                    isHidden = isHidden,
                     onSuccess = {
                         showCreateDialog = false
                         createParentId = null
@@ -151,13 +163,15 @@ fun CollectionsScreen(
             initialCollection = collection,
             availableParents = uiState.collections,
             onDismiss = { editingCollection = null },
-            onSave = { name, parentId, icon, color ->
+            onSave = { name, parentId, icon, color, isLocked, isHidden ->
                 viewModel.updateCollection(
                     collectionId = collection.id,
                     newName = name,
                     newParentId = parentId,
                     icon = icon,
                     color = color,
+                    isLocked = isLocked,
+                    isHidden = isHidden,
                     onSuccess = { editingCollection = null }
                 )
             }
@@ -176,7 +190,7 @@ fun CollectionsScreen(
     }
 
     PixelMarksScreenScaffold(
-        title = "Collections",
+        title = if (uiState.isPrivateMode) "Collections 🔒 Secure Folder" else "Collections",
         actions = {
             IconButton(
                 onClick = {
@@ -278,7 +292,26 @@ fun CollectionsScreen(
                             depth = node.depth,
                             bookmarkCount = bookmarkCount,
                             childCount = childCount,
-                            onClick = { onNavigateToCollectionDetail(col.id) },
+                            onClick = {
+                                if (col.isLocked && !app.container.appLockManager.isCollectionUnlocked(col.id)) {
+                                    if (activity != null) {
+                                        app.container.biometricAuthManager.authenticate(
+                                            activity = activity,
+                                            title = "Unlock Collection",
+                                            subtitle = "Authenticate to open \"${col.name}\"",
+                                            onSuccess = {
+                                                app.container.appLockManager.unlockCollection(col.id)
+                                                onNavigateToCollectionDetail(col.id)
+                                            },
+                                            onError = { _: Int, err: CharSequence ->
+                                                coroutineScope.launch { snackbarHostState.showSnackbar(err.toString()) }
+                                            }
+                                        )
+                                    }
+                                } else {
+                                    onNavigateToCollectionDetail(col.id)
+                                }
+                            },
                             onAddSubCollection = {
                                 createParentId = col.id
                                 showCreateDialog = true
@@ -383,13 +416,24 @@ fun CollectionListItemCard(
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = collection.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = collection.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (collection.isLocked) {
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Locked",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
 
                     val subtitle = buildString {
                         append("$bookmarkCount bookmarks")

@@ -2,19 +2,26 @@ package com.pixelmarks.app
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
+import android.view.WindowManager
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.pixelmarks.core.security.model.PrivacyMode
+import kotlinx.coroutines.launch
+
 /**
  * Main Activity host for PixelMarks.
  * Handles app launch, intent navigation (e.g. from reminder notification clicks),
- * and hosts PixelMarksApp.
+ * biometric authentication hosting, and hosts PixelMarksApp.
  */
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private var initialBookmarkId by mutableStateOf<Long?>(null)
 
@@ -22,8 +29,36 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleNotificationIntent(intent)
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                val container = (application as? PixelMarksApplication)?.container
+                container?.privateModeManager?.mode?.collect { mode ->
+                    if (mode == PrivacyMode.PRIVATE) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    }
+                }
+            }
+        }
+
         setContent {
             PixelMarksApp(initialBookmarkId = initialBookmarkId)
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        (application as? PixelMarksApplication)?.container?.appLockManager?.onAppForegrounded()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) {
+            val container = (application as? PixelMarksApplication)?.container
+            container?.appLockManager?.onAppBackgrounded()
+            container?.privateModeManager?.onAppBackgrounded()
         }
     }
 

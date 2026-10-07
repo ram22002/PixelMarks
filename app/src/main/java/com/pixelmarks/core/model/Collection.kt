@@ -12,6 +12,7 @@ data class Collection(
     val position: Int = 0,
     val isLocked: Boolean = false,
     val isHidden: Boolean = false,
+    val isPrivate: Boolean = false,
     val isDomain: Boolean = false,
     val domain: String? = null,
     val createdAt: Long = System.currentTimeMillis(),

@@ -75,7 +75,8 @@ fun SearchScreen(
                 toggleBookmarkPinUseCase = app.container.toggleBookmarkPinUseCase,
                 archiveBookmarkUseCase = app.container.archiveBookmarkUseCase,
                 unarchiveBookmarkUseCase = app.container.unarchiveBookmarkUseCase,
-                trashBookmarkUseCase = app.container.trashBookmarkUseCase
+                trashBookmarkUseCase = app.container.trashBookmarkUseCase,
+                privateModeManager = app.container.privateModeManager
             )
         }
     )
@@ -87,7 +88,7 @@ fun SearchScreen(
     var sortDropdownExpanded by remember { mutableStateOf(false) }
 
     PixelMarksScreenScaffold(
-        title = "Search & Filter",
+        title = if (uiState.isPrivateMode) "Search 🔒 Secure Folder" else "Search & Filter",
         onNavigateBack = onNavigateBack
     ) { paddingValues ->
         Column(

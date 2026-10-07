@@ -40,6 +40,7 @@ data class BackupBookmarkDto(
     val lastOpenedAt: Long? = null,
     val visitCount: Int = 0,
     val reminderAt: Long? = null,
+    val isPrivate: Boolean = false,
     val metadataStatus: String = "PENDING",
     val metadataUpdatedAt: Long? = null
 )
@@ -53,6 +54,7 @@ data class BackupCollectionDto(
     val position: Int = 0,
     val isLocked: Boolean = false,
     val isHidden: Boolean = false,
+    val isPrivate: Boolean = false,
     val isDomain: Boolean = false,
     val domain: String? = null,
     val createdAt: Long,
@@ -63,6 +65,7 @@ data class BackupTagDto(
     val id: Long,
     val name: String,
     val color: String? = null,
+    val isPrivate: Boolean = false,
     val createdAt: Long
 )
 

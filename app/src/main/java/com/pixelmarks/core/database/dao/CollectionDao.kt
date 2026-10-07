@@ -36,14 +36,31 @@ interface CollectionDao {
     @Query("SELECT * FROM collections WHERE isDomain = 1 AND domain = :domain LIMIT 1")
     suspend fun getByDomain(domain: String): CollectionEntity?
 
-    @Query("SELECT * FROM collections WHERE parentId IS NULL ORDER BY position ASC, name ASC")
-    fun observeRootCollections(): Flow<List<CollectionEntity>>
+    @Query("""
+        SELECT * FROM collections 
+        WHERE parentId IS NULL 
+          AND isPrivate = :isPrivate
+        ORDER BY position ASC, name COLLATE NOCASE ASC
+    """)
+    fun observeRootCollections(isPrivate: Boolean = false): Flow<List<CollectionEntity>>
 
-    @Query("SELECT * FROM collections WHERE parentId = :parentId ORDER BY position ASC, name ASC")
-    fun observeChildren(parentId: Long): Flow<List<CollectionEntity>>
+    @Query("""
+        SELECT * FROM collections 
+        WHERE parentId = :parentId 
+          AND isPrivate = :isPrivate
+        ORDER BY position ASC, name COLLATE NOCASE ASC
+    """)
+    fun observeChildren(parentId: Long, isPrivate: Boolean = false): Flow<List<CollectionEntity>>
 
-    @Query("SELECT * FROM collections ORDER BY position ASC, name ASC")
-    fun observeAll(): Flow<List<CollectionEntity>>
+    @Query("""
+        SELECT * FROM collections 
+        WHERE isPrivate = :isPrivate
+        ORDER BY position ASC, name COLLATE NOCASE ASC
+    """)
+    fun observeAll(isPrivate: Boolean = false): Flow<List<CollectionEntity>>
+
+    @Query("SELECT * FROM collections WHERE isPrivate = :isPrivate ORDER BY position ASC, name COLLATE NOCASE ASC")
+    suspend fun getAllByPrivacy(isPrivate: Boolean): List<CollectionEntity>
 
     @Query("SELECT * FROM collections ORDER BY id ASC")
     suspend fun getAll(): List<CollectionEntity>

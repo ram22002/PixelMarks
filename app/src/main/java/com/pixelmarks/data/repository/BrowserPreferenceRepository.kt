@@ -8,13 +8,12 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.pixelmarks.core.browser.BrowserPreference
+import com.pixelmarks.data.datastore.userPreferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
-
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "pixelmarks_user_preferences")
 
 interface BrowserPreferenceRepository {
     fun observePreference(): Flow<BrowserPreference>
@@ -31,7 +30,7 @@ class BrowserPreferenceRepositoryImpl(
     }
 
     override fun observePreference(): Flow<BrowserPreference> {
-        return context.dataStore.data
+        return context.userPreferencesDataStore.data
             .catch { exception ->
                 if (exception is IOException) {
                     emit(emptyPreferences())
@@ -46,7 +45,7 @@ class BrowserPreferenceRepositoryImpl(
     }
 
     override suspend fun setPreference(preference: BrowserPreference) {
-        context.dataStore.edit { preferences ->
+        context.userPreferencesDataStore.edit { preferences ->
             preferences[KEY_BROWSER_PREFERENCE] = preference.name
         }
     }

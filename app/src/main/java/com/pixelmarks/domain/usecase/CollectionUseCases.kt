@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 sealed interface CreateCollectionResult {
     data class Success(val collection: Collection) : CreateCollectionResult
     data class InvalidName(val message: String) : CreateCollectionResult
+    data class InvalidHierarchy(val message: String) : CreateCollectionResult
     data class DuplicateName(val message: String) : CreateCollectionResult
     data class Error(val message: String) : CreateCollectionResult
 }
@@ -25,12 +26,15 @@ sealed interface UpdateCollectionResult {
 /**
  * Use case to observe all collections in deterministic position/name order.
  */
+/**
+ * Use case to observe all collections in deterministic position/name order.
+ */
 class ObserveCollectionsUseCase(
     private val collectionRepository: CollectionRepository
 ) {
-    operator fun invoke(): Flow<List<Collection>> = collectionRepository.observeAll()
-    fun observeRoots(): Flow<List<Collection>> = collectionRepository.observeRootCollections()
-    fun observeChildren(parentId: Long): Flow<List<Collection>> = collectionRepository.observeChildren(parentId)
+    operator fun invoke(includeHidden: Boolean = false, isPrivate: Boolean = false): Flow<List<Collection>> = collectionRepository.observeAll(isPrivate)
+    fun observeRoots(isPrivate: Boolean = false): Flow<List<Collection>> = collectionRepository.observeRootCollections(isPrivate)
+    fun observeChildren(parentId: Long, isPrivate: Boolean = false): Flow<List<Collection>> = collectionRepository.observeChildren(parentId, isPrivate)
 }
 
 /**
@@ -52,7 +56,10 @@ class CreateCollectionUseCase(
         name: String,
         parentId: Long? = null,
         icon: String? = null,
-        color: String? = null
+        color: String? = null,
+        isLocked: Boolean = false,
+        isHidden: Boolean = false,
+        isPrivate: Boolean = false
     ): CreateCollectionResult {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) {
@@ -60,10 +67,17 @@ class CreateCollectionUseCase(
         }
 
         return try {
+            val parentCol = if (parentId != null) collectionRepository.getById(parentId) else null
+            if (parentCol != null && parentCol.isPrivate != isPrivate) {
+                return CreateCollectionResult.InvalidHierarchy(
+                    "Collection must have the same privacy level as its parent collection."
+                )
+            }
+
             val siblings = if (parentId == null) {
-                collectionRepository.observeRootCollections().first()
+                collectionRepository.observeRootCollections(isPrivate = isPrivate).first()
             } else {
-                collectionRepository.observeChildren(parentId).first()
+                collectionRepository.observeChildren(parentId, isPrivate = isPrivate).first()
             }
 
             if (siblings.any { it.name.equals(trimmed, ignoreCase = true) }) {
@@ -72,6 +86,9 @@ class CreateCollectionUseCase(
                 )
             }
 
+            val resolvedHidden = isHidden || (parentCol?.isHidden == true)
+            val resolvedLocked = isLocked || resolvedHidden
+
             val now = System.currentTimeMillis()
             val newCollection = Collection(
                 name = trimmed,
@@ -79,6 +96,9 @@ class CreateCollectionUseCase(
                 icon = icon,
                 color = color,
                 position = siblings.size,
+                isLocked = resolvedLocked,
+                isHidden = resolvedHidden,
+                isPrivate = isPrivate,
                 createdAt = now,
                 updatedAt = now
             )
@@ -102,7 +122,10 @@ class UpdateCollectionUseCase(
         newName: String,
         newParentId: Long? = null,
         icon: String? = null,
-        color: String? = null
+        color: String? = null,
+        isLocked: Boolean? = null,
+        isHidden: Boolean? = null,
+        isPrivate: Boolean? = null
     ): UpdateCollectionResult {
         val trimmed = newName.trim()
         if (trimmed.isEmpty()) {
@@ -112,10 +135,19 @@ class UpdateCollectionUseCase(
         val existing = collectionRepository.getById(collectionId)
             ?: return UpdateCollectionResult.Error("Collection not found")
 
+        val resolvedPrivate = isPrivate ?: existing.isPrivate
+
         // Hierarchy validation
         if (newParentId != null) {
             if (newParentId == collectionId) {
                 return UpdateCollectionResult.InvalidHierarchy("A collection cannot be its own parent")
+            }
+
+            val parentCol = collectionRepository.getById(newParentId)
+            if (parentCol != null && parentCol.isPrivate != resolvedPrivate) {
+                return UpdateCollectionResult.InvalidHierarchy(
+                    "Collection must have the same privacy level as its parent collection."
+                )
             }
 
             // Cycle prevention: walk up ancestors of newParentId
@@ -130,16 +162,16 @@ class UpdateCollectionUseCase(
                 if (!visited.add(currentAncestorId)) {
                     break // Prevent infinite loop in corrupt data
                 }
-                val parentCol = collectionRepository.getById(currentAncestorId)
-                currentAncestorId = parentCol?.parentId
+                val ancestor = collectionRepository.getById(currentAncestorId)
+                currentAncestorId = ancestor?.parentId
             }
         }
 
         // Duplicate sibling name validation (excluding itself)
         val siblings = if (newParentId == null) {
-            collectionRepository.observeRootCollections().first()
+            collectionRepository.observeRootCollections(isPrivate = resolvedPrivate).first()
         } else {
-            collectionRepository.observeChildren(newParentId).first()
+            collectionRepository.observeChildren(newParentId, isPrivate = resolvedPrivate).first()
         }
 
         if (siblings.any { it.id != collectionId && it.name.equals(trimmed, ignoreCase = true) }) {
@@ -148,11 +180,17 @@ class UpdateCollectionUseCase(
             )
         }
 
+        val resolvedHidden = isHidden ?: existing.isHidden
+        val resolvedLocked = if (resolvedHidden) true else (isLocked ?: existing.isLocked)
+
         val updated = existing.copy(
             name = trimmed,
             parentId = newParentId,
             icon = icon ?: existing.icon,
             color = color ?: existing.color,
+            isLocked = resolvedLocked,
+            isHidden = resolvedHidden,
+            isPrivate = resolvedPrivate,
             updatedAt = System.currentTimeMillis()
         )
 
@@ -189,9 +227,12 @@ class DeleteCollectionUseCase(
                 }
             } while (addedNew)
 
+            val targetCol = allCollections.firstOrNull { it.id == collectionId }
+            val isPrivate = targetCol?.isPrivate ?: false
+
             // Safely detach all bookmarks referencing this collection subtree
             for (id in targetIds) {
-                val bookmarksInCollection = bookmarkRepository.observeByCollection(id).first()
+                val bookmarksInCollection = bookmarkRepository.observeByCollection(id, isPrivate = isPrivate).first()
                 for (bm in bookmarksInCollection) {
                     bookmarkRepository.update(
                         bm.copy(
@@ -215,11 +256,19 @@ class DeleteCollectionUseCase(
  * Use case to move or detach a bookmark from a collection without affecting other fields.
  */
 class MoveBookmarkUseCase(
-    private val bookmarkRepository: BookmarkRepository
+    private val bookmarkRepository: BookmarkRepository,
+    private val collectionRepository: CollectionRepository? = null
 ) {
     suspend operator fun invoke(bookmarkId: Long, targetCollectionId: Long?): Boolean {
         val bookmark = bookmarkRepository.getById(bookmarkId) ?: return false
         if (bookmark.collectionId == targetCollectionId) return true
+
+        if (targetCollectionId != null && collectionRepository != null) {
+            val targetCol = collectionRepository.getById(targetCollectionId) ?: return false
+            if (targetCol.isPrivate != bookmark.isPrivate) {
+                return false
+            }
+        }
 
         val updated = bookmark.copy(
             collectionId = targetCollectionId,

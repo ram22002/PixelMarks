@@ -16,12 +16,14 @@ class SearchBookmarksUseCase(
     operator fun invoke(
         query: String = "",
         filters: BookmarkFilters = BookmarkFilters(),
-        sort: BookmarkSortOption = BookmarkSortOption.NEWEST
+        sort: BookmarkSortOption = BookmarkSortOption.NEWEST,
+        isPrivate: Boolean = false
     ): Flow<List<Bookmark>> = bookmarkRepository.observeBookmarks(
         query = query,
         filters = filters,
-        sort = sort
+        sort = sort,
+        isPrivate = isPrivate
     )
 
-    fun observeTotalCount(): Flow<Int> = bookmarkRepository.observeTotalCount()
+    fun observeTotalCount(isPrivate: Boolean = false): Flow<Int> = bookmarkRepository.observeTotalCount(isPrivate)
 }

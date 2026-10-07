@@ -33,11 +33,14 @@ interface TagDao {
     @Query("SELECT * FROM tags WHERE id = :id")
     suspend fun getById(id: Long): TagEntity?
 
-    @Query("SELECT * FROM tags WHERE name = :name LIMIT 1")
-    suspend fun getByName(name: String): TagEntity?
+    @Query("SELECT * FROM tags WHERE name = :name AND isPrivate = :isPrivate LIMIT 1")
+    suspend fun getByName(name: String, isPrivate: Boolean = false): TagEntity?
 
-    @Query("SELECT * FROM tags ORDER BY name ASC")
-    fun observeAll(): Flow<List<TagEntity>>
+    @Query("SELECT * FROM tags WHERE isPrivate = :isPrivate ORDER BY name COLLATE NOCASE ASC")
+    fun observeAll(isPrivate: Boolean = false): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM tags WHERE isPrivate = :isPrivate ORDER BY id ASC")
+    suspend fun getAllByPrivacy(isPrivate: Boolean): List<TagEntity>
 
     @Query("SELECT * FROM tags ORDER BY id ASC")
     suspend fun getAll(): List<TagEntity>
