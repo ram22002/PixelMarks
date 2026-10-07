@@ -9,11 +9,14 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.pixelmarks.app.MainActivity
+import com.pixelmarks.app.R
 
 object ReminderScheduler {
 
-    const val CHANNEL_ID = "bookmark_reminders_channel"
+    const val CHANNEL_ID = "bookmark_reminders_v2"
+    private const val OLD_CHANNEL_ID = "bookmark_reminders_channel"
     const val EXTRA_REMINDER_ID = "extra_reminder_id"
     const val EXTRA_BOOKMARK_ID = "extra_bookmark_id"
     const val EXTRA_TITLE = "extra_title"
@@ -21,13 +24,25 @@ object ReminderScheduler {
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            // Delete old channel if it was created with lower importance
+            try {
+                notificationManager.deleteNotificationChannel(OLD_CHANNEL_ID)
+            } catch (_: Exception) {
+                // Ignore cleanup error
+            }
+
             val name = "Bookmark Reminders"
             val descriptionText = "Notifications for scheduled read-later bookmarks"
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val importance = NotificationManager.IMPORTANCE_HIGH
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
+                enableLights(true)
+                enableVibration(true)
+                setShowBadge(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
@@ -40,6 +55,7 @@ object ReminderScheduler {
         url: String,
         triggerAtMillis: Long
     ) {
+        createNotificationChannel(context)
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val intent = Intent(context, ReminderAlarmReceiver::class.java).apply {
             putExtra(EXTRA_REMINDER_ID, reminderId)
@@ -55,13 +71,23 @@ object ReminderScheduler {
         )
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                } else {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             } else {
                 alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             }
         } catch (_: SecurityException) {
-            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            } else {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            }
         }
     }
 
@@ -101,15 +127,24 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
         )
 
         val notification = NotificationCompat.Builder(context, ReminderScheduler.CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(if (url.isNotBlank()) "Time to read: $url" else "Scheduled read-later reminder")
             .setAutoCancel(true)
             .setContentIntent(contentPendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .build()
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(reminderId.toInt(), notification)
+        try {
+            val notificationManager = NotificationManagerCompat.from(context)
+            if (notificationManager.areNotificationsEnabled()) {
+                notificationManager.notify(reminderId.toInt(), notification)
+            }
+        } catch (_: SecurityException) {
+            // Android 13+ POST_NOTIFICATIONS runtime permission denied
+        }
     }
 }

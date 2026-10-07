@@ -22,6 +22,7 @@ class PixelMarksApplication : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         container = DefaultAppContainer(this)
         SingletonImageLoader.setSafe { container.imageLoader }
+        com.pixelmarks.core.reminder.ReminderScheduler.createNotificationChannel(this)
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {

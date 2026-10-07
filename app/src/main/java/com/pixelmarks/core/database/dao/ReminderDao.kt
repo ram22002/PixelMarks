@@ -39,6 +39,9 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE isCompleted = 0 AND reminderAt >= :currentTime ORDER BY reminderAt ASC")
     fun observeUpcoming(currentTime: Long): Flow<List<ReminderEntity>>
 
+    @Query("SELECT * FROM reminders WHERE isCompleted = 0 AND reminderAt >= :currentTime ORDER BY reminderAt ASC")
+    suspend fun getUpcoming(currentTime: Long): List<ReminderEntity>
+
     @Query("SELECT * FROM reminders WHERE isCompleted = 1 ORDER BY reminderAt DESC")
     fun observeCompleted(): Flow<List<ReminderEntity>>
 

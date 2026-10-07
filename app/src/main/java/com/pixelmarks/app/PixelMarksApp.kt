@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -18,11 +19,19 @@ import com.pixelmarks.ui.theme.PixelMarksTheme
  * Root composable establishing theme and top-level navigation shell.
  */
 @Composable
-fun PixelMarksApp() {
+fun PixelMarksApp(
+    initialBookmarkId: Long? = null
+) {
     PixelMarksTheme {
         val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
+
+        LaunchedEffect(initialBookmarkId) {
+            if (initialBookmarkId != null && initialBookmarkId > 0) {
+                navController.navigate(Screen.BookmarkDetail.createRoute(initialBookmarkId))
+            }
+        }
 
         val isBottomBarVisible = currentRoute in listOf(
             Screen.Home.route,

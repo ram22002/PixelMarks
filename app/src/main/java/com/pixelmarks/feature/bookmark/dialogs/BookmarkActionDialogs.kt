@@ -55,6 +55,15 @@ import com.pixelmarks.core.image.ImageUrlValidator
 import com.pixelmarks.core.reminder.ReminderFormatter
 import com.pixelmarks.core.reminder.ReminderTimeHelper
 import com.pixelmarks.ui.theme.Spacing
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -74,11 +83,60 @@ fun SetReminderDialog(
     onDismiss: () -> Unit,
     onSetReminder: (Long?) -> Unit
 ) {
+    val context = LocalContext.current
     var customStep by remember { mutableStateOf(CustomReminderStep.NONE) }
     var selectedDateUtcMillis by remember { mutableStateOf<Long?>(null) }
     var selectedHour by remember { mutableIntStateOf(12) }
     var selectedMinute by remember { mutableIntStateOf(0) }
     var customTargetTimestamp by remember { mutableLongStateOf(0L) }
+
+    var pendingReminderTimestamp by remember { mutableStateOf<Long?>(null) }
+    var showPermissionDeniedDialog by remember { mutableStateOf(false) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        val target = pendingReminderTimestamp
+        if (isGranted) {
+            if (target != null) {
+                onSetReminder(target)
+            }
+            onDismiss()
+        } else {
+            showPermissionDeniedDialog = true
+        }
+    }
+
+    fun handleSchedule(targetTimestamp: Long) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!hasPermission) {
+                pendingReminderTimestamp = targetTimestamp
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                return
+            }
+        }
+        onSetReminder(targetTimestamp)
+        onDismiss()
+    }
+
+    if (showPermissionDeniedDialog) {
+        NotificationPermissionDeniedDialog(
+            onDismiss = {
+                showPermissionDeniedDialog = false
+                onDismiss()
+            },
+            onSetAnyway = {
+                showPermissionDeniedDialog = false
+                pendingReminderTimestamp?.let { onSetReminder(it) }
+                onDismiss()
+            }
+        )
+    }
 
     when (customStep) {
         CustomReminderStep.NONE -> {
@@ -86,8 +144,7 @@ fun SetReminderDialog(
                 currentReminderAt = currentReminderAt,
                 onDismiss = onDismiss,
                 onSelectPreset = { timestamp ->
-                    onSetReminder(timestamp)
-                    onDismiss()
+                    handleSchedule(timestamp)
                 },
                 onClearReminder = {
                     onSetReminder(null)
@@ -141,9 +198,7 @@ fun SetReminderDialog(
             CustomReminderConfirmDialog(
                 timestamp = customTargetTimestamp,
                 onConfirm = { confirmedTimestamp ->
-                    onSetReminder(confirmedTimestamp)
-                    customStep = CustomReminderStep.NONE
-                    onDismiss()
+                    handleSchedule(confirmedTimestamp)
                 },
                 onBack = {
                     customStep = CustomReminderStep.TIME_PICKER
@@ -154,6 +209,63 @@ fun SetReminderDialog(
             )
         }
     }
+}
+
+@Composable
+private fun NotificationPermissionDeniedDialog(
+    onDismiss: () -> Unit,
+    onSetAnyway: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.AlarmOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+        },
+        title = {
+            Text("Notification Permission Needed")
+        },
+        text = {
+            Text(
+                "Notifications are disabled for PixelMarks on this device. To receive alerts when your reminder is due, please allow notifications in App Settings."
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        }
+                    } else {
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                    }
+                    try {
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
+                    onDismiss()
+                }
+            ) {
+                Text("Open Settings")
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onSetAnyway) {
+                    Text("Set Anyway")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        }
+    )
 }
 
 @Composable
