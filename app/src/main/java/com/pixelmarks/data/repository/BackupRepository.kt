@@ -31,6 +31,7 @@ import com.pixelmarks.core.database.model.BackupStatus
 import com.pixelmarks.core.database.model.BackupType
 import com.pixelmarks.core.database.model.MetadataStatus
 import com.pixelmarks.core.reminder.ReminderScheduler
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -51,12 +52,13 @@ interface BackupRepository {
 class BackupRepositoryImpl(
     private val context: Context,
     private val database: PixelMarksDatabase,
-    private val browserPreferenceRepository: BrowserPreferenceRepository
+    private val browserPreferenceRepository: BrowserPreferenceRepository,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : BackupRepository {
 
     private val gson: Gson = GsonBuilder().create()
 
-    override suspend fun createBackupPayload(): BackupPayload = withContext(Dispatchers.IO) {
+    override suspend fun createBackupPayload(): BackupPayload = withContext(ioDispatcher) {
         val bookmarks = database.bookmarkDao().getAll().map { it.toDto() }
         val collections = database.collectionDao().getAll().map { it.toDto() }
         val tags = database.tagDao().getAll().map { it.toDto() }
@@ -79,7 +81,7 @@ class BackupRepositoryImpl(
     override suspend fun exportBackup(
         password: CharArray,
         outputStream: OutputStream
-    ): BackupExportResult = withContext(Dispatchers.IO) {
+    ): BackupExportResult = withContext(ioDispatcher) {
         val payload = createBackupPayload()
         BackupValidator.validate(payload)
 
@@ -145,14 +147,14 @@ class BackupRepositoryImpl(
         )
     }
 
-    override suspend fun readBackupHeader(inputStream: InputStream): BackupHeaderInfo = withContext(Dispatchers.IO) {
+    override suspend fun readBackupHeader(inputStream: InputStream): BackupHeaderInfo = withContext(ioDispatcher) {
         BackupContainer.readHeader(inputStream)
     }
 
     override suspend fun decryptAndValidate(
         password: CharArray,
         inputStream: InputStream
-    ): BackupPayload = withContext(Dispatchers.IO) {
+    ): BackupPayload = withContext(ioDispatcher) {
         val (header, ciphertext) = BackupContainer.readEnvelope(inputStream)
         val key = BackupCrypto.deriveKey(password, header.salt, header.kdfIterations)
         val aad = BackupContainer.createAad(header)
@@ -173,7 +175,7 @@ class BackupRepositoryImpl(
     override suspend fun restoreBackup(
         payload: BackupPayload,
         mode: RestoreMode
-    ): RestoreResult = withContext(Dispatchers.IO) {
+    ): RestoreResult = withContext(ioDispatcher) {
         BackupValidator.validate(payload)
 
         when (mode) {
@@ -187,7 +189,7 @@ class BackupRepositoryImpl(
         return database.backupRecordDao().observeAll()
     }
 
-    override suspend fun getLatestBackupRecord(): BackupRecordEntity? = withContext(Dispatchers.IO) {
+    override suspend fun getLatestBackupRecord(): BackupRecordEntity? = withContext(ioDispatcher) {
         database.backupRecordDao().getLatest()
     }
 

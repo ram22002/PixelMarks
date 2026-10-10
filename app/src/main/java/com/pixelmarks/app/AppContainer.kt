@@ -142,11 +142,29 @@ interface AppContainer {
     val getBrowserPreferenceUseCase: GetBrowserPreferenceUseCase
     val recordBookmarkVisitUseCase: RecordBookmarkVisitUseCase
 
+    val database: PixelMarksDatabase
+    val autoBackupKeyManager: com.pixelmarks.core.backup.crypto.AutoBackupKeyManager
+    val drivePreferencesRepository: com.pixelmarks.data.repository.DrivePreferencesRepository
+    val googleAuthManager: com.pixelmarks.data.backup.GoogleAuthManager
+    val googleDriveClient: com.pixelmarks.data.backup.GoogleDriveClient
+    val driveBackupRepository: com.pixelmarks.data.repository.DriveBackupRepository
+
     val backupRepository: BackupRepository
     val createBackupUseCase: CreateBackupUseCase
     val inspectBackupUseCase: InspectBackupUseCase
     val restoreBackupUseCase: RestoreBackupUseCase
     val observeLatestBackupUseCase: ObserveLatestBackupUseCase
+
+    val observeDriveConnectionUseCase: com.pixelmarks.domain.usecase.ObserveDriveConnectionUseCase
+    val connectDriveUseCase: com.pixelmarks.domain.usecase.ConnectDriveUseCase
+    val disconnectDriveUseCase: com.pixelmarks.domain.usecase.DisconnectDriveUseCase
+    val listDriveBackupsUseCase: com.pixelmarks.domain.usecase.ListDriveBackupsUseCase
+    val uploadDriveBackupUseCase: com.pixelmarks.domain.usecase.UploadDriveBackupUseCase
+    val downloadAndInspectDriveBackupUseCase: com.pixelmarks.domain.usecase.DownloadAndInspectDriveBackupUseCase
+    val restoreDriveBackupUseCase: com.pixelmarks.domain.usecase.RestoreDriveBackupUseCase
+    val deleteDriveBackupUseCase: com.pixelmarks.domain.usecase.DeleteDriveBackupUseCase
+    val observeAutoBackupPreferencesUseCase: com.pixelmarks.domain.usecase.ObserveAutoBackupPreferencesUseCase
+    val updateAutoBackupPreferencesUseCase: com.pixelmarks.domain.usecase.UpdateAutoBackupPreferencesUseCase
 
     val securityPreferencesRepository: SecurityPreferencesRepository
     val biometricAuthManager: BiometricAuthManager
@@ -162,7 +180,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     private val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val database: PixelMarksDatabase by lazy {
+    override val database: PixelMarksDatabase by lazy {
         PixelMarksDatabase.getInstance(context)
     }
 
@@ -365,6 +383,34 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         RecordBookmarkVisitUseCase(bookmarkRepository)
     }
 
+    override val autoBackupKeyManager: com.pixelmarks.core.backup.crypto.AutoBackupKeyManager by lazy {
+        com.pixelmarks.core.backup.crypto.AutoBackupKeyManager(context)
+    }
+
+    override val drivePreferencesRepository: com.pixelmarks.data.repository.DrivePreferencesRepository by lazy {
+        com.pixelmarks.data.repository.DrivePreferencesRepositoryImpl(context)
+    }
+
+    override val googleAuthManager: com.pixelmarks.data.backup.GoogleAuthManager by lazy {
+        com.pixelmarks.data.backup.GoogleAuthManagerImpl(context)
+    }
+
+    override val googleDriveClient: com.pixelmarks.data.backup.GoogleDriveClient by lazy {
+        com.pixelmarks.data.backup.GoogleDriveClientImpl()
+    }
+
+    override val driveBackupRepository: com.pixelmarks.data.repository.DriveBackupRepository by lazy {
+        com.pixelmarks.data.repository.DriveBackupRepositoryImpl(
+            context = context,
+            database = database,
+            backupRepository = backupRepository,
+            googleAuthManager = googleAuthManager,
+            googleDriveClient = googleDriveClient,
+            drivePreferencesRepository = drivePreferencesRepository,
+            autoBackupKeyManager = autoBackupKeyManager
+        )
+    }
+
     override val backupRepository: BackupRepository by lazy {
         BackupRepositoryImpl(context, database, browserPreferenceRepository)
     }
@@ -383,6 +429,46 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val observeLatestBackupUseCase: ObserveLatestBackupUseCase by lazy {
         ObserveLatestBackupUseCase(backupRepository)
+    }
+
+    override val observeDriveConnectionUseCase: com.pixelmarks.domain.usecase.ObserveDriveConnectionUseCase by lazy {
+        com.pixelmarks.domain.usecase.ObserveDriveConnectionUseCase(driveBackupRepository)
+    }
+
+    override val connectDriveUseCase: com.pixelmarks.domain.usecase.ConnectDriveUseCase by lazy {
+        com.pixelmarks.domain.usecase.ConnectDriveUseCase(driveBackupRepository)
+    }
+
+    override val disconnectDriveUseCase: com.pixelmarks.domain.usecase.DisconnectDriveUseCase by lazy {
+        com.pixelmarks.domain.usecase.DisconnectDriveUseCase(driveBackupRepository)
+    }
+
+    override val listDriveBackupsUseCase: com.pixelmarks.domain.usecase.ListDriveBackupsUseCase by lazy {
+        com.pixelmarks.domain.usecase.ListDriveBackupsUseCase(driveBackupRepository)
+    }
+
+    override val uploadDriveBackupUseCase: com.pixelmarks.domain.usecase.UploadDriveBackupUseCase by lazy {
+        com.pixelmarks.domain.usecase.UploadDriveBackupUseCase(driveBackupRepository)
+    }
+
+    override val downloadAndInspectDriveBackupUseCase: com.pixelmarks.domain.usecase.DownloadAndInspectDriveBackupUseCase by lazy {
+        com.pixelmarks.domain.usecase.DownloadAndInspectDriveBackupUseCase(driveBackupRepository)
+    }
+
+    override val restoreDriveBackupUseCase: com.pixelmarks.domain.usecase.RestoreDriveBackupUseCase by lazy {
+        com.pixelmarks.domain.usecase.RestoreDriveBackupUseCase(driveBackupRepository)
+    }
+
+    override val deleteDriveBackupUseCase: com.pixelmarks.domain.usecase.DeleteDriveBackupUseCase by lazy {
+        com.pixelmarks.domain.usecase.DeleteDriveBackupUseCase(driveBackupRepository)
+    }
+
+    override val observeAutoBackupPreferencesUseCase: com.pixelmarks.domain.usecase.ObserveAutoBackupPreferencesUseCase by lazy {
+        com.pixelmarks.domain.usecase.ObserveAutoBackupPreferencesUseCase(driveBackupRepository)
+    }
+
+    override val updateAutoBackupPreferencesUseCase: com.pixelmarks.domain.usecase.UpdateAutoBackupPreferencesUseCase by lazy {
+        com.pixelmarks.domain.usecase.UpdateAutoBackupPreferencesUseCase(driveBackupRepository)
     }
 
     override val securityPreferencesRepository: SecurityPreferencesRepository by lazy {
