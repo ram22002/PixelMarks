@@ -166,6 +166,12 @@ interface AppContainer {
     val observeAutoBackupPreferencesUseCase: com.pixelmarks.domain.usecase.ObserveAutoBackupPreferencesUseCase
     val updateAutoBackupPreferencesUseCase: com.pixelmarks.domain.usecase.UpdateAutoBackupPreferencesUseCase
 
+    val htmlBookmarkRepository: com.pixelmarks.data.repository.HtmlBookmarkRepository
+    val parseBookmarksHtmlUseCase: com.pixelmarks.domain.usecase.ParseBookmarksHtmlUseCase
+    val getHtmlImportPreviewUseCase: com.pixelmarks.domain.usecase.GetHtmlImportPreviewUseCase
+    val importBookmarksHtmlUseCase: com.pixelmarks.domain.usecase.ImportBookmarksHtmlUseCase
+    val exportBookmarksHtmlUseCase: com.pixelmarks.domain.usecase.ExportBookmarksHtmlUseCase
+
     val securityPreferencesRepository: SecurityPreferencesRepository
     val biometricAuthManager: BiometricAuthManager
     val appLockManager: AppLockManager
@@ -469,6 +475,26 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val updateAutoBackupPreferencesUseCase: com.pixelmarks.domain.usecase.UpdateAutoBackupPreferencesUseCase by lazy {
         com.pixelmarks.domain.usecase.UpdateAutoBackupPreferencesUseCase(driveBackupRepository)
+    }
+
+    override val htmlBookmarkRepository: com.pixelmarks.data.repository.HtmlBookmarkRepository by lazy {
+        com.pixelmarks.data.repository.HtmlBookmarkRepositoryImpl(database)
+    }
+
+    override val parseBookmarksHtmlUseCase: com.pixelmarks.domain.usecase.ParseBookmarksHtmlUseCase by lazy {
+        com.pixelmarks.domain.usecase.ParseBookmarksHtmlUseCase(htmlBookmarkRepository)
+    }
+
+    override val getHtmlImportPreviewUseCase: com.pixelmarks.domain.usecase.GetHtmlImportPreviewUseCase by lazy {
+        com.pixelmarks.domain.usecase.GetHtmlImportPreviewUseCase(htmlBookmarkRepository)
+    }
+
+    override val importBookmarksHtmlUseCase: com.pixelmarks.domain.usecase.ImportBookmarksHtmlUseCase by lazy {
+        com.pixelmarks.domain.usecase.ImportBookmarksHtmlUseCase(htmlBookmarkRepository)
+    }
+
+    override val exportBookmarksHtmlUseCase: com.pixelmarks.domain.usecase.ExportBookmarksHtmlUseCase by lazy {
+        com.pixelmarks.domain.usecase.ExportBookmarksHtmlUseCase(htmlBookmarkRepository)
     }
 
     override val securityPreferencesRepository: SecurityPreferencesRepository by lazy {

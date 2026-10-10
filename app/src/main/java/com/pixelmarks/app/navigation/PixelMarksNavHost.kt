@@ -17,6 +17,7 @@ import com.pixelmarks.feature.collection.CollectionsScreen
 import com.pixelmarks.feature.connectpc.ConnectPcScreen
 import com.pixelmarks.feature.devices.ConnectedDevicesScreen
 import com.pixelmarks.feature.home.HomeScreen
+import com.pixelmarks.feature.importexport.HtmlImportExportScreen
 import com.pixelmarks.feature.reminders.RemindersScreen
 import com.pixelmarks.feature.search.SearchScreen
 import com.pixelmarks.feature.settings.SettingsScreen
@@ -68,7 +69,8 @@ fun PixelMarksNavHost(
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onNavigateToConnectedDevices = { navController.navigate(Screen.ConnectedDevices.route) },
-                onNavigateToBackup = { navController.navigate(Screen.Backup.route) }
+                onNavigateToBackup = { navController.navigate(Screen.Backup.route) },
+                onNavigateToHtmlImportExport = { navController.navigate(Screen.HtmlImportExport.route) }
             )
         }
 
@@ -227,6 +229,12 @@ fun PixelMarksNavHost(
                 onNavigateToBookmarkDetail = { bookmarkId ->
                     navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))
                 }
+            )
+        }
+
+        composable(Screen.HtmlImportExport.route) {
+            HtmlImportExportScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

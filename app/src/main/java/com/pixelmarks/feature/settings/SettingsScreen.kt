@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     onNavigateToConnectedDevices: () -> Unit,
     onNavigateToBackup: () -> Unit,
+    onNavigateToHtmlImportExport: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel(
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
@@ -493,6 +494,13 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Connected PC Devices")
+                }
+
+                OutlinedButton(
+                    onClick = onNavigateToHtmlImportExport,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Import & Export Bookmarks (HTML)")
                 }
 
                 Button(
