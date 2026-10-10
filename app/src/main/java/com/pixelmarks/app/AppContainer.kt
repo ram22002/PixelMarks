@@ -180,6 +180,11 @@ interface AppContainer {
     val setAppLockTimeoutUseCase: SetAppLockTimeoutUseCase
     val checkBiometricCapabilityUseCase: CheckBiometricCapabilityUseCase
     val manageAppLockUseCase: ManageAppLockUseCase
+
+    val connectedDeviceRepository: com.pixelmarks.data.repository.ConnectedDeviceRepository
+    val pairingManager: com.pixelmarks.core.pcserver.PairingManager
+    val deviceSessionManager: com.pixelmarks.core.pcserver.DeviceSessionManager
+    val localServerManager: com.pixelmarks.core.pcserver.LocalServerManager
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -536,4 +541,26 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val privatePreferencesRepository: PrivatePreferencesRepository by lazy {
         PrivatePreferencesRepositoryImpl(context)
     }
+
+    override val connectedDeviceRepository: com.pixelmarks.data.repository.ConnectedDeviceRepository by lazy {
+        com.pixelmarks.data.repository.ConnectedDeviceRepositoryImpl(database.connectedDeviceDao())
+    }
+
+    override val pairingManager: com.pixelmarks.core.pcserver.PairingManager by lazy {
+        com.pixelmarks.core.pcserver.PairingManager()
+    }
+
+    override val deviceSessionManager: com.pixelmarks.core.pcserver.DeviceSessionManager by lazy {
+        com.pixelmarks.core.pcserver.DeviceSessionManager(connectedDeviceRepository)
+    }
+
+    override val localServerManager: com.pixelmarks.core.pcserver.LocalServerManager by lazy {
+        com.pixelmarks.core.pcserver.LocalServerManager(
+            bookmarkRepository = bookmarkRepository,
+            collectionRepository = collectionRepository,
+            pairingManager = pairingManager,
+            sessionManager = deviceSessionManager
+        )
+    }
 }
+

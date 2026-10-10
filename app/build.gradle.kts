@@ -79,6 +79,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.jsoup)
     implementation(libs.gson)
+    implementation(libs.zxing.core)
 
     // Image Loading (Coil 3)
     implementation(libs.coil.compose)

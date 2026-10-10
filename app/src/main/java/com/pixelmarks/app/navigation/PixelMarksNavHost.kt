@@ -68,6 +68,7 @@ fun PixelMarksNavHost(
 
         composable(Screen.Settings.route) {
             SettingsScreen(
+                onNavigateToConnectPc = { navController.navigate(Screen.ConnectPc.route) },
                 onNavigateToConnectedDevices = { navController.navigate(Screen.ConnectedDevices.route) },
                 onNavigateToBackup = { navController.navigate(Screen.Backup.route) },
                 onNavigateToHtmlImportExport = { navController.navigate(Screen.HtmlImportExport.route) }
@@ -207,7 +208,8 @@ fun PixelMarksNavHost(
 
         composable(Screen.ConnectPc.route) {
             ConnectPcScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDevices = { navController.navigate(Screen.ConnectedDevices.route) }
             )
         }
 

@@ -80,8 +80,10 @@ class HtmlImportExportViewModelTest {
     private fun waitFor(timeoutMs: Long = 5000, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (!condition() && System.currentTimeMillis() < deadline) {
+            testDispatcher.scheduler.advanceUntilIdle()
             Thread.sleep(20)
         }
+        testDispatcher.scheduler.advanceUntilIdle()
         assertTrue("Condition timed out after $timeoutMs ms", condition())
     }
 
@@ -173,10 +175,10 @@ class HtmlImportExportViewModelTest {
         tempFile.writeText(htmlContent)
 
         viewModel.onFileSelected(Uri.fromFile(tempFile), context.contentResolver)
-        waitFor { !viewModel.uiState.value.isParsing }
+        waitFor { viewModel.uiState.value.parseResult != null }
 
         viewModel.confirmImport()
-        waitFor { !viewModel.uiState.value.isImporting }
+        waitFor { viewModel.uiState.value.importSummary != null }
 
         val state = viewModel.uiState.value
         assertFalse(state.isImporting)

@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
+    onNavigateToConnectPc: () -> Unit = {},
     onNavigateToConnectedDevices: () -> Unit,
     onNavigateToBackup: () -> Unit,
     onNavigateToHtmlImportExport: () -> Unit = {},
@@ -490,11 +491,19 @@ fun SettingsScreen(
                 )
 
                 OutlinedButton(
+                    onClick = onNavigateToConnectPc,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Connect to PC")
+                }
+
+                OutlinedButton(
                     onClick = onNavigateToConnectedDevices,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Connected PC Devices")
                 }
+
 
                 OutlinedButton(
                     onClick = onNavigateToHtmlImportExport,
