@@ -498,7 +498,8 @@ fun HomeScreen(
                                                     onClick = { onNavigateToBookmarkDetail(bookmark.id) },
                                                     onOpen = { openBookmark(bookmark) },
                                                     onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
-                                                    onShare = { shareBookmark(bookmark) }
+                                                    onShare = { shareBookmark(bookmark) },
+                                                    onDelete = { viewModel.moveToTrash(bookmark) }
                                                 )
                                             }
                                         }
@@ -579,7 +580,8 @@ fun HomeScreen(
                                                 onClick = { onNavigateToBookmarkDetail(bookmark.id) },
                                                 onOpen = { openBookmark(bookmark) },
                                                 onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
-                                                onShare = { shareBookmark(bookmark) }
+                                                onShare = { shareBookmark(bookmark) },
+                                                onDelete = { viewModel.moveToTrash(bookmark) }
                                             )
                                         }
                                     }
@@ -860,7 +862,8 @@ fun GridBookmarkCard(
     onClick: () -> Unit,
     onOpen: () -> Unit = {},
     onToggleFavorite: () -> Unit = {},
-    onShare: () -> Unit = {}
+    onShare: () -> Unit = {},
+    onDelete: () -> Unit = {}
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -987,16 +990,29 @@ fun GridBookmarkCard(
                         modifier = Modifier.size(18.dp)
                     )
                 }
-                IconButton(
-                    onClick = onShare,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Share",
-                        tint = ArchivalTextSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(
+                        onClick = onShare,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = ArchivalTextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Delete",
+                            tint = ArchivalTextSecondary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
@@ -1162,6 +1178,17 @@ fun ListBookmarkCard(
                         imageVector = Icons.Default.Share,
                         contentDescription = "Share",
                         tint = ArchivalTextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = "Delete",
+                        tint = ArchivalTextSecondary.copy(alpha = 0.7f),
                         modifier = Modifier.size(16.dp)
                     )
                 }

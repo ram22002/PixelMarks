@@ -10,10 +10,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
+import com.pixelmarks.feature.collection.SelectCollectionDialog
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -83,9 +88,15 @@ fun QuickAddBookmarkDialog(
     var isPrivate by remember { mutableStateOf(isPrivateInitial) }
     var availableCollections by remember { mutableStateOf<List<Collection>>(emptyList()) }
     var isCollectionDropdownExpanded by remember { mutableStateOf(false) }
+    var collectionSearchText by remember { mutableStateOf("") }
+    var showCollectionDialog by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var duplicateExistingId by remember { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(selectedCollectionId, availableCollections) {
+        collectionSearchText = availableCollections.firstOrNull { it.id == selectedCollectionId }?.name ?: ""
+    }
 
     // Load available collections for current privacy scope
     LaunchedEffect(isPrivate) {
@@ -239,44 +250,112 @@ fun QuickAddBookmarkDialog(
                 )
 
                 // Collection selector dropdown
+                if (showCollectionDialog) {
+                    SelectCollectionDialog(
+                        currentCollectionId = selectedCollectionId,
+                        availableCollections = availableCollections,
+                        onDismiss = { showCollectionDialog = false },
+                        onSelectCollection = { colId ->
+                            selectedCollectionId = colId
+                            showCollectionDialog = false
+                        }
+                    )
+                }
+
                 ExposedDropdownMenuBox(
                     expanded = isCollectionDropdownExpanded,
                     onExpandedChange = { isCollectionDropdownExpanded = it }
                 ) {
-                    val currentCollectionName = availableCollections.firstOrNull { it.id == selectedCollectionId }?.name
-                        ?: "No Collection (Unsorted)"
                     OutlinedTextField(
-                        value = currentCollectionName,
-                        onValueChange = {},
-                        readOnly = true,
+                        value = collectionSearchText,
+                        onValueChange = {
+                            collectionSearchText = it
+                            isCollectionDropdownExpanded = true
+                            if (it.isBlank()) {
+                                selectedCollectionId = null
+                            }
+                        },
                         label = { Text("Collection", color = ArchivalTextSecondary) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCollectionDropdownExpanded) },
+                        placeholder = { Text("Search or select collection...", color = ArchivalTextSecondary.copy(alpha = 0.5f)) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Folder, contentDescription = null, tint = BrassGold, modifier = Modifier.size(20.dp))
+                        },
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (collectionSearchText.isNotBlank()) {
+                                    IconButton(
+                                        onClick = {
+                                            collectionSearchText = ""
+                                            selectedCollectionId = null
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear", tint = ArchivalTextSecondary, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCollectionDropdownExpanded)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                            .menuAnchor(MenuAnchorType.PrimaryEditable),
                         colors = textFieldColors,
                         shape = RoundedCornerShape(10.dp)
                     )
+
                     ExposedDropdownMenu(
                         expanded = isCollectionDropdownExpanded,
                         onDismissRequest = { isCollectionDropdownExpanded = false },
                         modifier = Modifier.background(ArchivalSurfaceContainerHigh)
                     ) {
                         DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Folder, contentDescription = null, tint = BrassGold, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Browse all collections in dialog...", color = BrassGold, fontWeight = FontWeight.SemiBold)
+                                }
+                            },
+                            onClick = {
+                                isCollectionDropdownExpanded = false
+                                showCollectionDialog = true
+                            }
+                        )
+
+                        DropdownMenuItem(
                             text = { Text("No Collection (Unsorted)", color = ArchivalTextPrimary) },
                             onClick = {
                                 selectedCollectionId = null
+                                collectionSearchText = ""
                                 isCollectionDropdownExpanded = false
                             }
                         )
-                        availableCollections.forEach { col ->
+
+                        val filtered = if (collectionSearchText.isBlank()) {
+                            availableCollections
+                        } else {
+                            availableCollections.filter {
+                                it.name.contains(collectionSearchText.trim(), ignoreCase = true)
+                            }
+                        }
+
+                        if (filtered.isEmpty() && collectionSearchText.isNotBlank()) {
                             DropdownMenuItem(
-                                text = { Text(col.name, color = ArchivalTextPrimary) },
-                                onClick = {
-                                    selectedCollectionId = col.id
-                                    isCollectionDropdownExpanded = false
-                                }
+                                text = { Text("No collections matching \"$collectionSearchText\"", color = ArchivalTextSecondary) },
+                                onClick = {},
+                                enabled = false
                             )
+                        } else {
+                            filtered.forEach { col ->
+                                DropdownMenuItem(
+                                    text = { Text(col.name, color = ArchivalTextPrimary) },
+                                    onClick = {
+                                        selectedCollectionId = col.id
+                                        collectionSearchText = col.name
+                                        isCollectionDropdownExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }

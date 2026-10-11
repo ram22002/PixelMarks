@@ -50,7 +50,21 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.ui.text.font.FontFamily
+import com.pixelmarks.ui.theme.ArchivalBackground
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLowest
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLow
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainer
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHighest
+import com.pixelmarks.ui.theme.ArchivalTextPrimary
+import com.pixelmarks.ui.theme.ArchivalTextSecondary
+import com.pixelmarks.ui.theme.ArchivalError
+import com.pixelmarks.ui.theme.BrassGold
+import com.pixelmarks.ui.theme.TerracottaAccent
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -65,6 +79,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -187,6 +202,7 @@ fun BookmarkDetailScreen(
     var editingNoteText by remember { mutableStateOf("") }
     var showAskEveryTimeSheet by remember { mutableStateOf(false) }
     var askEveryTimeUrl by remember { mutableStateOf("") }
+    val current = uiState.bookmark
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { error ->
@@ -290,24 +306,56 @@ fun BookmarkDetailScreen(
     }
 
     if (showDeleteConfirmDialog) {
+        val isTrashed = current?.isTrashed == true
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
-            title = { Text("Delete permanently?") },
+            containerColor = ArchivalSurfaceContainerHigh,
+            titleContentColor = ArchivalTextPrimary,
+            textContentColor = ArchivalTextSecondary,
+            shape = RoundedCornerShape(18.dp),
+            title = {
+                Text(
+                    text = if (isTrashed) "Delete Permanently?" else "Move to Trash?",
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ArchivalTextPrimary
+                )
+            },
             text = {
-                Text("This bookmark and its saved data will be permanently deleted. This action cannot be undone.")
+                Text(
+                    text = if (isTrashed)
+                        "This bookmark and its saved data will be permanently deleted. This action cannot be undone."
+                    else
+                        "Move \"${current?.title ?: "this bookmark"}\" to Trash? You can restore it later from Trash.",
+                    color = ArchivalTextSecondary
+                )
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         showDeleteConfirmDialog = false
-                        viewModel.deletePermanently { onNavigateBack() }
-                    }
+                        if (isTrashed) {
+                            viewModel.deletePermanently { onNavigateBack() }
+                        } else {
+                            viewModel.moveToTrash { onNavigateBack() }
+                        }
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF8B2525),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text("Delete", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                TextButton(
+                    onClick = { showDeleteConfirmDialog = false },
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                        contentColor = ArchivalTextSecondary
+                    )
+                ) {
                     Text("Cancel")
                 }
             }
@@ -328,8 +376,6 @@ fun BookmarkDetailScreen(
             }
         )
     }
-
-    val current = uiState.bookmark
 
     fun copyLinkToClipboard() {
         if (current == null) return
@@ -382,14 +428,14 @@ fun BookmarkDetailScreen(
                         Icon(
                             imageVector = Icons.Default.RestoreFromTrash,
                             contentDescription = "Restore bookmark",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = BrassGold
                         )
                     }
                     IconButton(onClick = { showDeleteConfirmDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.DeleteForever,
                             contentDescription = "Delete permanently",
-                            tint = MaterialTheme.colorScheme.error
+                            tint = ArchivalError
                         )
                     }
                 } else {
@@ -397,28 +443,21 @@ fun BookmarkDetailScreen(
                         Icon(
                             imageVector = if (current.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                             contentDescription = "Favorite",
-                            tint = if (current.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (current.isFavorite) BrassGold else ArchivalTextSecondary
                         )
                     }
                     IconButton(onClick = { viewModel.togglePin() }) {
                         Icon(
                             imageVector = if (current.isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
                             contentDescription = "Pin",
-                            tint = if (current.isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (current.isPinned) TerracottaAccent else ArchivalTextSecondary
                         )
                     }
                     IconButton(onClick = { viewModel.toggleArchive() }) {
                         Icon(
                             imageVector = if (current.isArchived) Icons.Default.Unarchive else Icons.Default.Archive,
                             contentDescription = "Archive",
-                            tint = if (current.isArchived) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = { onNavigateToEditBookmark(bookmarkId) }) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Bookmark",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = ArchivalTextSecondary
                         )
                     }
                 }
@@ -452,13 +491,13 @@ fun BookmarkDetailScreen(
                                 modifier = Modifier
                                     .size(72.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                    .background(ArchivalSurfaceContainerHigh),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    tint = BrassGold,
                                     modifier = Modifier.size(40.dp)
                                 )
                             }
@@ -468,8 +507,9 @@ fun BookmarkDetailScreen(
                             Text(
                                 text = "Bookmark is Protected",
                                 style = MaterialTheme.typography.titleLarge,
+                                fontFamily = FontFamily.Serif,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground
+                                color = ArchivalTextPrimary
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -477,29 +517,34 @@ fun BookmarkDetailScreen(
                             Text(
                                 text = "This bookmark belongs to a locked or private collection. Authenticate to view details.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = ArchivalTextSecondary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Button(onClick = { triggerBookmarkUnlock() }) {
+                            Button(
+                                onClick = { triggerBookmarkUnlock() },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    containerColor = BrassGold,
+                                    contentColor = ArchivalSurfaceContainerLowest
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
                                 Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.size(8.dp))
-                                Text("Unlock Bookmark")
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Unlock Bookmark", fontWeight = FontWeight.Bold)
                             }
                         }
                     } else {
                         if (current.isTrashed) {
-                            Card(
+                            Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer
-                                ),
+                                color = Color(0xFF4A1010),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Row(
@@ -512,10 +557,10 @@ fun BookmarkDetailScreen(
                                     Text(
                                         text = "This bookmark is in Trash",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                        color = Color(0xFFFFDAD6)
                                     )
                                     TextButton(onClick = { viewModel.restore { onNavigateBack() } }) {
-                                        Text("Restore", color = MaterialTheme.colorScheme.primary)
+                                        Text("Restore", color = BrassGold, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -530,57 +575,62 @@ fun BookmarkDetailScreen(
                             Icon(
                                 imageVector = Icons.Default.Alarm,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary,
-                                modifier = Modifier.size(14.dp)
+                                tint = TerracottaAccent,
+                                modifier = Modifier.size(13.dp)
                             )
-                            Spacer(modifier = Modifier.size(4.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             val relativeTime = remember(current.createdAt) {
                                 val diff = System.currentTimeMillis() - current.createdAt
                                 val hours = diff / (1000 * 60 * 60)
-                                if (hours < 1) "Added recently"
-                                else if (hours < 24) "Added ${hours}h ago"
-                                else "Added ${hours / 24}d ago"
+                                if (hours < 1) "ADDED JUST NOW"
+                                else if (hours < 24) "ADDED ${hours} HRS AGO"
+                                else "ADDED ${hours / 24} DAYS AGO"
                             }
                             Text(
                                 text = relativeTime.uppercase(),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.tertiary
+                                color = TerracottaAccent,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
                             )
                         }
 
                         // Main Title
                         Text(
                             text = current.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontFamily = FontFamily.Serif,
+                            color = ArchivalTextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 30.sp
                         )
 
-                        // 16:9 Clean Preview Graphic
-                        if (ImageUrlValidator.isValidImageUrl(current.thumbnailUrl)) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
+                        // 16:9 Clean Preview Graphic / Thumbnail
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(190.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(ArchivalSurfaceContainerLowest),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (ImageUrlValidator.isValidImageUrl(current.thumbnailUrl)) {
                                 BookmarkThumbnail(
                                     thumbnailUrl = current.thumbnailUrl,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(190.dp),
+                                    modifier = Modifier.fillMaxSize(),
                                     size = 190.dp
                                 )
+                            } else {
+                                BookmarkFavicon(faviconUrl = current.faviconUrl, size = 48.dp)
                             }
                         }
 
-                        // Source Coordinate Card (Favicon + Domain + Copy/Share)
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
+                        // DOMAIN Card (Favicon + Domain + Copy/Share)
+                        Surface(
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
+                            color = ArchivalSurfaceContainerLow,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
                                 modifier = Modifier
@@ -593,20 +643,30 @@ fun BookmarkDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    BookmarkFavicon(
-                                        faviconUrl = current.faviconUrl,
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(ArchivalSurfaceContainerLowest),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        BookmarkFavicon(
+                                            faviconUrl = current.faviconUrl,
+                                            size = 20.dp
+                                        )
+                                    }
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "DOMAIN",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = ArchivalTextSecondary,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
                                         )
                                         Text(
-                                            text = current.domain,
+                                            text = current.domain.ifBlank { current.url },
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface,
+                                            color = ArchivalTextPrimary,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -623,18 +683,18 @@ fun BookmarkDetailScreen(
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(8.dp),
                                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            contentColor = MaterialTheme.colorScheme.onSurface
+                                            containerColor = ArchivalSurfaceContainerHigh,
+                                            contentColor = ArchivalTextPrimary
                                         )
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.ContentCopy,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.secondary,
+                                            tint = TerracottaAccent,
                                             modifier = Modifier.size(16.dp)
                                         )
-                                        Spacer(modifier = Modifier.size(6.dp))
-                                        Text("COPY", style = MaterialTheme.typography.labelMedium)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("COPY", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                                     }
 
                                     Button(
@@ -642,18 +702,18 @@ fun BookmarkDetailScreen(
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(8.dp),
                                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            contentColor = MaterialTheme.colorScheme.onSurface
+                                            containerColor = ArchivalSurfaceContainerHigh,
+                                            contentColor = ArchivalTextPrimary
                                         )
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Share,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.secondary,
+                                            tint = TerracottaAccent,
                                             modifier = Modifier.size(16.dp)
                                         )
-                                        Spacer(modifier = Modifier.size(6.dp))
-                                        Text("SHARE", style = MaterialTheme.typography.labelMedium)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("SHARE", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                                     }
                                 }
                             }
@@ -663,12 +723,11 @@ fun BookmarkDetailScreen(
                         val activeReminderTime = uiState.reminder?.reminderAt ?: current.reminderAt
                         val hasExpiry = current.notes?.contains("[Expires:") == true
 
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
+                        Surface(
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
+                            color = ArchivalSurfaceContainerLow,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
                                 modifier = Modifier
@@ -683,13 +742,13 @@ fun BookmarkDetailScreen(
                                     Icon(
                                         imageVector = Icons.Default.Alarm,
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = BrassGold,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
                                         text = "SCHEDULE & RETENTION",
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = BrassGold,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 1.sp
                                     )
@@ -700,37 +759,49 @@ fun BookmarkDetailScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        .background(ArchivalSurfaceContainerLowest)
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column {
-                                        Text(
-                                            text = "Set Reminder",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = FontWeight.Medium
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Alarm,
+                                            contentDescription = null,
+                                            tint = ArchivalTextSecondary,
+                                            modifier = Modifier.size(18.dp)
                                         )
-                                        Text(
-                                            text = if (activeReminderTime != null) ReminderFormatter.format(activeReminderTime) else "Not scheduled",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Column {
+                                            Text(
+                                                text = "Set Reminder",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = ArchivalTextPrimary,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = if (activeReminderTime != null) ReminderFormatter.format(activeReminderTime) else "Not scheduled",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = ArchivalTextSecondary
+                                            )
+                                        }
                                     }
                                     Button(
                                         onClick = { showReminderDialog = true },
                                         shape = RoundedCornerShape(6.dp),
-                                        modifier = Modifier.height(28.dp),
+                                        modifier = Modifier.height(30.dp),
                                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                            contentColor = MaterialTheme.colorScheme.primary
+                                            containerColor = ArchivalSurfaceContainerHigh,
+                                            contentColor = BrassGold
                                         )
                                     ) {
                                         Text(
                                             text = if (activeReminderTime != null) "Edit" else "+ Add Reminder",
-                                            style = MaterialTheme.typography.labelSmall
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold
                                         )
                                     }
                                 }
@@ -740,37 +811,49 @@ fun BookmarkDetailScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        .background(ArchivalSurfaceContainerLowest)
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column {
-                                        Text(
-                                            text = "Set Expiration",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = FontWeight.Medium
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.HourglassBottom,
+                                            contentDescription = null,
+                                            tint = ArchivalTextSecondary,
+                                            modifier = Modifier.size(18.dp)
                                         )
-                                        Text(
-                                            text = if (hasExpiry) "Expiration Set" else "Never expires",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Column {
+                                            Text(
+                                                text = "Set Expiration",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = ArchivalTextPrimary,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = if (hasExpiry) "Expiration Set" else "Never expires",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = ArchivalTextSecondary
+                                            )
+                                        }
                                     }
                                     Button(
                                         onClick = { showExpirationDialog = true },
                                         shape = RoundedCornerShape(6.dp),
-                                        modifier = Modifier.height(28.dp),
+                                        modifier = Modifier.height(30.dp),
                                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                            contentColor = MaterialTheme.colorScheme.primary
+                                            containerColor = ArchivalSurfaceContainerHigh,
+                                            contentColor = TerracottaAccent
                                         )
                                     ) {
                                         Text(
-                                            text = if (hasExpiry) "Edit" else "Set Date",
-                                            style = MaterialTheme.typography.labelSmall
+                                            text = if (hasExpiry) "Edit" else "Set Date →",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold
                                         )
                                     }
                                 }
@@ -779,12 +862,11 @@ fun BookmarkDetailScreen(
 
                         // Website Description Card
                         if (!current.description.isNullOrBlank()) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
+                            Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
+                                color = ArchivalSurfaceContainerLow,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -792,17 +874,28 @@ fun BookmarkDetailScreen(
                                         .padding(14.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(
-                                        text = "WEBSITE DESCRIPTION",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 1.sp
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = BrassGold,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "WEBSITE DESCRIPTION",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = BrassGold,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
                                     Text(
                                         text = current.description,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = ArchivalTextSecondary,
                                         lineHeight = 22.sp
                                     )
                                 }
@@ -810,12 +903,11 @@ fun BookmarkDetailScreen(
                         }
 
                         // Personal Margin Notes
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
+                        Surface(
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
+                            color = ArchivalSurfaceContainerLow,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
                                 modifier = Modifier
@@ -828,29 +920,56 @@ fun BookmarkDetailScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = "PERSONAL MARGIN NOTES",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.secondary,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 1.sp
-                                    )
-                                    Text(
-                                        text = "Edit",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.clickable {
-                                            editingNoteText = current.notes ?: ""
-                                            showEditNoteDialog = true
-                                        }
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = null,
+                                            tint = TerracottaAccent,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = "PERSONAL MARGIN NOTES",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = TerracottaAccent,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
+                                    Row(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .clickable {
+                                                editingNoteText = current.notes ?: ""
+                                                showEditNoteDialog = true
+                                            }
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = null,
+                                            tint = BrassGold,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Text(
+                                            text = "EDIT",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = BrassGold,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
                                 }
 
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                        .background(ArchivalSurfaceContainerLowest)
                                         .padding(12.dp)
                                 ) {
                                     Row(
@@ -860,15 +979,15 @@ fun BookmarkDetailScreen(
                                         Box(
                                             modifier = Modifier
                                                 .width(3.dp)
-                                                .height(36.dp)
+                                                .height(44.dp)
                                                 .clip(RoundedCornerShape(2.dp))
-                                                .background(MaterialTheme.colorScheme.secondary)
+                                                .background(TerracottaAccent)
                                         )
                                         Text(
-                                            text = if (!current.notes.isNullOrBlank()) current.notes
+                                            text = if (!current.notes.isNullOrBlank()) "“  ${current.notes}  ”"
                                             else "No personal margin notes recorded for this document.",
                                             style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface,
+                                            color = ArchivalTextPrimary,
                                             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                                             lineHeight = 20.sp
                                         )
@@ -878,12 +997,11 @@ fun BookmarkDetailScreen(
                         }
 
                         // Taxonomy & Collection Card
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
+                        Surface(
                             shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
+                            color = ArchivalSurfaceContainerLow,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
                                 modifier = Modifier
@@ -891,13 +1009,24 @@ fun BookmarkDetailScreen(
                                     .padding(14.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(
-                                    text = "TAXONOMY & COLLECTION",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Folder,
+                                        contentDescription = null,
+                                        tint = BrassGold,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "TAXONOMY & COLLECTION",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = BrassGold,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
 
                                 // Tags Cluster
                                 FlowRow(
@@ -909,14 +1038,14 @@ fun BookmarkDetailScreen(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                                .background(ArchivalSurfaceContainerLowest)
                                                 .clickable { onNavigateToTagDetail(tag.id) }
-                                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                                                .padding(horizontal = 10.dp, vertical = 6.dp)
                                         ) {
                                             Text(
                                                 text = "#${tag.name}",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                color = ArchivalTextPrimary,
                                                 fontWeight = FontWeight.Medium
                                             )
                                         }
@@ -925,14 +1054,14 @@ fun BookmarkDetailScreen(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(6.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                                            .background(ArchivalSurfaceContainerHigh)
                                             .clickable { showSelectTagsDialog = true }
-                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
                                         Text(
                                             text = "+ Add Tag",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            color = BrassGold,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                     }
@@ -943,7 +1072,7 @@ fun BookmarkDetailScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                        .background(ArchivalSurfaceContainerLowest)
                                         .clickable { showCollectionPicker = true }
                                         .padding(10.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -961,7 +1090,7 @@ fun BookmarkDetailScreen(
                                                 .clip(RoundedCornerShape(6.dp))
                                                 .background(
                                                     if (col != null) parseHexColor(col.color)
-                                                    else MaterialTheme.colorScheme.primaryContainer
+                                                    else Color(0xFF9B783E)
                                                 ),
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -976,48 +1105,114 @@ fun BookmarkDetailScreen(
                                             Text(
                                                 text = "COLLECTION",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.outline
+                                                color = ArchivalTextSecondary,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                letterSpacing = 1.sp
                                             )
                                             Text(
                                                 text = col?.name ?: "Unsorted (No Collection)",
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurface,
+                                                color = ArchivalTextPrimary,
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         }
                                     }
-                                    Text(
-                                        text = "Change",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = ArchivalTextSecondary,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
                         }
 
-                        // Open Destination URL Button
+                        // Row with Edit Bookmark & Delete buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // EDIT BOOKMARK
+                            Button(
+                                onClick = { onNavigateToEditBookmark(bookmarkId) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    containerColor = ArchivalSurfaceContainerHigh,
+                                    contentColor = ArchivalTextPrimary
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = ArchivalTextPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "EDIT BOOKMARK",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+
+                            // DELETE
+                            Button(
+                                onClick = { showDeleteConfirmDialog = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF6B1414),
+                                    contentColor = Color(0xFFFFDAD6)
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFDAD6),
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "DELETE",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                        }
+
+                        // OPEN ORIGINAL URL
                         Button(
                             onClick = ::openInBrowser,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
+                                containerColor = Color(0xFFEDE1CB),
+                                contentColor = Color(0xFF1B160B)
                             )
                         ) {
+                            Text(
+                                text = "OPEN ORIGINAL URL",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.size(8.dp))
-                            Text(
-                                text = "VISIT DESTINATION URL",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
                             )
                         }
                     }
@@ -1025,7 +1220,7 @@ fun BookmarkDetailScreen(
                     Text(
                         text = "Loading bookmark details...",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = ArchivalTextSecondary
                     )
                 }
 

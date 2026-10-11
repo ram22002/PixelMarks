@@ -14,12 +14,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -204,6 +207,12 @@ fun SelectTagsDialog(
     onCreateNewTagRequested: () -> Unit
 ) {
     var selectedIds by remember { mutableStateOf(currentTagIds) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredTags = remember(availableTags, searchQuery) {
+        if (searchQuery.isBlank()) availableTags
+        else availableTags.filter { it.name.contains(searchQuery.trim(), ignoreCase = true) }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -241,16 +250,52 @@ fun SelectTagsDialog(
             }
         },
         text = {
-            if (availableTags.isEmpty()) {
-                Text("No tags created yet.", color = ArchivalTextSecondary)
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(260.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(availableTags, key = { it.id }) { tag ->
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Spacing.small)
+            ) {
+                if (availableTags.isNotEmpty()) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search tags...", color = ArchivalTextSecondary.copy(alpha = 0.5f)) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = null, tint = BrassGold, modifier = Modifier.size(18.dp))
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = ArchivalTextSecondary, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = ArchivalTextPrimary,
+                            unfocusedTextColor = ArchivalTextPrimary,
+                            focusedBorderColor = BrassGold,
+                            unfocusedBorderColor = ArchivalSurfaceContainerHighest,
+                            focusedLabelColor = BrassGold,
+                            unfocusedLabelColor = ArchivalTextSecondary,
+                            cursorColor = BrassGold
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (availableTags.isEmpty()) {
+                    Text("No tags created yet.", color = ArchivalTextSecondary)
+                } else if (filteredTags.isEmpty()) {
+                    Text("No tags matching \"$searchQuery\"", color = ArchivalTextSecondary, modifier = Modifier.padding(vertical = 16.dp))
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(filteredTags, key = { it.id }) { tag ->
                         val isChecked = selectedIds.contains(tag.id)
                         Row(
                             modifier = Modifier
@@ -290,7 +335,8 @@ fun SelectTagsDialog(
                     }
                 }
             }
-        },
+        }
+    },
         confirmButton = {
             Button(
                 onClick = { onConfirm(selectedIds) },

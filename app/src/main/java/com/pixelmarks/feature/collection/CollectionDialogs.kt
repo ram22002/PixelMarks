@@ -22,11 +22,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
@@ -476,8 +478,15 @@ fun SelectCollectionDialog(
     onSelectCollection: (Long?) -> Unit
 ) {
     var selectedId by remember { mutableStateOf(currentCollectionId) }
+    var searchQuery by remember { mutableStateOf("") }
+
     val flatNodes = remember(availableCollections) {
         flattenCollectionHierarchy(availableCollections)
+    }
+
+    val filteredNodes = remember(flatNodes, searchQuery) {
+        if (searchQuery.isBlank()) flatNodes
+        else flatNodes.filter { it.collection.name.contains(searchQuery.trim(), ignoreCase = true) }
     }
 
     AlertDialog(
@@ -496,38 +505,79 @@ fun SelectCollectionDialog(
             )
         },
         text = {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(280.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Spacing.small)
             ) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selectedId = null }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = selectedId == null,
-                            onClick = { selectedId = null },
-                            colors = RadioButtonDefaults.colors(
-                                selectedColor = BrassGold,
-                                unselectedColor = ArchivalTextSecondary
-                            )
-                        )
-                        Text(
-                            text = "No Collection (Unsorted)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = ArchivalTextPrimary,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
-                    }
+                if (availableCollections.isNotEmpty()) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search collections...", color = ArchivalTextSecondary.copy(alpha = 0.5f)) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = null, tint = BrassGold, modifier = Modifier.size(18.dp))
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = ArchivalTextSecondary, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = ArchivalTextPrimary,
+                            unfocusedTextColor = ArchivalTextPrimary,
+                            focusedBorderColor = BrassGold,
+                            unfocusedBorderColor = ArchivalSurfaceContainerHighest,
+                            focusedLabelColor = BrassGold,
+                            unfocusedLabelColor = ArchivalTextSecondary,
+                            cursorColor = BrassGold
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
-                items(flatNodes, key = { it.collection.id }) { node ->
+                if (availableCollections.isEmpty()) {
+                    Text("No collections available.", color = ArchivalTextSecondary)
+                } else if (filteredNodes.isEmpty()) {
+                    Text("No collections matching \"$searchQuery\"", color = ArchivalTextSecondary, modifier = Modifier.padding(vertical = 16.dp))
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (searchQuery.isBlank()) {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { selectedId = null }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = selectedId == null,
+                                        onClick = { selectedId = null },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = BrassGold,
+                                            unselectedColor = ArchivalTextSecondary
+                                        )
+                                    )
+                                    Text(
+                                        text = "No Collection (Unsorted)",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = ArchivalTextPrimary,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        items(filteredNodes, key = { it.collection.id }) { node ->
                     val col = node.collection
                     val indent = (node.depth * 20).dp
                     Row(
@@ -571,9 +621,11 @@ fun SelectCollectionDialog(
                             )
                         }
                     }
+                    }
                 }
             }
-        },
+        }
+    },
         confirmButton = {
             Button(
                 onClick = {
