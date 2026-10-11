@@ -243,11 +243,6 @@ fun TagsScreen(
                     }
                 }
 
-                val currentDateFormatted = remember {
-                    val sdf = java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault())
-                    sdf.format(java.util.Date())
-                }
-
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -257,10 +252,7 @@ fun TagsScreen(
                     // Editorial Header
                     item {
                         Spacer(modifier = Modifier.height(4.dp))
-                        ArchivalSubHeader(
-                            title = getEditorialSalutation(),
-                            dateString = currentDateFormatted.uppercase()
-                        )
+                        ArchivalSubHeader()
                     }
 
                     // Filter & Sorting Pills

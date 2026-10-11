@@ -257,7 +257,6 @@ fun HomeScreen(
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 ArchivalSubHeader(
-                    title = getEditorialSalutation(),
                     isGridView = isGridView,
                     onToggleGridView = { isGridView = it }
                 )
@@ -1152,20 +1151,6 @@ fun ListBookmarkCard(
     }
 }
 
-private fun formatCuratorialDate(): String {
-    val cal = Calendar.getInstance()
-    val sdf = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
-    return sdf.format(cal.time).uppercase()
-}
-
-private fun getEditorialSalutation(): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when {
-        hour < 12 -> "Good morning"
-        hour < 17 -> "Good afternoon"
-        else -> "Good evening"
-    }
-}
 
 private fun formatRelativeTime(timestamp: Long): String {
     val diff = System.currentTimeMillis() - timestamp

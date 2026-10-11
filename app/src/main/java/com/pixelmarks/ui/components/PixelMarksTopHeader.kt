@@ -27,6 +27,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -147,17 +153,21 @@ fun PixelMarksTopAppBar(
 
 /**
  * Editorial Sub-Header matching Stitch UI:
- * - Calendar icon with curatorial date
- * - Newsreader serif salutation/title
+ * - Calendar icon with dynamic curatorial day, date, and month
+ * - Newsreader serif salutation/title updated in real-time
  * - Grid/List view switcher toggle
  */
 @Composable
 fun ArchivalSubHeader(
-    title: String = getEditorialSalutation(),
-    dateString: String = formatCuratorialDate(),
+    title: String? = null,
+    dateString: String? = null,
     isGridView: Boolean? = null,
     onToggleGridView: ((Boolean) -> Unit)? = null
 ) {
+    val (dynamicSalutation, dynamicDate) = rememberDynamicDateTime()
+    val displayTitle = title ?: dynamicSalutation
+    val displayDate = dateString ?: dynamicDate
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -175,7 +185,7 @@ fun ArchivalSubHeader(
                     modifier = Modifier.size(13.dp)
                 )
                 Text(
-                    text = dateString,
+                    text = displayDate,
                     style = MaterialTheme.typography.labelSmall,
                     color = BrassGoldLight,
                     letterSpacing = 1.2.sp,
@@ -184,7 +194,7 @@ fun ArchivalSubHeader(
             }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = title,
+                text = displayTitle,
                 style = MaterialTheme.typography.headlineLarge,
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Normal,
@@ -236,17 +246,38 @@ fun ArchivalSubHeader(
     }
 }
 
-fun getEditorialSalutation(): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when {
-        hour < 12 -> "Good morning"
-        hour < 17 -> "Good afternoon"
-        else -> "Good evening"
+@Composable
+fun rememberDynamicDateTime(): Pair<String, String> {
+    var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(10_000L) // Refresh every 10 seconds for real-time accuracy
+            currentTime = System.currentTimeMillis()
+        }
+    }
+    val calendar = remember(currentTime) {
+        Calendar.getInstance().apply { timeInMillis = currentTime }
+    }
+    val salutation = remember(calendar) {
+        getEditorialSalutation(calendar)
+    }
+    val dateString = remember(calendar) {
+        formatCuratorialDate(calendar)
+    }
+    return salutation to dateString
+}
+
+fun getEditorialSalutation(calendar: Calendar = Calendar.getInstance()): String {
+    val hour = calendar.get(Calendar.HOUR_OF_DAY)
+    return when (hour) {
+        in 5..11 -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        in 17..21 -> "Good evening"
+        else -> "Good night"
     }
 }
 
-fun formatCuratorialDate(): String {
-    val cal = Calendar.getInstance()
+fun formatCuratorialDate(calendar: Calendar = Calendar.getInstance()): String {
     val sdf = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
-    return sdf.format(cal.time).uppercase()
+    return sdf.format(calendar.time).uppercase()
 }

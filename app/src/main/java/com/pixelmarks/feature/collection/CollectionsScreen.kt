@@ -304,7 +304,6 @@ fun CollectionsScreen(
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 ArchivalSubHeader(
-                    title = getEditorialSalutation(),
                     isGridView = isGridView,
                     onToggleGridView = { isGridView = it }
                 )
