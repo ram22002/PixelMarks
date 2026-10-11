@@ -3,8 +3,6 @@ package com.pixelmarks.feature.tags
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,15 +11,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,9 +33,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pixelmarks.core.model.Tag
+import com.pixelmarks.ui.theme.ArchivalError
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHighest
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLowest
+import com.pixelmarks.ui.theme.ArchivalTextPrimary
+import com.pixelmarks.ui.theme.ArchivalTextSecondary
+import com.pixelmarks.ui.theme.BrassGold
 import com.pixelmarks.ui.theme.Spacing
+import com.pixelmarks.ui.theme.TerracottaAccent
 
 @Composable
 fun CreateEditTagDialog(
@@ -46,10 +58,17 @@ fun CreateEditTagDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = ArchivalSurfaceContainerHigh,
+        titleContentColor = ArchivalTextPrimary,
+        textContentColor = ArchivalTextSecondary,
+        shape = RoundedCornerShape(18.dp),
         title = {
             Text(
                 text = if (initialTag == null) "Create Tag" else "Edit Tag",
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                color = ArchivalTextPrimary
             )
         },
         text = {
@@ -63,12 +82,22 @@ fun CreateEditTagDialog(
                         name = it
                         validationError = null
                     },
-                    label = { Text("Tag Name") },
-                    placeholder = { Text("e.g. Android, Design, Recipe") },
+                    label = { Text("Tag Name", color = ArchivalTextSecondary) },
+                    placeholder = { Text("e.g. Android, Design, Recipe", color = ArchivalTextSecondary.copy(alpha = 0.5f)) },
                     isError = validationError != null,
-                    supportingText = validationError?.let { { Text(it) } },
+                    supportingText = validationError?.let { { Text(it, color = ArchivalError) } },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = ArchivalTextPrimary,
+                        unfocusedTextColor = ArchivalTextPrimary,
+                        focusedBorderColor = BrassGold,
+                        unfocusedBorderColor = ArchivalSurfaceContainerHighest,
+                        focusedLabelColor = BrassGold,
+                        unfocusedLabelColor = ArchivalTextSecondary,
+                        cursorColor = BrassGold
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 )
             }
         },
@@ -81,13 +110,23 @@ fun CreateEditTagDialog(
                     } else {
                         onSave(trimmed, initialTag?.color)
                     }
-                }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = TerracottaAccent,
+                    contentColor = ArchivalSurfaceContainerLowest
+                ),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text("Save")
+                Text("Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = ArchivalTextSecondary
+                )
+            ) {
                 Text("Cancel")
             }
         }
@@ -102,30 +141,54 @@ fun DeleteTagConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete Tag?") },
+        containerColor = ArchivalSurfaceContainerHigh,
+        titleContentColor = ArchivalTextPrimary,
+        textContentColor = ArchivalTextSecondary,
+        shape = RoundedCornerShape(18.dp),
+        title = {
+            Text(
+                text = "Delete Tag?",
+                style = MaterialTheme.typography.titleLarge,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                color = ArchivalTextPrimary
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                Text("Are you sure you want to delete \"$tagName\"?")
+                Text("Are you sure you want to delete \"$tagName\"?", color = ArchivalTextPrimary)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "• Bookmarks using this tag will NOT be deleted.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = ArchivalTextSecondary
                 )
                 Text(
                     text = "• The tag will only be unassigned from any bookmarks.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = ArchivalTextSecondary
                 )
             }
         },
         confirmButton = {
-            Button(onClick = onConfirm) {
-                Text("Delete")
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Delete", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = ArchivalTextSecondary
+                )
+            ) {
                 Text("Cancel")
             }
         }
@@ -144,80 +207,83 @@ fun SelectTagsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = ArchivalSurfaceContainerHigh,
+        titleContentColor = ArchivalTextPrimary,
+        textContentColor = ArchivalTextSecondary,
+        shape = RoundedCornerShape(18.dp),
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Select Tags")
+                Text(
+                    text = "Select Tags",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ArchivalTextPrimary
+                )
                 OutlinedButton(
                     onClick = onCreateNewTagRequested,
-                    modifier = Modifier.height(36.dp)
+                    modifier = Modifier.height(36.dp),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
+                        tint = BrassGold
                     )
                     Spacer(modifier = Modifier.size(4.dp))
-                    Text("New", style = MaterialTheme.typography.labelMedium)
+                    Text("New Tag", color = BrassGold)
                 }
             }
         },
         text = {
             if (availableTags.isEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = Spacing.medium),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(Spacing.small)
-                ) {
-                    Text(
-                        text = "No tags created yet",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Button(onClick = onCreateNewTagRequested) {
-                        Text("Create First Tag")
-                    }
-                }
+                Text("No tags created yet.", color = ArchivalTextSecondary)
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(260.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(availableTags, key = { it.id }) { tag ->
-                        val isSelected = selectedIds.contains(tag.id)
+                        val isChecked = selectedIds.contains(tag.id)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    selectedIds = if (isSelected) {
+                                    selectedIds = if (isChecked) {
                                         selectedIds - tag.id
                                     } else {
                                         selectedIds + tag.id
                                     }
                                 }
-                                .padding(vertical = 4.dp),
+                                .padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Checkbox(
-                                checked = isSelected,
+                                checked = isChecked,
                                 onCheckedChange = { checked ->
                                     selectedIds = if (checked) {
                                         selectedIds + tag.id
                                     } else {
                                         selectedIds - tag.id
                                     }
-                                }
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = BrassGold,
+                                    uncheckedColor = ArchivalTextSecondary,
+                                    checkmarkColor = ArchivalSurfaceContainerLowest
+                                )
                             )
                             Text(
-                                text = tag.name,
+                                text = "#${tag.name}",
                                 style = MaterialTheme.typography.bodyMedium,
+                                color = ArchivalTextPrimary,
                                 modifier = Modifier.padding(start = 8.dp)
                             )
                         }
@@ -226,12 +292,24 @@ fun SelectTagsDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(selectedIds) }) {
-                Text("Done")
+            Button(
+                onClick = { onConfirm(selectedIds) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = TerracottaAccent,
+                    contentColor = ArchivalSurfaceContainerLowest
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Done", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = ArchivalTextSecondary
+                )
+            ) {
                 Text("Cancel")
             }
         }

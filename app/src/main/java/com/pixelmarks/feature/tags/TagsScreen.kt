@@ -58,7 +58,10 @@ import com.pixelmarks.ui.components.ArchivalSubHeader
 import com.pixelmarks.ui.components.PixelMarksTopAppBar
 import com.pixelmarks.ui.components.getEditorialSalutation
 import com.pixelmarks.ui.theme.ArchivalBackground
+import com.pixelmarks.ui.theme.ArchivalError
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
 import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLowest
+import com.pixelmarks.ui.theme.ArchivalTextPrimary
 import com.pixelmarks.ui.theme.ArchivalTextSecondary
 import com.pixelmarks.ui.theme.PixelMarksTheme
 import com.pixelmarks.ui.theme.Spacing
@@ -154,7 +157,7 @@ fun TagsScreen(
                 onClick = { showCreateDialog = true },
                 containerColor = TerracottaAccent,
                 contentColor = ArchivalSurfaceContainerLowest,
-                shape = CircleShape,
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.padding(bottom = 8.dp)
             ) {
                 Icon(
@@ -362,26 +365,7 @@ fun TagsScreen(
                 }
             }
 
-            FloatingActionButton(
-                onClick = { showCreateDialog = true },
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSecondary,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Create tag"
-                )
-            }
 
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 72.dp)
-            )
         }
     }
 }
@@ -433,24 +417,25 @@ fun ArchivalTagListItem(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "Tag options",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = ArchivalTextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
 
                 DropdownMenu(
                     expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false }
+                    onDismissRequest = { menuExpanded = false },
+                    modifier = Modifier.background(ArchivalSurfaceContainerHigh)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Edit") },
+                        text = { Text("Edit", color = ArchivalTextPrimary) },
                         onClick = {
                             menuExpanded = false
                             onEdit()
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        text = { Text("Delete", color = ArchivalError) },
                         onClick = {
                             menuExpanded = false
                             onDelete()

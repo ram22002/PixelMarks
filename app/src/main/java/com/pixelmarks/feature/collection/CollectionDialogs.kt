@@ -31,16 +31,22 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,10 +59,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.pixelmarks.core.model.Collection
+import com.pixelmarks.ui.theme.ArchivalError
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHighest
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLowest
+import com.pixelmarks.ui.theme.ArchivalTextPrimary
+import com.pixelmarks.ui.theme.ArchivalTextSecondary
+import com.pixelmarks.ui.theme.BrassGold
 import com.pixelmarks.ui.theme.Spacing
+import com.pixelmarks.ui.theme.TerracottaAccent
 
 val COLLECTION_PALETTE = listOf(
     "#3B82F6", // Blue
@@ -123,10 +138,17 @@ fun CreateEditCollectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = ArchivalSurfaceContainerHigh,
+        titleContentColor = ArchivalTextPrimary,
+        textContentColor = ArchivalTextSecondary,
+        shape = RoundedCornerShape(18.dp),
         title = {
             Text(
                 text = if (initialCollection == null) "Create Collection" else "Edit Collection",
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                color = ArchivalTextPrimary
             )
         },
         text = {
@@ -140,29 +162,59 @@ fun CreateEditCollectionDialog(
                         name = it
                         validationError = null
                     },
-                    label = { Text("Collection Name") },
+                    label = { Text("Collection Name", color = ArchivalTextSecondary) },
                     isError = validationError != null,
-                    supportingText = validationError?.let { { Text(it) } },
+                    supportingText = validationError?.let { { Text(it, color = ArchivalError) } },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = ArchivalTextPrimary,
+                        unfocusedTextColor = ArchivalTextPrimary,
+                        focusedBorderColor = BrassGold,
+                        unfocusedBorderColor = ArchivalSurfaceContainerHighest,
+                        focusedLabelColor = BrassGold,
+                        unfocusedLabelColor = ArchivalTextSecondary,
+                        cursorColor = BrassGold
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 )
 
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (Optional)") },
+                    label = { Text("Description (Optional)", color = ArchivalTextSecondary) },
                     modifier = Modifier.fillMaxWidth(),
-                    maxLines = 2
+                    maxLines = 2,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = ArchivalTextPrimary,
+                        unfocusedTextColor = ArchivalTextPrimary,
+                        focusedBorderColor = BrassGold,
+                        unfocusedBorderColor = ArchivalSurfaceContainerHighest,
+                        focusedLabelColor = BrassGold,
+                        unfocusedLabelColor = ArchivalTextSecondary,
+                        cursorColor = BrassGold
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 )
 
                 OutlinedTextField(
                     value = keywords,
                     onValueChange = { keywords = it },
-                    label = { Text("Keywords (Optional)") },
-                    placeholder = { Text("e.g. Kotlin, Compose, Architecture") },
-                    supportingText = { Text("Taxonomy keywords, comma-separated") },
+                    label = { Text("Keywords (Optional)", color = ArchivalTextSecondary) },
+                    placeholder = { Text("e.g. Kotlin, Compose, Architecture", color = ArchivalTextSecondary.copy(alpha = 0.5f)) },
+                    supportingText = { Text("Taxonomy keywords, comma-separated", color = ArchivalTextSecondary.copy(alpha = 0.7f)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = ArchivalTextPrimary,
+                        unfocusedTextColor = ArchivalTextPrimary,
+                        focusedBorderColor = BrassGold,
+                        unfocusedBorderColor = ArchivalSurfaceContainerHighest,
+                        focusedLabelColor = BrassGold,
+                        unfocusedLabelColor = ArchivalTextSecondary,
+                        cursorColor = BrassGold
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 )
 
                 // Parent Collection Selector
@@ -176,18 +228,29 @@ fun CreateEditCollectionDialog(
                         value = currentParentName,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Parent Folder") },
+                        label = { Text("Parent Folder", color = ArchivalTextSecondary) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isParentDropdownExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = ArchivalTextPrimary,
+                            unfocusedTextColor = ArchivalTextPrimary,
+                            focusedBorderColor = BrassGold,
+                            unfocusedBorderColor = ArchivalSurfaceContainerHighest,
+                            focusedLabelColor = BrassGold,
+                            unfocusedLabelColor = ArchivalTextSecondary,
+                            cursorColor = BrassGold
+                        ),
+                        shape = RoundedCornerShape(10.dp)
                     )
                     ExposedDropdownMenu(
                         expanded = isParentDropdownExpanded,
-                        onDismissRequest = { isParentDropdownExpanded = false }
+                        onDismissRequest = { isParentDropdownExpanded = false },
+                        modifier = Modifier.background(ArchivalSurfaceContainerHigh)
                     ) {
                         DropdownMenuItem(
-                            text = { Text("None (Root Collection)") },
+                            text = { Text("None (Root Collection)", color = ArchivalTextPrimary) },
                             onClick = {
                                 selectedParentId = null
                                 isParentDropdownExpanded = false
@@ -195,7 +258,7 @@ fun CreateEditCollectionDialog(
                         )
                         validParents.forEach { parent ->
                             DropdownMenuItem(
-                                text = { Text(parent.name) },
+                                text = { Text(parent.name, color = ArchivalTextPrimary) },
                                 onClick = {
                                     selectedParentId = parent.id
                                     isParentDropdownExpanded = false
@@ -206,7 +269,7 @@ fun CreateEditCollectionDialog(
                 }
 
                 // Color Picker Row
-                Text("Color", style = MaterialTheme.typography.labelMedium)
+                Text("Color", style = MaterialTheme.typography.labelMedium, color = ArchivalTextSecondary)
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -222,7 +285,7 @@ fun CreateEditCollectionDialog(
                                 .background(color)
                                 .border(
                                     width = if (isSelected) 2.5.dp else 0.dp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onSurface else Color.Transparent,
+                                    color = if (isSelected) BrassGold else Color.Transparent,
                                     shape = CircleShape
                                 )
                                 .clickable { selectedColor = hexColor },
@@ -241,7 +304,7 @@ fun CreateEditCollectionDialog(
                 }
 
                 // Icon Picker Row
-                Text("Icon", style = MaterialTheme.typography.labelMedium)
+                Text("Icon", style = MaterialTheme.typography.labelMedium, color = ArchivalTextSecondary)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -253,28 +316,28 @@ fun CreateEditCollectionDialog(
                             modifier = Modifier
                                 .size(36.dp)
                                 .background(
-                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    color = if (isSelected) BrassGold.copy(alpha = 0.25f) else Color.Transparent,
                                     shape = RoundedCornerShape(8.dp)
                                 )
                         ) {
                             Icon(
                                 imageVector = vector,
                                 contentDescription = key,
-                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (isSelected) BrassGold else ArchivalTextSecondary
                             )
                         }
                     }
                 }
 
                 // Privacy Section
-                androidx.compose.material3.HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                HorizontalDivider(
+                    color = ArchivalSurfaceContainerHighest
                 )
                 Text(
                     text = "Privacy",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = BrassGold
                 )
 
                 Row(
@@ -285,19 +348,26 @@ fun CreateEditCollectionDialog(
                         Text(
                             text = "Lock collection",
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            color = ArchivalTextPrimary
                         )
                         Text(
                             text = "Require authentication to open",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = ArchivalTextSecondary
                         )
                     }
-                    androidx.compose.material3.Switch(
+                    Switch(
                         checked = isLocked,
                         onCheckedChange = { checked ->
                             isLocked = checked
-                        }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = ArchivalSurfaceContainerLowest,
+                            checkedTrackColor = BrassGold,
+                            uncheckedThumbColor = ArchivalTextSecondary,
+                            uncheckedTrackColor = ArchivalSurfaceContainerHighest
+                        )
                     )
                 }
             }
@@ -311,13 +381,23 @@ fun CreateEditCollectionDialog(
                     } else {
                         onSave(trimmed, selectedParentId, selectedIcon, selectedColor, isLocked, false, description.trim().ifEmpty { null }, keywords.trim().ifEmpty { null })
                     }
-                }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = TerracottaAccent,
+                    contentColor = ArchivalSurfaceContainerLowest
+                ),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text("Save")
+                Text("Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = ArchivalTextSecondary
+                )
+            ) {
                 Text("Cancel")
             }
         }
@@ -332,32 +412,54 @@ fun DeleteCollectionConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete Collection?") },
+        containerColor = ArchivalSurfaceContainerHigh,
+        titleContentColor = ArchivalTextPrimary,
+        textContentColor = ArchivalTextSecondary,
+        shape = RoundedCornerShape(18.dp),
+        title = {
+            Text(
+                text = "Delete Collection?",
+                style = MaterialTheme.typography.titleLarge,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                color = ArchivalTextPrimary
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
-                Text("Are you sure you want to delete \"$collectionName\"?")
+                Text("Are you sure you want to delete \"$collectionName\"?", color = ArchivalTextPrimary)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "• Bookmarks inside this collection will NOT be deleted. They will remain safely saved in Unsorted.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = ArchivalTextSecondary
                 )
                 Text(
                     text = "• Any sub-collections inside will also be removed.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = ArchivalTextSecondary
                 )
             }
         },
         confirmButton = {
             Button(
-                onClick = onConfirm
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ArchivalError,
+                    contentColor = ArchivalSurfaceContainerLowest
+                ),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text("Delete")
+                Text("Delete", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = ArchivalTextSecondary
+                )
+            ) {
                 Text("Cancel")
             }
         }
@@ -380,7 +482,19 @@ fun SelectCollectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        containerColor = ArchivalSurfaceContainerHigh,
+        titleContentColor = ArchivalTextPrimary,
+        textContentColor = ArchivalTextSecondary,
+        shape = RoundedCornerShape(18.dp),
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                color = ArchivalTextPrimary
+            )
+        },
         text = {
             LazyColumn(
                 modifier = Modifier
@@ -398,11 +512,16 @@ fun SelectCollectionDialog(
                     ) {
                         RadioButton(
                             selected = selectedId == null,
-                            onClick = { selectedId = null }
+                            onClick = { selectedId = null },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = BrassGold,
+                                unselectedColor = ArchivalTextSecondary
+                            )
                         )
                         Text(
                             text = "No Collection (Unsorted)",
                             style = MaterialTheme.typography.bodyMedium,
+                            color = ArchivalTextPrimary,
                             modifier = Modifier.padding(start = 8.dp)
                         )
                     }
@@ -420,7 +539,11 @@ fun SelectCollectionDialog(
                     ) {
                         RadioButton(
                             selected = selectedId == col.id,
-                            onClick = { selectedId = col.id }
+                            onClick = { selectedId = col.id },
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = BrassGold,
+                                unselectedColor = ArchivalTextSecondary
+                            )
                         )
                         Icon(
                             imageVector = getIconVector(col.icon),
@@ -433,6 +556,7 @@ fun SelectCollectionDialog(
                         Text(
                             text = col.name,
                             style = MaterialTheme.typography.bodyMedium,
+                            color = ArchivalTextPrimary,
                             modifier = Modifier
                                 .weight(1f, fill = false)
                                 .padding(start = 8.dp)
@@ -442,7 +566,7 @@ fun SelectCollectionDialog(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "Private collection",
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = BrassGold,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -454,13 +578,23 @@ fun SelectCollectionDialog(
             Button(
                 onClick = {
                     onSelectCollection(selectedId)
-                }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = TerracottaAccent,
+                    contentColor = ArchivalSurfaceContainerLowest
+                ),
+                shape = RoundedCornerShape(10.dp)
             ) {
-                Text(confirmButtonText)
+                Text(confirmButtonText, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = ArchivalTextSecondary
+                )
+            ) {
                 Text("Cancel")
             }
         }

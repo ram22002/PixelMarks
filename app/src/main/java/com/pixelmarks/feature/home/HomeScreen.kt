@@ -235,7 +235,7 @@ fun HomeScreen(
                 onClick = onNavigateToAddBookmark,
                 containerColor = TerracottaAccent,
                 contentColor = ArchivalSurfaceContainerLowest,
-                shape = CircleShape,
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.padding(bottom = 8.dp)
             ) {
                 Icon(
