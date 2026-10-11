@@ -80,6 +80,7 @@ import com.pixelmarks.core.image.BookmarkFavicon
 import com.pixelmarks.core.image.BookmarkThumbnail
 import com.pixelmarks.core.image.ImageUrlValidator
 import com.pixelmarks.core.model.Bookmark
+import com.pixelmarks.feature.bookmark.QuickAddBookmarkDialog
 import com.pixelmarks.feature.browser.OpenLinkBottomSheet
 import com.pixelmarks.ui.components.ArchivalSubHeader
 import com.pixelmarks.ui.components.PixelMarksTopAppBar
@@ -140,6 +141,24 @@ fun HomeScreen(
     var askEveryTimeUrl by remember { mutableStateOf("") }
     var isGridView by remember { mutableStateOf(false) }
     var activeFilter by remember { mutableStateOf(HomeFilter.ALL) }
+    var showQuickAddDialog by remember { mutableStateOf(false) }
+
+    if (showQuickAddDialog) {
+        QuickAddBookmarkDialog(
+            isPrivateInitial = uiState.isPrivateMode,
+            onDismiss = { showQuickAddDialog = false },
+            onOpenFullAddScreen = {
+                showQuickAddDialog = false
+                onNavigateToAddBookmark()
+            },
+            onBookmarkSaved = {
+                showQuickAddDialog = false
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Bookmark saved")
+                }
+            }
+        )
+    }
 
     if (showAskEveryTimeSheet) {
         OpenLinkBottomSheet(
@@ -232,7 +251,7 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onNavigateToAddBookmark,
+                onClick = { showQuickAddDialog = true },
                 containerColor = TerracottaAccent,
                 contentColor = ArchivalSurfaceContainerLowest,
                 shape = RoundedCornerShape(16.dp),

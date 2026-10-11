@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,7 +48,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,6 +61,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.font.FontFamily
+import com.pixelmarks.ui.theme.ArchivalError
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainer
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHighest
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLowest
+import com.pixelmarks.ui.theme.ArchivalTextPrimary
+import com.pixelmarks.ui.theme.ArchivalTextSecondary
+import com.pixelmarks.ui.theme.BrassGold
+import com.pixelmarks.ui.theme.TerracottaAccent
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -317,6 +330,16 @@ fun AddBookmarkScreen(
         )
     }
 
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = ArchivalTextPrimary,
+        unfocusedTextColor = ArchivalTextPrimary,
+        focusedBorderColor = BrassGold,
+        unfocusedBorderColor = ArchivalSurfaceContainerHighest,
+        focusedLabelColor = BrassGold,
+        unfocusedLabelColor = ArchivalTextSecondary,
+        cursorColor = BrassGold
+    )
+
     PixelMarksScreenScaffold(
         title = if (uiState.isPrivate) "Save Private Bookmark 🔒" else "Save Bookmark",
         onNavigateBack = onNavigateBack
@@ -329,18 +352,67 @@ fun AddBookmarkScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.medium)
         ) {
-            // Live Metadata Preview Card
+            // URL Input (First so it never shifts down when typing)
+            OutlinedTextField(
+                value = uiState.url,
+                onValueChange = viewModel::onUrlChanged,
+                label = { Text("Web URL", color = ArchivalTextSecondary) },
+                placeholder = { Text("https://example.com or example.com", color = ArchivalTextSecondary.copy(alpha = 0.5f)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Link,
+                        contentDescription = null,
+                        tint = BrassGold
+                    )
+                },
+                trailingIcon = {
+                    if (uiState.url.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onUrlChanged("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear URL",
+                                tint = ArchivalTextSecondary
+                            )
+                        }
+                    }
+                },
+                isError = uiState.errorMessage != null,
+                supportingText = {
+                    if (uiState.errorMessage != null) {
+                        Text(
+                            text = uiState.errorMessage ?: "",
+                            color = ArchivalError
+                        )
+                    } else {
+                        Text("Protocol defaults to https:// if omitted", color = ArchivalTextSecondary.copy(alpha = 0.7f))
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Next
+                ),
+                colors = textFieldColors,
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Live Metadata Preview Card (Placed below URL input to avoid layout shifts)
             if (uiState.url.isNotBlank()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        containerColor = ArchivalSurfaceContainer
                     )
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         if (uiState.isLoadingMetadata) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = BrassGold,
+                                trackColor = ArchivalSurfaceContainerHighest
+                            )
                         }
 
                         if (ImageUrlValidator.isValidImageUrl(uiState.previewThumbnailUrl)) {
@@ -365,14 +437,14 @@ fun AddBookmarkScreen(
                                 Text(
                                     text = uiState.domain.ifBlank { "Preview" },
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = BrassGold
                                 )
                                 if (uiState.isLoadingMetadata) {
                                     Spacer(modifier = Modifier.size(6.dp))
                                     Text(
                                         text = "Loading preview...",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.outline
+                                        color = ArchivalTextSecondary
                                     )
                                 }
                             }
@@ -381,14 +453,14 @@ fun AddBookmarkScreen(
                             Text(
                                 text = displayTitle,
                                 style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = ArchivalTextPrimary
                             )
 
                             if (uiState.description.isNotBlank()) {
                                 Text(
                                     text = uiState.description,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = ArchivalTextSecondary,
                                     maxLines = 3
                                 )
                             }
@@ -397,63 +469,25 @@ fun AddBookmarkScreen(
                 }
             }
 
-            // URL Input
-            OutlinedTextField(
-                value = uiState.url,
-                onValueChange = viewModel::onUrlChanged,
-                label = { Text("Web URL") },
-                placeholder = { Text("https://example.com or example.com") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Link,
-                        contentDescription = null
-                    )
-                },
-                trailingIcon = {
-                    if (uiState.url.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.onUrlChanged("") }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear URL"
-                            )
-                        }
-                    }
-                },
-                isError = uiState.errorMessage != null,
-                supportingText = {
-                    if (uiState.errorMessage != null) {
-                        Text(
-                            text = uiState.errorMessage ?: "",
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    } else {
-                        Text("Protocol defaults to https:// if omitted")
-                    }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Next
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
             // Title Input
             OutlinedTextField(
                 value = uiState.title,
                 onValueChange = viewModel::onTitleChanged,
-                label = { Text("Title (Optional)") },
-                placeholder = { Text("Auto-derived from webpage if left blank") },
+                label = { Text("Title (Optional)", color = ArchivalTextSecondary) },
+                placeholder = { Text("Auto-derived from webpage if left blank", color = ArchivalTextSecondary.copy(alpha = 0.5f)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Title,
-                        contentDescription = null
+                        contentDescription = null,
+                        tint = ArchivalTextSecondary
                     )
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Next
                 ),
+                colors = textFieldColors,
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -461,18 +495,21 @@ fun AddBookmarkScreen(
             OutlinedTextField(
                 value = uiState.description,
                 onValueChange = viewModel::onDescriptionChanged,
-                label = { Text("Description (Optional)") },
-                placeholder = { Text("Webpage summary or brief excerpt") },
+                label = { Text("Description (Optional)", color = ArchivalTextSecondary) },
+                placeholder = { Text("Webpage summary or brief excerpt", color = ArchivalTextSecondary.copy(alpha = 0.5f)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Description,
-                        contentDescription = null
+                        contentDescription = null,
+                        tint = ArchivalTextSecondary
                     )
                 },
                 maxLines = 3,
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Next
                 ),
+                colors = textFieldColors,
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -480,12 +517,13 @@ fun AddBookmarkScreen(
             OutlinedTextField(
                 value = uiState.notes,
                 onValueChange = viewModel::onNotesChanged,
-                label = { Text("Optional Note") },
-                placeholder = { Text("Watch this later because...") },
+                label = { Text("Optional Note", color = ArchivalTextSecondary) },
+                placeholder = { Text("Watch this later because...", color = ArchivalTextSecondary.copy(alpha = 0.5f)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Notes,
-                        contentDescription = null
+                        contentDescription = null,
+                        tint = ArchivalTextSecondary
                     )
                 },
                 maxLines = 4,
@@ -495,6 +533,8 @@ fun AddBookmarkScreen(
                 keyboardActions = KeyboardActions(
                     onDone = { viewModel.saveBookmark() }
                 ),
+                colors = textFieldColors,
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -503,11 +543,7 @@ fun AddBookmarkScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.outlinedCardColors(
-                    containerColor = if (uiState.isPrivate) {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    }
+                    containerColor = ArchivalSurfaceContainer
                 )
             ) {
                 Row(
@@ -519,7 +555,7 @@ fun AddBookmarkScreen(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = if (uiState.isPrivate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (uiState.isPrivate) BrassGold else ArchivalTextSecondary,
                         modifier = Modifier.padding(end = Spacing.medium)
                     )
                     Column(modifier = Modifier.weight(1f)) {
@@ -527,12 +563,12 @@ fun AddBookmarkScreen(
                             text = "Private Bookmark",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = ArchivalTextPrimary
                         )
                         Text(
                             text = if (uiState.isPrivate) "Stored in Secure Folder" else "Accessible in normal mode",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = ArchivalTextSecondary
                         )
                     }
                     Switch(
@@ -543,7 +579,13 @@ fun AddBookmarkScreen(
                             } else {
                                 viewModel.onPrivacyChanged(false)
                             }
-                        }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = ArchivalSurfaceContainerLowest,
+                            checkedTrackColor = BrassGold,
+                            uncheckedThumbColor = ArchivalTextSecondary,
+                            uncheckedTrackColor = ArchivalSurfaceContainerHighest
+                        )
                     )
                 }
             }
@@ -556,7 +598,7 @@ fun AddBookmarkScreen(
                     .clickable { showCollectionPicker = true },
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.outlinedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = ArchivalSurfaceContainer
                 )
             ) {
                 Row(
@@ -586,12 +628,12 @@ fun AddBookmarkScreen(
                             Text(
                                 text = "Collection",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline
+                                color = ArchivalTextSecondary
                             )
                             Text(
                                 text = selectedCol.name,
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = ArchivalTextPrimary
                             )
                         }
                         IconButton(
@@ -601,26 +643,26 @@ fun AddBookmarkScreen(
                             Icon(
                                 imageVector = Icons.Default.Clear,
                                 contentDescription = "Clear collection selection",
-                                tint = MaterialTheme.colorScheme.outline
+                                tint = ArchivalTextSecondary
                             )
                         }
                     } else {
                         Icon(
                             imageVector = Icons.Default.Folder,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = BrassGold,
                             modifier = Modifier.size(28.dp)
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Collection (Optional)",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline
+                                color = ArchivalTextSecondary
                             )
                             Text(
                                 text = "None (Unsorted)",
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = ArchivalTextSecondary
                             )
                         }
                     }
@@ -641,7 +683,7 @@ fun AddBookmarkScreen(
                     Text(
                         text = "Tags (${selectedTags.size})",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = ArchivalTextPrimary
                     )
                     OutlinedButton(
                         onClick = { showSelectTagsDialog = true },
@@ -650,12 +692,14 @@ fun AddBookmarkScreen(
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
+                            tint = BrassGold
                         )
                         Spacer(modifier = Modifier.size(4.dp))
                         Text(
                             text = if (selectedTags.isEmpty()) "Add Tags" else "Edit Tags",
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelMedium,
+                            color = BrassGold
                         )
                     }
                 }
@@ -670,12 +714,13 @@ fun AddBookmarkScreen(
                             InputChip(
                                 selected = true,
                                 onClick = { viewModel.onRemoveTag(tag.id) },
-                                label = { Text(tag.name) },
+                                label = { Text("#${tag.name}", color = ArchivalTextPrimary) },
                                 trailingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.Clear,
                                         contentDescription = "Remove tag",
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(16.dp),
+                                        tint = ArchivalTextSecondary
                                     )
                                 }
                             )
@@ -690,7 +735,7 @@ fun AddBookmarkScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.outlinedCardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                        containerColor = ArchivalSurfaceContainer
                     )
                 ) {
                     Row(
@@ -708,28 +753,28 @@ fun AddBookmarkScreen(
                             Icon(
                                 imageVector = Icons.Default.Alarm,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = BrassGold,
                                 modifier = Modifier.size(24.dp)
                             )
                             Column {
                                 Text(
                                     text = "Reminder set",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = BrassGold
                                 )
                                 Text(
                                     text = ReminderFormatter.format(uiState.reminderAt!!),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = ArchivalTextPrimary
                                 )
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             TextButton(onClick = { showReminderDialog = true }) {
-                                Text("Edit")
+                                Text("Edit", color = BrassGold)
                             }
                             TextButton(onClick = { viewModel.onReminderChanged(null) }) {
-                                Text("Remove")
+                                Text("Remove", color = ArchivalError)
                             }
                         }
                     }
@@ -739,9 +784,9 @@ fun AddBookmarkScreen(
                     onClick = { showReminderDialog = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Alarm, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Alarm, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrassGold)
                     Spacer(modifier = Modifier.size(6.dp))
-                    Text("Set Reminder")
+                    Text("Set Reminder", color = BrassGold)
                 }
             }
 
@@ -750,9 +795,9 @@ fun AddBookmarkScreen(
                 onClick = { showExpirationDialog = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Default.HourglassBottom, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.HourglassBottom, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrassGold)
                 Spacer(modifier = Modifier.size(6.dp))
-                Text(if (hasExpiry) "Expiration Set" else "Set Expiration")
+                Text(if (hasExpiry) "Expiration Set" else "Set Expiration", color = BrassGold)
             }
 
             Spacer(modifier = Modifier.height(Spacing.medium))
@@ -766,24 +811,30 @@ fun AddBookmarkScreen(
                 OutlinedButton(
                     onClick = onNavigateBack,
                     modifier = Modifier.weight(1f),
-                    enabled = !uiState.isLoading
+                    enabled = !uiState.isLoading,
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Cancel")
+                    Text("Cancel", color = ArchivalTextSecondary)
                 }
 
                 Button(
                     onClick = viewModel::saveBookmark,
                     modifier = Modifier.weight(1f),
-                    enabled = !uiState.isLoading && uiState.url.isNotBlank()
+                    enabled = !uiState.isLoading && uiState.url.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = TerracottaAccent,
+                        contentColor = ArchivalSurfaceContainerLowest
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = ArchivalSurfaceContainerLowest
                         )
                     } else {
-                        Text("Save Bookmark")
+                        Text("Save Bookmark", fontWeight = FontWeight.Bold)
                     }
                 }
             }
