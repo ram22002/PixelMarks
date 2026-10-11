@@ -24,3 +24,7 @@ docs/
 # macOS & Windows metadata
 .DS_Store
 Thumbs.db
+
+# Workspace agent & design artifacts
+.agents/
+stitch_redesign/
