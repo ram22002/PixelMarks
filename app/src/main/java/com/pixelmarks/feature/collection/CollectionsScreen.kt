@@ -1,12 +1,15 @@
 package com.pixelmarks.feature.collection
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,20 +18,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.SubdirectoryArrowRight
-import androidx.compose.ui.text.font.FontWeight
-import kotlinx.coroutines.launch
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,9 +39,10 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,15 +56,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pixelmarks.app.PixelMarksApplication
+import com.pixelmarks.core.image.BookmarkFavicon
 import com.pixelmarks.core.model.Collection
-import com.pixelmarks.ui.components.PixelMarksScreenScaffold
-import com.pixelmarks.ui.theme.PixelMarksTheme
+import com.pixelmarks.ui.components.ArchivalSubHeader
+import com.pixelmarks.ui.components.PixelMarksTopAppBar
+import com.pixelmarks.ui.components.getEditorialSalutation
+import com.pixelmarks.ui.theme.ArchivalBackground
+import com.pixelmarks.ui.theme.ArchivalPrimary
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainer
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHighest
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLow
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLowest
+import com.pixelmarks.ui.theme.ArchivalTextPrimary
+import com.pixelmarks.ui.theme.ArchivalTextSecondary
+import com.pixelmarks.ui.theme.BrassGold
+import com.pixelmarks.ui.theme.BrassGoldLight
 import com.pixelmarks.ui.theme.Spacing
+import com.pixelmarks.ui.theme.TerracottaAccent
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 data class CollectionHierarchyNode(
     val collection: Collection,
@@ -87,7 +111,6 @@ fun flattenCollectionHierarchy(collections: List<Collection>): List<CollectionHi
 
     traverse(null, 0)
 
-    // Append any disconnected orphan items safely (if parentId points to non-existent ID)
     val orphans = collections.filter { !visited.contains(it.id) }
     for (orphan in orphans) {
         result.add(CollectionHierarchyNode(orphan, 0))
@@ -96,9 +119,16 @@ fun flattenCollectionHierarchy(collections: List<Collection>): List<CollectionHi
     return result
 }
 
+private enum class CollectionSortOption {
+    RECENT, ALPHABETICAL, COUNT
+}
+
 @Composable
 fun CollectionsScreen(
     onNavigateToCollectionDetail: (Long) -> Unit,
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToConnectPc: () -> Unit = {},
+    onNavigateToReminders: () -> Unit = {},
     viewModel: CollectionsViewModel = viewModel(
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
@@ -125,6 +155,8 @@ fun CollectionsScreen(
     var createParentId by remember { mutableStateOf<Long?>(null) }
     var editingCollection by remember { mutableStateOf<Collection?>(null) }
     var deletingCollection by remember { mutableStateOf<Collection?>(null) }
+    var isGridView by remember { mutableStateOf(false) }
+    var sortOption by remember { mutableStateOf(CollectionSortOption.RECENT) }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { error ->
@@ -141,7 +173,7 @@ fun CollectionsScreen(
                 showCreateDialog = false
                 createParentId = null
             },
-            onSave = { name, parentId, icon, color, isLocked, isHidden ->
+            onSave = { name, parentId, icon, color, isLocked, isHidden, description, keywords ->
                 viewModel.createCollection(
                     name = name,
                     parentId = parentId,
@@ -149,6 +181,8 @@ fun CollectionsScreen(
                     color = color,
                     isLocked = isLocked,
                     isHidden = isHidden,
+                    description = description,
+                    keywords = keywords,
                     onSuccess = {
                         showCreateDialog = false
                         createParentId = null
@@ -163,7 +197,7 @@ fun CollectionsScreen(
             initialCollection = collection,
             availableParents = uiState.collections,
             onDismiss = { editingCollection = null },
-            onSave = { name, parentId, icon, color, isLocked, isHidden ->
+            onSave = { name, parentId, icon, color, isLocked, isHidden, description, keywords ->
                 viewModel.updateCollection(
                     collectionId = collection.id,
                     newName = name,
@@ -172,6 +206,8 @@ fun CollectionsScreen(
                     color = color,
                     isLocked = isLocked,
                     isHidden = isHidden,
+                    description = description,
+                    keywords = keywords,
                     onSuccess = { editingCollection = null }
                 )
             }
@@ -189,129 +225,240 @@ fun CollectionsScreen(
         )
     }
 
-    PixelMarksScreenScaffold(
-        title = if (uiState.isPrivateMode) "Collections 🔒 Secure Folder" else "Collections",
-        actions = {
-            IconButton(
+    fun handleCollectionClick(col: Collection) {
+        if (col.isLocked && !app.container.appLockManager.isCollectionUnlocked(col.id)) {
+            if (activity != null) {
+                app.container.biometricAuthManager.authenticate(
+                    activity = activity,
+                    title = "Unlock Collection",
+                    subtitle = "Authenticate to open \"${col.name}\"",
+                    onSuccess = {
+                        app.container.appLockManager.unlockCollection(col.id)
+                        onNavigateToCollectionDetail(col.id)
+                    },
+                    onError = { _: Int, err: CharSequence ->
+                        coroutineScope.launch { snackbarHostState.showSnackbar(err.toString()) }
+                    }
+                )
+            }
+        } else {
+            onNavigateToCollectionDetail(col.id)
+        }
+    }
+
+    val sortedCollections = remember(uiState.collections, sortOption, uiState.bookmarkCounts) {
+        when (sortOption) {
+            CollectionSortOption.RECENT -> uiState.collections.sortedByDescending { it.updatedAt }
+            CollectionSortOption.ALPHABETICAL -> uiState.collections.sortedBy { it.name.lowercase() }
+            CollectionSortOption.COUNT -> uiState.collections.sortedByDescending { uiState.bookmarkCounts[it.id] ?: 0 }
+        }
+    }
+
+    val flatNodes = remember(sortedCollections) {
+        flattenCollectionHierarchy(sortedCollections)
+    }
+
+    val rootCollections = remember(sortedCollections) {
+        sortedCollections.filter { it.parentId == null }
+    }
+
+    Scaffold(
+        containerColor = ArchivalBackground,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            PixelMarksTopAppBar(
+                isPrivateMode = uiState.isPrivateMode,
+                onNavigateToConnectPc = onNavigateToConnectPc,
+                onNavigateToSearch = onNavigateToSearch,
+                onNavigateToReminders = onNavigateToReminders,
+                hasUnreadReminders = true
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
                 onClick = {
                     createParentId = null
                     showCreateDialog = true
-                }
+                },
+                containerColor = TerracottaAccent,
+                contentColor = ArchivalSurfaceContainerLowest,
+                shape = CircleShape,
+                modifier = Modifier.padding(bottom = 8.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "New collection"
+                    contentDescription = "New Collection",
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
     ) { paddingValues ->
-        Box(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .padding(horizontal = Spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(Spacing.medium)
         ) {
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (uiState.collections.isEmpty()) {
-                // Empty State
-                Card(
+            // Editorial Date & Title Header
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+                ArchivalSubHeader(
+                    title = getEditorialSalutation(),
+                    isGridView = isGridView,
+                    onToggleGridView = { isGridView = it }
+                )
+            }
+
+            // Curatorial Sort Pills
+            item {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(Spacing.medium),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    shape = MaterialTheme.shapes.medium
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
+                    SortPill(
+                        label = "Recently Updated",
+                        isSelected = sortOption == CollectionSortOption.RECENT,
+                        onClick = { sortOption = CollectionSortOption.RECENT }
+                    )
+                    SortPill(
+                        label = "Alphabetical (A–Z)",
+                        isSelected = sortOption == CollectionSortOption.ALPHABETICAL,
+                        onClick = { sortOption = CollectionSortOption.ALPHABETICAL }
+                    )
+                    SortPill(
+                        label = "Item Count",
+                        isSelected = sortOption == CollectionSortOption.COUNT,
+                        onClick = { sortOption = CollectionSortOption.COUNT }
+                    )
+                }
+            }
+
+            // Loading / Empty
+            if (uiState.isLoading) {
+                item {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(Spacing.large),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(Spacing.small)
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Folder,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Text(
-                            text = "No Collections Yet",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Organize your bookmarks into hierarchical folders with custom colors and icons.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(Spacing.small))
-                        Button(
-                            onClick = {
-                                createParentId = null
-                                showCreateDialog = true
-                            }
+                        CircularProgressIndicator(color = BrassGold)
+                    }
+                }
+            } else if (uiState.collections.isEmpty()) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = ArchivalSurfaceContainerLow,
+                        shape = RoundedCornerShape(16.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Spacing.large),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(Spacing.small)
                         ) {
-                            Text("Create First Collection")
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = BrassGold,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Text(
+                                text = "No Collections in Folio",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = FontFamily.Serif,
+                                color = ArchivalTextPrimary
+                            )
+                            Text(
+                                text = "Organize bookmarks into structured curatorial folders with custom metadata.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ArchivalTextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Surface(
+                                shape = RoundedCornerShape(24.dp),
+                                color = ArchivalPrimary,
+                                modifier = Modifier.clickable {
+                                    createParentId = null
+                                    showCreateDialog = true
+                                }
+                            ) {
+                                Text(
+                                    text = "Create Collection",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = ArchivalSurfaceContainerLowest,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+                                )
+                            }
                         }
                     }
                 }
             } else {
-                val flatNodes = remember(uiState.collections) {
-                    flattenCollectionHierarchy(uiState.collections)
-                }
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = Spacing.medium),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.small)
-                ) {
-                    item {
-                        Spacer(modifier = Modifier.height(Spacing.small))
+                // Section Header
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "All Collections (${uiState.collections.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground
+                            text = "${rootCollections.size} ledgers",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ArchivalTextSecondary
                         )
                     }
+                }
 
-                    items(flatNodes, key = { it.collection.id }) { node ->
-                        val col = node.collection
+                // Grid or Folio List
+                if (isGridView) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            rootCollections.chunked(2).forEach { rowPair ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowPair.forEach { col ->
+                                        val count = uiState.bookmarkCounts[col.id] ?: 0
+                                        val favicons = uiState.collectionFavicons[col.id].orEmpty()
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            CollectionGridCard(
+                                                collection = col,
+                                                bookmarkCount = count,
+                                                favicons = favicons,
+                                                onClick = { handleCollectionClick(col) },
+                                                onEdit = { editingCollection = col },
+                                                onDelete = { deletingCollection = col }
+                                            )
+                                        }
+                                    }
+                                    if (rowPair.size == 1) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    items(rootCollections, key = { it.id }) { col ->
                         val bookmarkCount = uiState.bookmarkCounts[col.id] ?: 0
                         val childCount = uiState.childCounts[col.id] ?: 0
+                        val favicons = uiState.collectionFavicons[col.id].orEmpty()
 
-                        CollectionListItemCard(
+                        CollectionFolioRowCard(
                             collection = col,
-                            depth = node.depth,
+                            depth = 0,
                             bookmarkCount = bookmarkCount,
                             childCount = childCount,
-                            onClick = {
-                                if (col.isLocked && !app.container.appLockManager.isCollectionUnlocked(col.id)) {
-                                    if (activity != null) {
-                                        app.container.biometricAuthManager.authenticate(
-                                            activity = activity,
-                                            title = "Unlock Collection",
-                                            subtitle = "Authenticate to open \"${col.name}\"",
-                                            onSuccess = {
-                                                app.container.appLockManager.unlockCollection(col.id)
-                                                onNavigateToCollectionDetail(col.id)
-                                            },
-                                            onError = { _: Int, err: CharSequence ->
-                                                coroutineScope.launch { snackbarHostState.showSnackbar(err.toString()) }
-                                            }
-                                        )
-                                    }
-                                } else {
-                                    onNavigateToCollectionDetail(col.id)
-                                }
-                            },
+                            favicons = favicons,
+                            onClick = { handleCollectionClick(col) },
                             onAddSubCollection = {
                                 createParentId = col.id
                                 showCreateDialog = true
@@ -320,156 +467,181 @@ fun CollectionsScreen(
                             onDelete = { deletingCollection = col }
                         )
                     }
-
-                    item {
-                        Spacer(modifier = Modifier.height(72.dp))
-                    }
                 }
             }
 
-            FloatingActionButton(
-                onClick = {
-                    createParentId = null
-                    showCreateDialog = true
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(Spacing.medium)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Create collection"
-                )
+            item {
+                Spacer(modifier = Modifier.height(Spacing.large))
             }
-
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 72.dp)
-            )
         }
     }
 }
 
 @Composable
-fun CollectionListItemCard(
+private fun SortPill(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = if (isSelected) TerracottaAccent else ArchivalSurfaceContainer,
+        contentColor = if (isSelected) ArchivalSurfaceContainerLowest else ArchivalTextSecondary,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+        )
+    }
+}
+
+@Composable
+private fun CollectionFolioRowCard(
     collection: Collection,
     depth: Int,
     bookmarkCount: Int,
     childCount: Int,
+    favicons: List<String> = emptyList(),
     onClick: () -> Unit,
     onAddSubCollection: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val color = parseHexColor(collection.color)
-    val indentPadding = (depth * 20).dp
     var menuExpanded by remember { mutableStateOf(false) }
+    val color = parseHexColor(collection.color)
 
-    Row(
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = ArchivalSurfaceContainerLow,
+        border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = indentPadding),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(start = (depth * 16).dp)
+            .clickable(onClick = onClick)
     ) {
-        if (depth > 0) {
-            Icon(
-                imageVector = Icons.Default.SubdirectoryArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline,
-                modifier = Modifier
-                    .padding(end = 4.dp)
-                    .size(18.dp)
-            )
-        }
-
-        OutlinedCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.outlinedCardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.medium, vertical = Spacing.small),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(color),
-                    contentAlignment = Alignment.Center
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = getIconVector(collection.icon),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = collection.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                    if (depth > 0) {
+                        Icon(
+                            imageVector = Icons.Default.SubdirectoryArrowRight,
+                            contentDescription = null,
+                            tint = ArchivalTextSecondary,
+                            modifier = Modifier.size(16.dp)
                         )
-                        if (collection.isLocked) {
-                            Spacer(modifier = Modifier.size(6.dp))
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = "Locked",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(ArchivalSurfaceContainerHigh),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = getIconVector(collection.icon),
+                            contentDescription = null,
+                            tint = color,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = collection.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontFamily = FontFamily.Serif,
+                                color = ArchivalTextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (collection.isLocked) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Locked",
+                                    tint = BrassGold,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+
+                        if (!collection.description.isNullOrBlank()) {
+                            Text(
+                                text = collection.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ArchivalTextSecondary,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 2.dp)
                             )
                         }
-                    }
 
-                    val subtitle = buildString {
-                        append("$bookmarkCount bookmarks")
-                        if (childCount > 0) {
-                            append(" • $childCount sub-folders")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "$bookmarkCount links",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TerracottaAccent,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (childCount > 0) {
+                                Text(
+                                    text = "• $childCount sub-folders",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ArchivalTextSecondary
+                                )
+                            }
                         }
                     }
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
 
                 Box {
-                    IconButton(onClick = { menuExpanded = true }) {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.size(28.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Collection options",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            contentDescription = "Options",
+                            tint = ArchivalTextSecondary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
                     DropdownMenu(
                         expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
+                        onDismissRequest = { menuExpanded = false },
+                        modifier = Modifier.background(ArchivalSurfaceContainerHigh)
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Add Sub-folder") },
+                            text = { Text("Add Sub-Collection", color = ArchivalTextPrimary) },
                             onClick = {
                                 menuExpanded = false
                                 onAddSubCollection()
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Edit") },
+                            text = { Text("Edit", color = ArchivalTextPrimary) },
                             onClick = {
                                 menuExpanded = false
                                 onEdit()
@@ -485,14 +657,191 @@ fun CollectionListItemCard(
                     }
                 }
             }
+
+            // Curatorial Keywords Chips without #
+            if (!collection.keywords.isNullOrBlank()) {
+                val keywordsList = collection.keywords.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                if (keywordsList.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        keywordsList.take(5).forEach { kw ->
+                            Surface(
+                                shape = RoundedCornerShape(9999.dp),
+                                color = ArchivalSurfaceContainerHighest
+                            ) {
+                                Text(
+                                    text = kw,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ArchivalTextSecondary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                        if (keywordsList.size > 5) {
+                            Text(
+                                text = "+${keywordsList.size - 5} more",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = BrassGoldLight,
+                                modifier = Modifier.align(Alignment.CenterVertically),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Overlapping Saved Links Favicons
+            if (favicons.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy((-6).dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    favicons.forEach { favUrl ->
+                        Surface(
+                            shape = CircleShape,
+                            color = ArchivalSurfaceContainerLowest,
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, ArchivalSurfaceContainerLow),
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                BookmarkFavicon(faviconUrl = favUrl, size = 14.dp)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-private fun CollectionsScreenPreview() {
-    PixelMarksTheme {
-        CollectionsScreen(onNavigateToCollectionDetail = {})
+private fun CollectionGridCard(
+    collection: Collection,
+    bookmarkCount: Int,
+    favicons: List<String> = emptyList(),
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val color = parseHexColor(collection.color)
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = ArchivalSurfaceContainerLow,
+        border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ArchivalSurfaceContainerHigh),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = getIconVector(collection.icon),
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = ArchivalSurfaceContainerHighest
+                ) {
+                    Text(
+                        text = "$bookmarkCount",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TerracottaAccent,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = collection.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontFamily = FontFamily.Serif,
+                color = ArchivalTextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (!collection.description.isNullOrBlank()) {
+                Text(
+                    text = collection.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ArchivalTextSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 11.sp
+                )
+            }
+
+            if (!collection.keywords.isNullOrBlank()) {
+                val firstKw = collection.keywords.split(",").firstOrNull()?.trim().orEmpty()
+                if (firstKw.isNotEmpty()) {
+                    Text(
+                        text = firstKw,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ArchivalTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = 10.sp
+                    )
+                }
+            }
+
+            if (favicons.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy((-5).dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    favicons.forEach { favUrl ->
+                        Surface(
+                            shape = CircleShape,
+                            color = ArchivalSurfaceContainerLowest,
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, ArchivalSurfaceContainerLow),
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                BookmarkFavicon(faviconUrl = favUrl, size = 11.dp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+}
+
+private fun formatCuratorialDate(): String {
+    val cal = Calendar.getInstance()
+    val sdf = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
+    return sdf.format(cal.time).uppercase()
 }

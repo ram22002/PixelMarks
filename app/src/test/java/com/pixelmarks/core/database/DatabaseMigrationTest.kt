@@ -90,17 +90,20 @@ class DatabaseMigrationTest {
         )
         v1Db.close()
 
-        // Step 2: Open with Room v2 using MIGRATION_1_2
+        // Step 2: Open with Room v4 using migrations
         database = Room.databaseBuilder(
             context,
             PixelMarksDatabase::class.java,
             testDbName
-        ).addMigrations(PixelMarksDatabase.MIGRATION_1_2, PixelMarksDatabase.MIGRATION_2_3)
-            .build()
+        ).addMigrations(
+            PixelMarksDatabase.MIGRATION_1_2,
+            PixelMarksDatabase.MIGRATION_2_3,
+            PixelMarksDatabase.MIGRATION_3_4
+        ).build()
 
         val dao = database!!.bookmarkDao()
 
-        // Step 3: Verify existing data in Room V2
+        // Step 3: Verify existing data in Room V2/V4
         val item1 = dao.getById(1L)
         assertNotNull(item1)
         assertEquals("Example One", item1?.title)
@@ -193,14 +196,75 @@ class DatabaseMigrationTest {
             context,
             PixelMarksDatabase::class.java,
             testDbName
-        ).addMigrations(PixelMarksDatabase.MIGRATION_2_3)
-            .build()
+        ).addMigrations(
+            PixelMarksDatabase.MIGRATION_2_3,
+            PixelMarksDatabase.MIGRATION_3_4
+        ).build()
 
         val dao = database!!.bookmarkDao()
         val item = dao.getById(10L)
         assertNotNull(item)
         assertEquals("V2 Test Bookmark", item?.title)
         assertFalse(item!!.isPrivate)
+    }
+
+    @Test
+    fun testMigration3To4PreservesDataAndAddsCollectionDescriptionAndKeywords() = runBlocking {
+        val config = SupportSQLiteOpenHelper.Configuration.builder(context)
+            .name(testDbName)
+            .callback(object : SupportSQLiteOpenHelper.Callback(3) {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    createV1Schema(db)
+                    PixelMarksDatabase.MIGRATION_1_2.migrate(db)
+                    PixelMarksDatabase.MIGRATION_2_3.migrate(db)
+                }
+
+                override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+            })
+            .build()
+
+        val helper = FrameworkSQLiteOpenHelperFactory().create(config)
+        val v3Db = helper.writableDatabase
+
+        val now = 1700000000000L
+        v3Db.execSQL(
+            """
+            INSERT INTO collections (
+                id, name, parentId, icon, color, position, isLocked, isHidden,
+                isDomain, domain, createdAt, updatedAt
+            ) VALUES (
+                5, 'Architecture', NULL, 'folder', '#C5A059', 0, 0, 0,
+                0, NULL, $now, $now
+            )
+            """.trimIndent()
+        )
+        v3Db.close()
+
+        database = Room.databaseBuilder(
+            context,
+            PixelMarksDatabase::class.java,
+            testDbName
+        ).addMigrations(
+            PixelMarksDatabase.MIGRATION_3_4
+        ).build()
+
+        val collectionDao = database!!.collectionDao()
+        val collection = collectionDao.getById(5L)
+        assertNotNull(collection)
+        assertEquals("Architecture", collection?.name)
+        assertNull(collection?.description)
+        assertNull(collection?.keywords)
+
+        // Update with description and keywords
+        collectionDao.update(
+            collection!!.copy(
+                description = "Modern and archival architecture folios",
+                keywords = "design, blueprints, archival"
+            )
+        )
+        val updated = collectionDao.getById(5L)
+        assertEquals("Modern and archival architecture folios", updated?.description)
+        assertEquals("design, blueprints, archival", updated?.keywords)
     }
 
     private fun createV1Schema(db: SupportSQLiteDatabase) {

@@ -78,13 +78,16 @@ class CollectionDetailViewModel(
             } else {
                 combine(
                     observeCollectionsUseCase(includeHidden = true, isPrivate = col.isPrivate),
-                    bookmarkRepository.observeByCollection(collectionId, isPrivate = col.isPrivate),
+                    bookmarkRepository.observeAll(isPrivate = col.isPrivate),
                     _isDeleted,
                     _errorMessage
-                ) { allCols, bookmarks, isDel, err ->
+                ) { allCols, allBookmarks, isDel, err ->
                     val current = allCols.firstOrNull { it.id == collectionId }
                     val parent = current?.parentId?.let { pId -> allCols.firstOrNull { it.id == pId } }
                     val children = allCols.filter { it.parentId == collectionId }.sortedBy { it.position }
+                    val childIds = children.map { it.id }.toSet()
+                    val relevantIds = childIds + collectionId
+                    val bookmarks = allBookmarks.filter { it.collectionId in relevantIds }
 
                     CollectionDetailUiState(
                         collection = current,
@@ -139,10 +142,20 @@ class CollectionDetailViewModel(
         newParentId: Long? = null,
         icon: String? = null,
         color: String? = null,
+        description: String? = null,
+        keywords: String? = null,
         onSuccess: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            when (val result = updateCollectionUseCase(collectionId, newName, newParentId, icon, color)) {
+            when (val result = updateCollectionUseCase(
+                collectionId = collectionId,
+                newName = newName,
+                newParentId = newParentId,
+                icon = icon,
+                color = color,
+                description = description,
+                keywords = keywords
+            )) {
                 is UpdateCollectionResult.Success -> {
                     _errorMessage.value = null
                     onSuccess()

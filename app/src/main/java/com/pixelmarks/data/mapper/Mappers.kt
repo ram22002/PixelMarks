@@ -73,6 +73,8 @@ fun CollectionEntity.toDomain(): Collection = Collection(
     isPrivate = isPrivate,
     isDomain = isDomain,
     domain = domain,
+    description = description,
+    keywords = keywords,
     createdAt = createdAt,
     updatedAt = updatedAt
 )
@@ -89,6 +91,8 @@ fun Collection.toEntity(): CollectionEntity = CollectionEntity(
     isPrivate = isPrivate,
     isDomain = isDomain,
     domain = domain,
+    description = description,
+    keywords = keywords,
     createdAt = createdAt,
     updatedAt = updatedAt
 )

@@ -66,8 +66,8 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun PixelMarksTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    darkTheme: Boolean = true, // Default to the Dark Warm Editorial Archival style
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

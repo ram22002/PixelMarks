@@ -59,7 +59,9 @@ class CreateCollectionUseCase(
         color: String? = null,
         isLocked: Boolean = false,
         isHidden: Boolean = false,
-        isPrivate: Boolean = false
+        isPrivate: Boolean = false,
+        description: String? = null,
+        keywords: String? = null
     ): CreateCollectionResult {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) {
@@ -99,6 +101,8 @@ class CreateCollectionUseCase(
                 isLocked = resolvedLocked,
                 isHidden = resolvedHidden,
                 isPrivate = isPrivate,
+                description = description?.trim()?.ifEmpty { null },
+                keywords = keywords?.trim()?.ifEmpty { null },
                 createdAt = now,
                 updatedAt = now
             )
@@ -125,7 +129,9 @@ class UpdateCollectionUseCase(
         color: String? = null,
         isLocked: Boolean? = null,
         isHidden: Boolean? = null,
-        isPrivate: Boolean? = null
+        isPrivate: Boolean? = null,
+        description: String? = null,
+        keywords: String? = null
     ): UpdateCollectionResult {
         val trimmed = newName.trim()
         if (trimmed.isEmpty()) {
@@ -191,6 +197,8 @@ class UpdateCollectionUseCase(
             isLocked = resolvedLocked,
             isHidden = resolvedHidden,
             isPrivate = resolvedPrivate,
+            description = description?.trim()?.ifEmpty { null } ?: existing.description,
+            keywords = keywords?.trim()?.ifEmpty { null } ?: existing.keywords,
             updatedAt = System.currentTimeMillis()
         )
 

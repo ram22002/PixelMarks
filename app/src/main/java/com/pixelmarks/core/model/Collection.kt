@@ -15,6 +15,8 @@ data class Collection(
     val isPrivate: Boolean = false,
     val isDomain: Boolean = false,
     val domain: String? = null,
+    val description: String? = null,
+    val keywords: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

@@ -1,9 +1,13 @@
 package com.pixelmarks.feature.search
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,35 +18,33 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FilterAltOff
-import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SearchOff
-import androidx.compose.material.icons.filled.Sort
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,17 +52,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.core.model.BookmarkSortOption
-import com.pixelmarks.feature.home.BookmarkListItem
+import com.pixelmarks.feature.home.ArchivalBookmarkCard
 import com.pixelmarks.ui.components.PixelMarksScreenScaffold
 import com.pixelmarks.ui.theme.Spacing
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
+    initialCollectionId: Long? = null,
+    initialTagId: Long? = null,
     onNavigateBack: () -> Unit,
     onNavigateToBookmarkDetail: (Long) -> Unit,
     viewModel: SearchViewModel = viewModel(
@@ -83,375 +92,464 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    var collectionDropdownExpanded by remember { mutableStateOf(false) }
-    var tagDropdownExpanded by remember { mutableStateOf(false) }
+    LaunchedEffect(initialCollectionId) {
+        if (initialCollectionId != null && initialCollectionId > 0) {
+            viewModel.onSelectCollection(initialCollectionId)
+        }
+    }
+
+    LaunchedEffect(initialTagId) {
+        if (initialTagId != null && initialTagId > 0) {
+            viewModel.onSelectTag(initialTagId)
+        }
+    }
+
     var sortDropdownExpanded by remember { mutableStateOf(false) }
 
     PixelMarksScreenScaffold(
         title = if (uiState.isPrivateMode) "Search 🔒 Secure Folder" else "Search & Filter",
         onNavigateBack = onNavigateBack
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = Spacing.medium),
-            verticalArrangement = Arrangement.spacedBy(Spacing.small)
         ) {
-            Spacer(modifier = Modifier.height(Spacing.extraSmall))
-
-            // Search Bar
-            OutlinedTextField(
-                value = uiState.query,
-                onValueChange = viewModel::onQueryChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        text = "Search title, URL, domain, notes, tags...",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search"
-                    )
-                },
-                trailingIcon = {
-                    if (uiState.query.isNotEmpty()) {
-                        IconButton(onClick = viewModel::onClearQuery) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Clear search"
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = MaterialTheme.shapes.large,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            )
-
-            // Horizontal Filter Chips Bar
-            Row(
+            LazyColumn(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.small),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Favorites
-                FilterChip(
-                    selected = uiState.filters.favoriteOnly,
-                    onClick = viewModel::onToggleFavoriteFilter,
-                    label = { Text("Favorites") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Favorite,
-                            contentDescription = null,
-                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                        )
-                    }
-                )
-
-                // Pinned
-                FilterChip(
-                    selected = uiState.filters.pinnedOnly,
-                    onClick = viewModel::onTogglePinnedFilter,
-                    label = { Text("Pinned") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.PushPin,
-                            contentDescription = null,
-                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                        )
-                    }
-                )
-
-                // Archived
-                FilterChip(
-                    selected = uiState.filters.archivedOnly,
-                    onClick = viewModel::onToggleArchivedFilter,
-                    label = { Text("Archived") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Archive,
-                            contentDescription = null,
-                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                        )
-                    }
-                )
-
-                // Collection Filter Dropdown
-                Box {
-                    val selectedCollection = uiState.availableCollections.find { it.id == uiState.filters.collectionId }
-                    val collectionLabel = selectedCollection?.name?.let { "Collection: $it" } ?: "Collection"
-                    FilterChip(
-                        selected = uiState.filters.collectionId != null,
-                        onClick = { collectionDropdownExpanded = true },
-                        label = { Text(collectionLabel) },
-                        trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Select collection",
-                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                // Search Input Field
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = uiState.query,
+                        onValueChange = viewModel::onQueryChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(
+                                text = "Search bookmarks by title, URL, notes, or tags...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.outline
                             )
-                        }
-                    )
-                    DropdownMenu(
-                        expanded = collectionDropdownExpanded,
-                        onDismissRequest = { collectionDropdownExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("All Collections") },
-                            onClick = {
-                                viewModel.onSelectCollection(null)
-                                collectionDropdownExpanded = false
-                            }
-                        )
-                        uiState.availableCollections.forEach { col ->
-                            DropdownMenuItem(
-                                text = { Text(col.name) },
-                                onClick = {
-                                    viewModel.onSelectCollection(col.id)
-                                    collectionDropdownExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Tag Filter Dropdown
-                Box {
-                    val selectedTag = uiState.availableTags.find { it.id == uiState.filters.tagId }
-                    val tagLabel = selectedTag?.name?.let { "Tag: $it" } ?: "Tag"
-                    FilterChip(
-                        selected = uiState.filters.tagId != null,
-                        onClick = { tagDropdownExpanded = true },
-                        label = { Text(tagLabel) },
-                        trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Select tag",
-                                modifier = Modifier.size(FilterChipDefaults.IconSize)
-                            )
-                        }
-                    )
-                    DropdownMenu(
-                        expanded = tagDropdownExpanded,
-                        onDismissRequest = { tagDropdownExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("All Tags") },
-                            onClick = {
-                                viewModel.onSelectTag(null)
-                                tagDropdownExpanded = false
-                            }
-                        )
-                        uiState.availableTags.forEach { tag ->
-                            DropdownMenuItem(
-                                text = { Text(tag.name) },
-                                onClick = {
-                                    viewModel.onSelectTag(tag.id)
-                                    tagDropdownExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Sort Dropdown
-                Box {
-                    FilterChip(
-                        selected = uiState.sortOption != BookmarkSortOption.NEWEST,
-                        onClick = { sortDropdownExpanded = true },
-                        label = { Text("Sort: ${uiState.sortOption.displayName}") },
+                        },
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = null,
-                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.outline
                             )
                         },
                         trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Select sort option",
-                                modifier = Modifier.size(FilterChipDefaults.IconSize)
-                            )
-                        }
-                    )
-                    DropdownMenu(
-                        expanded = sortDropdownExpanded,
-                        onDismissRequest = { sortDropdownExpanded = false }
-                    ) {
-                        BookmarkSortOption.entries.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option.displayName) },
-                                onClick = {
-                                    viewModel.onSelectSortOption(option)
-                                    sortDropdownExpanded = false
+                            if (uiState.query.isNotEmpty()) {
+                                IconButton(onClick = viewModel::onClearQuery) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear query",
+                                        tint = MaterialTheme.colorScheme.outline
+                                    )
                                 }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                    )
+                }
+
+                // Ledger State & Flags Section
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "LEDGER STATE & FLAGS",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.outline,
+                                letterSpacing = 1.sp
                             )
+                            val activeFiltersCount = (if (uiState.filters.favoriteOnly) 1 else 0) +
+                                    (if (uiState.filters.pinnedOnly) 1 else 0) +
+                                    (if (uiState.filters.archivedOnly) 1 else 0) +
+                                    (if (uiState.filters.collectionId != null) 1 else 0) +
+                                    (if (uiState.filters.tagId != null) 1 else 0)
+                            if (activeFiltersCount > 0) {
+                                Text(
+                                    text = "Reset ($activeFiltersCount Active)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { viewModel.onResetFilters() }
+                                )
+                            }
                         }
-                    }
-                }
 
-                // Reset Filters Button
-                if (uiState.filters.isActive) {
-                    OutlinedButton(
-                        onClick = viewModel::onResetFilters
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("Reset")
-                    }
-                }
-            }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Favorites Pill
+                            val favSelected = uiState.filters.favoriteOnly
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (favSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    .clickable { viewModel.onToggleFavoriteFilter() }
+                                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = null,
+                                        tint = if (favSelected) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "FAVORITES",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (favSelected) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
 
-            // Results Count Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = Spacing.extraSmall),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = when {
-                        uiState.isLoading -> "Searching..."
-                        uiState.bookmarks.size == 1 -> "1 bookmark"
-                        else -> "${uiState.bookmarks.size} bookmarks"
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+                            // Pinned Pill
+                            val pinSelected = uiState.filters.pinnedOnly
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (pinSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    .clickable { viewModel.onTogglePinnedFilter() }
+                                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PushPin,
+                                        contentDescription = null,
+                                        tint = if (pinSelected) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "PINNED",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (pinSelected) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
 
-            // Bookmarks Content or Empty States
-            if (uiState.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(Spacing.large),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (uiState.totalBookmarksCount == 0) {
-                // Empty State: Database has no bookmarks yet
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Spacing.large),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(Spacing.small)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Link,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Text(
-                            text = "No bookmarks yet",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Add your first link from the Home screen.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else if (uiState.bookmarks.isEmpty()) {
-                // Empty State: Query or Filter produces no results
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Spacing.large),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(Spacing.small)
-                    ) {
-                        if (uiState.query.isNotBlank()) {
-                            Icon(
-                                imageVector = Icons.Default.SearchOff,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Text(
-                                text = "No matching bookmarks",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Try a different search or remove a filter.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.FilterAltOff,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Text(
-                                text = "No bookmarks match these filters.",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(Spacing.extraSmall))
-                            Button(onClick = viewModel::onResetFilters) {
-                                Text("Reset Filters")
+                            // Archived Pill
+                            val archSelected = uiState.filters.archivedOnly
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (archSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    .clickable { viewModel.onToggleArchivedFilter() }
+                                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Archive,
+                                        contentDescription = null,
+                                        tint = if (archSelected) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "ARCHIVED",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = if (archSelected) MaterialTheme.colorScheme.onPrimary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            } else {
-                // Bookmarks List
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.medium)
-                ) {
-                    items(
-                        items = uiState.bookmarks,
-                        key = { it.id }
-                    ) { bookmark ->
-                        BookmarkListItem(
+
+                // Collections Filter
+                if (uiState.availableCollections.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Collections",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (uiState.filters.collectionId != null) {
+                                    Text(
+                                        text = "1 Selected",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val allColSelected = uiState.filters.collectionId == null
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            if (allColSelected) MaterialTheme.colorScheme.secondaryContainer
+                                            else MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                        .clickable { viewModel.onSelectCollection(null) }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FolderCopy,
+                                            contentDescription = null,
+                                            tint = if (allColSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Text(
+                                            text = "All Collections",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = if (allColSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                uiState.availableCollections.forEach { col ->
+                                    val isSelected = uiState.filters.collectionId == col.id
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(
+                                                if (isSelected) MaterialTheme.colorScheme.secondaryContainer
+                                                else MaterialTheme.colorScheme.surfaceVariant
+                                            )
+                                            .clickable { viewModel.onSelectCollection(col.id) }
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Folder,
+                                                contentDescription = null,
+                                                tint = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Text(
+                                                text = col.name,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer
+                                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Tag Taxonomy Filter
+                if (uiState.availableTags.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Tag Taxonomy",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                uiState.availableTags.forEach { tag ->
+                                    val isSelected = uiState.filters.tagId == tag.id
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(
+                                                if (isSelected) MaterialTheme.colorScheme.secondary
+                                                else MaterialTheme.colorScheme.surfaceVariant
+                                            )
+                                            .clickable { viewModel.onSelectTag(tag.id) }
+                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                text = "#",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.8f)
+                                                else MaterialTheme.colorScheme.outline
+                                            )
+                                            Text(
+                                                text = tag.name,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onSecondary
+                                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSecondary,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Sorting / Sequence Row
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "RESULTS (${uiState.bookmarks.size})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline,
+                            letterSpacing = 1.sp
+                        )
+
+                        Box {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { sortDropdownExpanded = true }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Sort: ${uiState.sortOption.name.replace('_', ' ')}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = sortDropdownExpanded,
+                                onDismissRequest = { sortDropdownExpanded = false }
+                            ) {
+                                BookmarkSortOption.entries.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.name.replace('_', ' ')) },
+                                        onClick = {
+                                            viewModel.onSelectSortOption(option)
+                                            sortDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Results Stream
+                if (uiState.bookmarks.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 36.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (uiState.query.isNotBlank()) "No records matching query: \"${uiState.query}\""
+                                else "No bookmarks found for selected filters.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    items(uiState.bookmarks, key = { it.id }) { bookmark ->
+                        ArchivalBookmarkCard(
                             bookmark = bookmark,
-                            onClick = { onNavigateToBookmarkDetail(bookmark.id) },
-                            onEdit = { onNavigateToBookmarkDetail(bookmark.id) },
-                            onDelete = { viewModel.moveToTrash(bookmark) },
-                            onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
-                            onTogglePin = { viewModel.togglePin(bookmark) },
-                            onArchive = { viewModel.archiveBookmark(bookmark) },
-                            onUnarchive = { viewModel.unarchiveBookmark(bookmark) }
+                            onClick = { onNavigateToBookmarkDetail(bookmark.id) }
                         )
                     }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(48.dp))
                 }
             }
         }

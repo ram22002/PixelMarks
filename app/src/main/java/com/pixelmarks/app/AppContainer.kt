@@ -200,7 +200,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val bookmarkRepository: BookmarkRepository by lazy {
-        BookmarkRepositoryImpl(database.bookmarkDao())
+        BookmarkRepositoryImpl(database.bookmarkDao(), database.tagDao(), database.bookmarkTagDao())
     }
 
     override val collectionRepository: CollectionRepository by lazy {

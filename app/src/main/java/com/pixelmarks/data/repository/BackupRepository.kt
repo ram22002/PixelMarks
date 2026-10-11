@@ -485,6 +485,8 @@ class BackupRepositoryImpl(
         isPrivate = isPrivate,
         isDomain = isDomain,
         domain = domain,
+        description = description,
+        keywords = keywords,
         createdAt = createdAt,
         updatedAt = updatedAt
     )
@@ -501,6 +503,8 @@ class BackupRepositoryImpl(
         isPrivate = isPrivate,
         isDomain = isDomain,
         domain = domain,
+        description = description,
+        keywords = keywords,
         createdAt = createdAt,
         updatedAt = updatedAt
     )

@@ -1,5 +1,6 @@
 package com.pixelmarks.feature.tags
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,12 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Badge
+
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,7 +31,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -42,20 +44,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.core.model.Tag
-import com.pixelmarks.ui.components.PixelMarksScreenScaffold
+import com.pixelmarks.ui.components.ArchivalSubHeader
+import com.pixelmarks.ui.components.PixelMarksTopAppBar
+import com.pixelmarks.ui.components.getEditorialSalutation
+import com.pixelmarks.ui.theme.ArchivalBackground
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLowest
+import com.pixelmarks.ui.theme.ArchivalTextSecondary
 import com.pixelmarks.ui.theme.PixelMarksTheme
 import com.pixelmarks.ui.theme.Spacing
+import com.pixelmarks.ui.theme.TerracottaAccent
 
 @Composable
 fun TagsScreen(
     onNavigateToTagDetail: (Long) -> Unit,
+    onNavigateToSearch: () -> Unit = {},
+    onNavigateToConnectPc: () -> Unit = {},
+    onNavigateToReminders: () -> Unit = {},
     viewModel: TagsViewModel = viewModel(
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
@@ -75,6 +89,7 @@ fun TagsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var editingTag by remember { mutableStateOf<Tag?>(null) }
     var deletingTag by remember { mutableStateOf<Tag?>(null) }
+    var selectedSortFilter by remember { mutableStateOf("Most Used") }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { error ->
@@ -122,13 +137,30 @@ fun TagsScreen(
         )
     }
 
-    PixelMarksScreenScaffold(
-        title = if (uiState.isPrivateMode) "Tags 🔒 Secure Folder" else "Tags",
-        actions = {
-            IconButton(onClick = { showCreateDialog = true }) {
+    Scaffold(
+        containerColor = ArchivalBackground,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            PixelMarksTopAppBar(
+                isPrivateMode = uiState.isPrivateMode,
+                onNavigateToConnectPc = onNavigateToConnectPc,
+                onNavigateToSearch = onNavigateToSearch,
+                onNavigateToReminders = onNavigateToReminders,
+                hasUnreadReminders = true
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showCreateDialog = true },
+                containerColor = TerracottaAccent,
+                contentColor = ArchivalSurfaceContainerLowest,
+                shape = CircleShape,
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "New tag"
+                    contentDescription = "New tag",
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
@@ -143,86 +175,208 @@ fun TagsScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else if (uiState.tags.isEmpty()) {
-                // Empty state
-                Card(
+                // Empty state with archival folio styling
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(Spacing.medium),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    shape = MaterialTheme.shapes.medium
+                        .fillMaxSize()
+                        .padding(horizontal = Spacing.medium),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Spacing.large),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(Spacing.small)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Label,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Text(
-                            text = "No Tags Yet",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Create tags to categorize, group, and quickly find your bookmarks.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(Spacing.small))
-                        Button(onClick = { showCreateDialog = true }) {
-                            Text("Create First Tag")
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Label,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Text(
+                                text = "No Tags Registered",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Assemble topic tags to categorize, cross-reference, and curate your archival records.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = { showCreateDialog = true },
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text("Register First Tag")
+                            }
                         }
                     }
                 }
             } else {
+                // Filtered & sorted tags
+                val sortedTags = remember(uiState.tags, uiState.bookmarkCounts, selectedSortFilter) {
+                    when (selectedSortFilter) {
+                        "Most Used", "By Volume" -> uiState.tags.sortedWith(
+                            compareByDescending<Tag> { uiState.bookmarkCounts[it.id] ?: 0 }
+                                .thenBy { it.name.lowercase() }
+                        )
+                        "Recently Added" -> uiState.tags.sortedByDescending { it.id }
+                        "Alphabetical (A–Z)" -> uiState.tags.sortedBy { it.name.lowercase() }
+                        else -> uiState.tags.sortedWith(
+                            compareByDescending<Tag> { uiState.bookmarkCounts[it.id] ?: 0 }
+                                .thenBy { it.name.lowercase() }
+                        )
+                    }
+                }
+
+                val currentDateFormatted = remember {
+                    val sdf = java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault())
+                    sdf.format(java.util.Date())
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = Spacing.medium),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.small)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Editorial Header
                     item {
-                        Spacer(modifier = Modifier.height(Spacing.small))
-                        Text(
-                            text = "All Tags (${uiState.tags.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground
+                        Spacer(modifier = Modifier.height(4.dp))
+                        ArchivalSubHeader(
+                            title = getEditorialSalutation(),
+                            dateString = currentDateFormatted.uppercase()
                         )
                     }
 
-                    items(uiState.tags, key = { it.id }) { tag ->
-                        val count = uiState.bookmarkCounts[tag.id] ?: 0
-                        TagListItemCard(
-                            tag = tag,
-                            bookmarkCount = count,
-                            onClick = { onNavigateToTagDetail(tag.id) },
-                            onEdit = { editingTag = tag },
-                            onDelete = { deletingTag = tag }
-                        )
+                    // Filter & Sorting Pills
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf("Most Used", "Recently Added", "Alphabetical (A–Z)").forEach { filter ->
+                                val isSelected = selectedSortFilter == filter
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.secondary
+                                            else MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                        .clickable { selectedSortFilter = filter }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = filter.uppercase(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onSecondary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Total tags count
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${uiState.tags.size} tags",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ArchivalTextSecondary
+                            )
+                        }
+                    }
+
+                    if (selectedSortFilter == "Alphabetical (A–Z)") {
+                        val alphabeticalGroups = sortedTags.groupBy { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
+                            .toSortedMap()
+
+                        alphabeticalGroups.forEach { (char, tagsInGroup) ->
+                            item(key = "header_$char") {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp, bottom = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = char.toString(),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(1.dp)
+                                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                    )
+                                }
+                            }
+
+                            items(tagsInGroup, key = { it.id }) { tag ->
+                                val count = uiState.bookmarkCounts[tag.id] ?: 0
+                                ArchivalTagListItem(
+                                    tag = tag,
+                                    bookmarkCount = count,
+                                    onClick = { onNavigateToTagDetail(tag.id) },
+                                    onEdit = { editingTag = tag },
+                                    onDelete = { deletingTag = tag }
+                                )
+                            }
+                        }
+                    } else {
+                        items(sortedTags, key = { it.id }) { tag ->
+                            val count = uiState.bookmarkCounts[tag.id] ?: 0
+                            ArchivalTagListItem(
+                                tag = tag,
+                                bookmarkCount = count,
+                                onClick = { onNavigateToTagDetail(tag.id) },
+                                onEdit = { editingTag = tag },
+                                onDelete = { deletingTag = tag }
+                            )
+                        }
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(72.dp))
+                        Spacer(modifier = Modifier.height(84.dp))
                     }
                 }
             }
 
             FloatingActionButton(
                 onClick = { showCreateDialog = true },
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(Spacing.medium)
+                    .padding(16.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -241,7 +395,7 @@ fun TagsScreen(
 }
 
 @Composable
-fun TagListItemCard(
+fun ArchivalTagListItem(
     tag: Tag,
     bookmarkCount: Int,
     onClick: () -> Unit,
@@ -250,56 +404,45 @@ fun TagListItemCard(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    OutlinedCard(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.medium, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Label,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = tag.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "#${tag.name}",
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-            }
-
-            Badge(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ) {
                 Text(
-                    text = "$bookmarkCount",
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    text = "$bookmarkCount bookmarks",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Box {
-                IconButton(onClick = { menuExpanded = true }) {
+                IconButton(
+                    onClick = { menuExpanded = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "Tag options",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 

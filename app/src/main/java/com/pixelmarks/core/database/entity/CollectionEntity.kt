@@ -39,6 +39,8 @@ data class CollectionEntity(
     val isPrivate: Boolean = false,
     val isDomain: Boolean = false,
     val domain: String? = null,
+    val description: String? = null,
+    val keywords: String? = null,
     val createdAt: Long,
     val updatedAt: Long
 )

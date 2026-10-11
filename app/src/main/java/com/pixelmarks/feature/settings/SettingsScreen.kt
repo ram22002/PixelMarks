@@ -1,5 +1,6 @@
 package com.pixelmarks.feature.settings
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -99,40 +104,63 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(Spacing.medium)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(Spacing.medium)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Overview Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     ),
-                    shape = MaterialTheme.shapes.large
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(Spacing.medium),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.small)
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.Top
                     ) {
-                        Text(
-                            text = "PixelMarks Settings",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "App preferences, biometric security, browser link opening, and backup settings.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "LOCAL ARCHIVAL HUB",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = "All records, tags, and encrypted credentials exist solely in device storage. Modify browser routing, lock protocols, and offline backups below.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 18.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                 }
 
                 // Security Section
                 Text(
-                    text = "Security",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "SECURITY & CONFIDENTIALITY",
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 1.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                 )
 
@@ -258,10 +286,11 @@ fun SettingsScreen(
 
                 // Secure Folder Section
                 Text(
-                    text = "Secure Folder (Private Mode)",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "SECURE FOLDER (PRIVATE MODE)",
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 1.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                 )
 
@@ -417,10 +446,11 @@ fun SettingsScreen(
 
                 // Browser Section
                 Text(
-                    text = "Browser",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "BROWSER ROUTING & LINK DISPATCH",
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 1.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                 )
 
@@ -483,10 +513,11 @@ fun SettingsScreen(
 
                 // Other Settings Sections
                 Text(
-                    text = "Data & Connectivity",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "DATA & LOCAL CONNECTIVITY",
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 1.sp,
                     modifier = Modifier.padding(start = 4.dp)
                 )
 

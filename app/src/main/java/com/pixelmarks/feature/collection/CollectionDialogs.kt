@@ -98,9 +98,11 @@ fun CreateEditCollectionDialog(
     defaultParentId: Long? = null,
     availableParents: List<Collection>,
     onDismiss: () -> Unit,
-    onSave: (name: String, parentId: Long?, icon: String?, color: String?, isLocked: Boolean, isHidden: Boolean) -> Unit
+    onSave: (name: String, parentId: Long?, icon: String?, color: String?, isLocked: Boolean, isHidden: Boolean, description: String?, keywords: String?) -> Unit
 ) {
     var name by remember { mutableStateOf(initialCollection?.name ?: "") }
+    var description by remember { mutableStateOf(initialCollection?.description ?: "") }
+    var keywords by remember { mutableStateOf(initialCollection?.keywords ?: "") }
     var selectedParentId by remember {
         mutableStateOf(initialCollection?.parentId ?: defaultParentId)
     }
@@ -112,9 +114,6 @@ fun CreateEditCollectionDialog(
     }
     var isLocked by remember {
         mutableStateOf(initialCollection?.isLocked ?: false)
-    }
-    var isHidden by remember {
-        mutableStateOf(initialCollection?.isHidden ?: false)
     }
     var isParentDropdownExpanded by remember { mutableStateOf(false) }
     var validationError by remember { mutableStateOf<String?>(null) }
@@ -144,6 +143,24 @@ fun CreateEditCollectionDialog(
                     label = { Text("Collection Name") },
                     isError = validationError != null,
                     supportingText = validationError?.let { { Text(it) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (Optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 2
+                )
+
+                OutlinedTextField(
+                    value = keywords,
+                    onValueChange = { keywords = it },
+                    label = { Text("Keywords (Optional)") },
+                    placeholder = { Text("e.g. Kotlin, Compose, Architecture") },
+                    supportingText = { Text("Taxonomy keywords, comma-separated") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -280,32 +297,6 @@ fun CreateEditCollectionDialog(
                         checked = isLocked,
                         onCheckedChange = { checked ->
                             isLocked = checked
-                            if (!checked) isHidden = false
-                        }
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Hide collection",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Hide from normal collection lists and search",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    androidx.compose.material3.Switch(
-                        checked = isHidden,
-                        onCheckedChange = { checked ->
-                            isHidden = checked
-                            if (checked) isLocked = true // Hidden collection automatically requires protection
                         }
                     )
                 }
@@ -318,7 +309,7 @@ fun CreateEditCollectionDialog(
                     if (trimmed.isEmpty()) {
                         validationError = "Name cannot be empty"
                     } else {
-                        onSave(trimmed, selectedParentId, selectedIcon, selectedColor, isLocked, isHidden)
+                        onSave(trimmed, selectedParentId, selectedIcon, selectedColor, isLocked, false, description.trim().ifEmpty { null }, keywords.trim().ifEmpty { null })
                     }
                 }
             ) {

@@ -68,13 +68,15 @@ import com.pixelmarks.core.pcserver.model.PcServerState
 import com.pixelmarks.ui.components.PixelMarksScreenScaffold
 import com.pixelmarks.ui.theme.Spacing
 
-private val TerracottaColor = Color(0xFFC85A32)
-private val ParchmentBg = Color(0xFFFAF7F2)
-private val CharcoalColor = Color(0xFF2A2624)
-private val MutedCharcoal = Color(0xFF5C5551)
-private val ThinBorderColor = Color(0xFFE5DFD7)
-private val SuccessGreen = Color(0xFF2E7D32)
-private val AmberWarning = Color(0xFFE65100)
+private val TerracottaColor = Color(0xFFF9B89A)
+private val ParchmentBg = Color(0xFF181306)
+private val CharcoalColor = Color(0xFFEDE1CB)
+private val MutedCharcoal = Color(0xFFD2C5B5)
+private val CardBg = Color(0xFF251F11)
+private val InnerCardBg = Color(0xFF30291B)
+private val ThinBorderColor = Color(0x404E4539)
+private val SuccessGreen = Color(0xFF81C784)
+private val AmberWarning = Color(0xFFFFB74D)
 
 @Composable
 fun ConnectPcScreen(
@@ -156,7 +158,7 @@ fun ConnectPcScreen(
             // Server Status & Power Control Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
                 shape = RoundedCornerShape(16.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, ThinBorderColor)
             ) {
@@ -230,7 +232,7 @@ fun ConnectPcScreen(
                 // Server Address Card
                 OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.outlinedCardColors(containerColor = Color.White),
+                    colors = CardDefaults.outlinedCardColors(containerColor = CardBg),
                     border = androidx.compose.foundation.BorderStroke(1.dp, ThinBorderColor),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -275,7 +277,7 @@ fun ConnectPcScreen(
                 // Pairing Credentials Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = CardBg),
                     shape = RoundedCornerShape(16.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, ThinBorderColor)
                 ) {
@@ -383,7 +385,7 @@ fun ConnectPcScreen(
                 // Paired Devices Summary Card
                 OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.outlinedCardColors(containerColor = Color.White),
+                    colors = CardDefaults.outlinedCardColors(containerColor = CardBg),
                     border = androidx.compose.foundation.BorderStroke(1.dp, ThinBorderColor),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -418,7 +420,7 @@ fun ConnectPcScreen(
                 // Stopped / How to use guide
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = CardBg),
                     shape = RoundedCornerShape(16.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, ThinBorderColor)
                 ) {

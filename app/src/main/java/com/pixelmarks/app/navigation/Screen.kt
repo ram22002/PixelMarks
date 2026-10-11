@@ -18,7 +18,14 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
 
     // Secondary / Modal Destinations
-    data object Search : Screen("search")
+    data object Search : Screen("search?collectionId={collectionId}&tagId={tagId}") {
+        fun createRoute(collectionId: Long? = null, tagId: Long? = null): String {
+            val params = mutableListOf<String>()
+            if (collectionId != null && collectionId > 0) params.add("collectionId=$collectionId")
+            if (tagId != null && tagId > 0) params.add("tagId=$tagId")
+            return if (params.isEmpty()) "search" else "search?" + params.joinToString("&")
+        }
+    }
     data object AddBookmark : Screen("add_bookmark?collectionId={collectionId}") {
         fun createRoute(collectionId: Long? = null) =
             if (collectionId != null) "add_bookmark?collectionId=$collectionId" else "add_bookmark"

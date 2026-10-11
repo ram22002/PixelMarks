@@ -54,7 +54,10 @@ fun PixelMarksNavHost(
             CollectionsScreen(
                 onNavigateToCollectionDetail = { collectionId ->
                     navController.navigate(Screen.CollectionDetail.createRoute(collectionId))
-                }
+                },
+                onNavigateToSearch = { navController.navigate(Screen.Search.route) },
+                onNavigateToConnectPc = { navController.navigate(Screen.ConnectPc.route) },
+                onNavigateToReminders = { navController.navigate(Screen.Reminders.route) }
             )
         }
 
@@ -62,7 +65,10 @@ fun PixelMarksNavHost(
             TagsScreen(
                 onNavigateToTagDetail = { tagId ->
                     navController.navigate(Screen.TagDetail.createRoute(tagId))
-                }
+                },
+                onNavigateToSearch = { navController.navigate(Screen.Search.route) },
+                onNavigateToConnectPc = { navController.navigate(Screen.ConnectPc.route) },
+                onNavigateToReminders = { navController.navigate(Screen.Reminders.route) }
             )
         }
 
@@ -76,8 +82,18 @@ fun PixelMarksNavHost(
         }
 
         // Secondary / Modal Routes
-        composable(Screen.Search.route) {
+        composable(
+            route = Screen.Search.route,
+            arguments = listOf(
+                navArgument("collectionId") { type = NavType.LongType; defaultValue = -1L },
+                navArgument("tagId") { type = NavType.LongType; defaultValue = -1L }
+            )
+        ) { backStackEntry ->
+            val initialColId = backStackEntry.arguments?.getLong("collectionId")?.takeIf { it > 0 }
+            val initialTId = backStackEntry.arguments?.getLong("tagId")?.takeIf { it > 0 }
             SearchScreen(
+                initialCollectionId = initialColId,
+                initialTagId = initialTId,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToBookmarkDetail = { bookmarkId ->
                     navController.navigate(Screen.BookmarkDetail.createRoute(bookmarkId))

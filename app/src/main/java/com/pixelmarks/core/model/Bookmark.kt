@@ -28,5 +28,6 @@ data class Bookmark(
     val visitCount: Int = 0,
     val reminderAt: Long? = null,
     val metadataStatus: MetadataStatus = MetadataStatus.PENDING,
-    val metadataUpdatedAt: Long? = null
+    val metadataUpdatedAt: Long? = null,
+    val tags: List<Tag> = emptyList()
 )
