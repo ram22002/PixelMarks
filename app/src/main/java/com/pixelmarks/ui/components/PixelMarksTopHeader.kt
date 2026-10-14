@@ -1,6 +1,8 @@
 package com.pixelmarks.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,22 +84,34 @@ fun PixelMarksTopAppBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(TerracottaAccent),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Bookmark,
-                        contentDescription = null,
-                        tint = Color(0xFF281900),
-                        modifier = Modifier.size(20.dp)
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    Image(
+                        painter = painterResource(id = com.pixelmarks.app.R.drawable.ic_splash_logo),
+                        contentDescription = "PixelMarks Logo",
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(9.dp))
                     )
+                    if (isPrivateMode) {
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(ArchivalBackground)
+                                .padding(1.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFBA1A1A)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "🔒",
+                                fontSize = 8.sp
+                            )
+                        }
+                    }
                 }
                 Text(
-                    text = if (isPrivateMode) "🔒 Secure Vault" else "PixelMarks",
+                    text = if (isPrivateMode) "Secure Vault" else "PixelMarks",
                     style = MaterialTheme.typography.titleLarge,
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.SemiBold,

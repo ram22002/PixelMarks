@@ -1,6 +1,8 @@
 package com.pixelmarks.feature.settings
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -300,6 +302,38 @@ fun SettingsScreen(
 
             // Category 5: About
             SettingsCategorySection(title = "About") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = com.pixelmarks.app.R.drawable.ic_splash_logo),
+                        contentDescription = "PixelMarks Logo",
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                    Column {
+                        Text(
+                            text = "PixelMarks",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = ArchivalTextPrimary,
+                            fontFamily = FontFamily.Serif
+                        )
+                        Text(
+                            text = "Version 1.0.0 • Curatorial Bookmark Catalogue",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ArchivalTextSecondary
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
                 SettingsActionRow(
                     title = "Developer message",
                     subtitle = "A message from the app creator",

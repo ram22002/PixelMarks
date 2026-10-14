@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="splash_bg_light">#F7F5F0</color>
+    <color name="splash_bg_dark">#141714</color>
+    <color name="archival_blush">#E8A9B3</color>
+    <color name="archival_espresso">#2C1B0A</color>
+</resources>

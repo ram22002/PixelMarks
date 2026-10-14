@@ -16,6 +16,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.pixelmarks.core.security.model.PrivacyMode
 import kotlinx.coroutines.launch
 
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+
 /**
  * Main Activity host for PixelMarks.
  * Handles app launch, intent navigation (e.g. from reminder notification clicks),
@@ -24,8 +26,12 @@ import kotlinx.coroutines.launch
 class MainActivity : FragmentActivity() {
 
     private var initialBookmarkId by mutableStateOf<Long?>(null)
+    private var isAppReady by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition { !isAppReady }
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handleNotificationIntent(intent)
@@ -44,7 +50,10 @@ class MainActivity : FragmentActivity() {
         }
 
         setContent {
-            PixelMarksApp(initialBookmarkId = initialBookmarkId)
+            PixelMarksApp(
+                initialBookmarkId = initialBookmarkId,
+                onReady = { isAppReady = true }
+            )
         }
     }
 
