@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
@@ -46,6 +47,8 @@ import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.ViewAgenda
 import com.pixelmarks.data.repository.AppPreferencesRepository
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -1286,11 +1289,27 @@ fun ListBookmarkCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                if (config.showSiteName || config.showCreationTime || config.showTimeIcons || config.showPinIcon) {
+                if (config.showSiteName || config.showCreationTime || config.showTimeIcons || config.showPinIcon || bookmark.isFavorite) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
+                        if (config.showPinIcon && bookmark.isPinned) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = null,
+                                tint = TerracottaAccent,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                        if (bookmark.isFavorite) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Favorite",
+                                tint = BrassGold,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                         if (config.showSiteName) {
                             BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 12.dp)
                             Text(
@@ -1318,14 +1337,6 @@ fun ListBookmarkCard(
                                 imageVector = Icons.Default.Notifications,
                                 contentDescription = null,
                                 tint = BrassGold,
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                        if (config.showPinIcon && bookmark.isPinned) {
-                            Icon(
-                                imageVector = Icons.Default.PushPin,
-                                contentDescription = null,
-                                tint = TerracottaAccent,
                                 modifier = Modifier.size(12.dp)
                             )
                         }
@@ -1408,55 +1419,92 @@ fun ListBookmarkCard(
                 }
             }
 
-            // Right side actions
-            Column(
-                verticalArrangement = Arrangement.SpaceBetween,
-                horizontalAlignment = Alignment.CenterHorizontally
+            var menuExpanded by remember { mutableStateOf(false) }
+
+            // Right side 3-dots action menu
+            Box(
+                modifier = Modifier.align(Alignment.Top),
+                contentAlignment = Alignment.TopEnd
             ) {
                 IconButton(
-                    onClick = onToggleFavorite,
+                    onClick = { menuExpanded = true },
                     modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
-                        imageVector = if (bookmark.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = "Favorite",
-                        tint = if (bookmark.isFavorite) BrassGold else ArchivalTextSecondary,
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = ArchivalTextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
-                IconButton(
-                    onClick = onShare,
-                    modifier = Modifier.size(28.dp)
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    modifier = Modifier.background(ArchivalSurfaceContainerHigh)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Share",
-                        tint = ArchivalTextSecondary,
-                        modifier = Modifier.size(16.dp)
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (bookmark.isFavorite) "Remove from Favorites" else "Add to Favorites",
+                                color = ArchivalTextPrimary
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (bookmark.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = null,
+                                tint = if (bookmark.isFavorite) BrassGold else ArchivalTextSecondary
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onToggleFavorite()
+                        }
                     )
-                }
-                if (onMove != null) {
-                    IconButton(
-                        onClick = onMove,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FolderCopy,
-                            contentDescription = "Move",
-                            tint = ArchivalTextSecondary,
-                            modifier = Modifier.size(16.dp)
+                    DropdownMenuItem(
+                        text = { Text("Share", color = ArchivalTextPrimary) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null,
+                                tint = ArchivalTextSecondary
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onShare()
+                        }
+                    )
+                    if (onMove != null) {
+                        DropdownMenuItem(
+                            text = { Text("Move", color = ArchivalTextPrimary) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.FolderCopy,
+                                    contentDescription = null,
+                                    tint = ArchivalTextSecondary
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onMove()
+                            }
                         )
                     }
-                }
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "Delete",
-                        tint = ArchivalTextSecondary.copy(alpha = 0.7f),
-                        modifier = Modifier.size(16.dp)
+                    DropdownMenuItem(
+                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onDelete()
+                        }
                     )
                 }
             }
