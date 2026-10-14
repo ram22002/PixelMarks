@@ -12,55 +12,78 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.fragment.app.FragmentActivity
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.core.browser.BrowserPreference
-import com.pixelmarks.core.security.model.AppLockTimeout
-import com.pixelmarks.core.security.model.BiometricAuthCapability
-import com.pixelmarks.ui.components.PixelMarksScreenScaffold
-import com.pixelmarks.ui.theme.PixelMarksTheme
-import com.pixelmarks.ui.theme.Spacing
+import com.pixelmarks.ui.theme.ArchivalBackground
+import com.pixelmarks.ui.theme.ArchivalPrimary
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainer
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLow
+import com.pixelmarks.ui.theme.ArchivalTextPrimary
+import com.pixelmarks.ui.theme.ArchivalTextSecondary
 import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
     onNavigateToConnectPc: () -> Unit = {},
-    onNavigateToConnectedDevices: () -> Unit,
-    onNavigateToBackup: () -> Unit,
+    onNavigateToConnectedDevices: () -> Unit = {},
+    onNavigateToBackup: () -> Unit = {},
     onNavigateToHtmlImportExport: () -> Unit = {},
+    onNavigateToManageTags: () -> Unit = {},
+    onNavigateToBrowserPreference: () -> Unit = {},
+    onNavigateToAppLock: () -> Unit = {},
+    onNavigateToSecureFolder: () -> Unit = {},
+    onNavigateToSecurity: () -> Unit = onNavigateToAppLock,
+    onNavigateToCustomizeBookmark: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel(
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
@@ -72,542 +95,427 @@ fun SettingsScreen(
                 setAppLockTimeoutUseCase = app.container.setAppLockTimeoutUseCase,
                 checkBiometricCapabilityUseCase = app.container.checkBiometricCapabilityUseCase,
                 biometricAuthManager = app.container.biometricAuthManager,
-                privatePreferencesRepository = app.container.privatePreferencesRepository
+                privatePreferencesRepository = app.container.privatePreferencesRepository,
+                appPreferencesRepository = app.container.appPreferencesRepository
             )
         }
     )
 ) {
     val context = LocalContext.current
-    val activity = context as? FragmentActivity
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val currentBrowserPref by viewModel.browserPreference.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
+    val dynamicTheme by viewModel.dynamicThemeEnabled.collectAsState()
+    val colorScheme by viewModel.colorScheme.collectAsState()
+    val displayFont by viewModel.displayFont.collectAsState()
+    val language by viewModel.language.collectAsState()
+
+    val startupPage by viewModel.startupPage.collectAsState()
+    val collectionStyle by viewModel.collectionStyle.collectAsState()
+    val browserPreference by viewModel.browserPreference.collectAsState()
+
     val isAppLockEnabled by viewModel.isAppLockEnabled.collectAsState()
     val appLockTimeout by viewModel.appLockTimeout.collectAsState()
-    val biometricCapability by viewModel.biometricCapability.collectAsState()
-
     val privateAuthMethod by viewModel.privateAuthMethod.collectAsState()
-    val hasCustomPassword by viewModel.hasCustomPassword.collectAsState()
-    val passwordHint by viewModel.passwordHint.collectAsState()
-    val isRecoveryEnabled by viewModel.isRecoveryEnabled.collectAsState()
-    var showSetupPasswordDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
-    PixelMarksScreenScaffold(
-        title = "Settings"
+    // Dialog state
+    var showThemeModeDialog by remember { mutableStateOf(false) }
+    var showColorSchemeDialog by remember { mutableStateOf(false) }
+    var showDisplayFontDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
+    var showStartupPageDialog by remember { mutableStateOf(false) }
+    var showCollectionStyleDialog by remember { mutableStateOf(false) }
+    var showDeveloperMessageDialog by remember { mutableStateOf(false) }
+    var showLicensesDialog by remember { mutableStateOf(false) }
+
+    Scaffold(
+        containerColor = ArchivalBackground,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Overview Card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Security,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "LOCAL ARCHIVAL HUB",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            )
-                            Text(
-                                text = "All records, tags, and encrypted credentials exist solely in device storage. Modify browser routing, lock protocols, and offline backups below.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                lineHeight = 18.sp,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-                }
+            // Header
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = ArchivalTextPrimary,
+                fontFamily = FontFamily.Serif,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
 
-                // Security Section
-                Text(
-                    text = "SECURITY & CONFIDENTIALITY",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+            // Category 1: Theme
+            SettingsCategorySection(title = "Theme") {
+                SettingsActionRow(
+                    title = "Theme Mode",
+                    subtitle = themeMode.label,
+                    icon = Icons.Default.NightsStay,
+                    onClick = { showThemeModeDialog = true }
                 )
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Column(
-                        modifier = Modifier.padding(vertical = Spacing.small)
-                    ) {
-                        // App Lock Switch
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = Spacing.medium, vertical = Spacing.small),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(end = Spacing.medium)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "App Lock",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Require biometric or device credentials when opening PixelMarks.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                )
-                            }
-                            Switch(
-                                checked = isAppLockEnabled,
-                                onCheckedChange = { targetState ->
-                                    if (activity != null) {
-                                        viewModel.requestToggleAppLock(targetState, activity) { success, errorMsg ->
-                                            if (!success && errorMsg != null) {
-                                                coroutineScope.launch {
-                                                    snackbarHostState.showSnackbar(errorMsg)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            )
-                        }
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
 
-                        if (!biometricCapability.canLock) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = Spacing.medium, vertical = Spacing.extraSmall)
-                            ) {
-                                Text(
-                                    text = biometricCapability.userMessage,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                                if (biometricCapability == BiometricAuthCapability.NONE_ENROLLED) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    OutlinedButton(
-                                        onClick = {
-                                            try {
-                                                context.startActivity(viewModel.createEnrollIntent())
-                                            } catch (_: Exception) {
-                                                coroutineScope.launch {
-                                                    snackbarHostState.showSnackbar("Unable to open device security settings")
-                                                }
-                                            }
-                                        }
-                                    ) {
-                                        Text("Set up biometric authentication")
-                                    }
-                                }
-                            }
-                        }
-
-                        if (isAppLockEnabled) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = Spacing.medium, vertical = Spacing.small),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                            )
-
-                            Text(
-                                text = "Lock automatically",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = Spacing.medium, vertical = 4.dp)
-                            )
-
-                            AppLockTimeout.entries.forEach { timeoutOption ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { viewModel.setLockTimeout(timeoutOption) }
-                                        .padding(horizontal = Spacing.medium, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = appLockTimeout == timeoutOption,
-                                        onClick = { viewModel.setLockTimeout(timeoutOption) }
-                                    )
-                                    Text(
-                                        text = timeoutOption.label,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(start = Spacing.small)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Secure Folder Section
-                Text(
-                    text = "SECURE FOLDER (PRIVATE MODE)",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                SettingsSwitchRow(
+                    title = "Use dynamic themes",
+                    subtitle = "Enable dynamic theme changes for the app",
+                    icon = Icons.Default.AutoAwesome,
+                    checked = dynamicTheme,
+                    onCheckedChange = { viewModel.setDynamicTheme(it) }
                 )
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Column(
-                        modifier = Modifier.padding(Spacing.medium),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.small)
-                    ) {
-                        Text(
-                            text = "Access your protected bookmarks and folders by long-pressing the Settings tab icon in the bottom bar.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = "Authentication Method",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { viewModel.setPrivateAuthMethod(com.pixelmarks.core.security.model.PrivateAuthMethod.BIOMETRIC) },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = privateAuthMethod == com.pixelmarks.core.security.model.PrivateAuthMethod.BIOMETRIC,
-                                onClick = { viewModel.setPrivateAuthMethod(com.pixelmarks.core.security.model.PrivateAuthMethod.BIOMETRIC) }
-                            )
-                            Text(
-                                text = "Biometric (Fingerprint)",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = Spacing.small)
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { viewModel.setPrivateAuthMethod(com.pixelmarks.core.security.model.PrivateAuthMethod.DEVICE_CREDENTIAL) },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = privateAuthMethod == com.pixelmarks.core.security.model.PrivateAuthMethod.DEVICE_CREDENTIAL,
-                                onClick = { viewModel.setPrivateAuthMethod(com.pixelmarks.core.security.model.PrivateAuthMethod.DEVICE_CREDENTIAL) }
-                            )
-                            Text(
-                                text = "Device Screen Lock (PIN / Pattern / Password)",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = Spacing.small)
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.setPrivateAuthMethod(com.pixelmarks.core.security.model.PrivateAuthMethod.CUSTOM_PASSWORD)
-                                    if (!hasCustomPassword) {
-                                        showSetupPasswordDialog = true
-                                    }
-                                },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = privateAuthMethod == com.pixelmarks.core.security.model.PrivateAuthMethod.CUSTOM_PASSWORD,
-                                onClick = {
-                                    viewModel.setPrivateAuthMethod(com.pixelmarks.core.security.model.PrivateAuthMethod.CUSTOM_PASSWORD)
-                                    if (!hasCustomPassword) {
-                                        showSetupPasswordDialog = true
-                                    }
-                                }
-                            )
-                            Text(
-                                text = "Custom Secure Folder Password",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = Spacing.small)
-                            )
-                        }
-
-                        if (privateAuthMethod == com.pixelmarks.core.security.model.PrivateAuthMethod.CUSTOM_PASSWORD) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            OutlinedButton(
-                                onClick = { showSetupPasswordDialog = true },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(if (hasCustomPassword) "Change Password" else "Set Custom Password")
-                            }
-
-                            if (!passwordHint.isNullOrBlank()) {
-                                Text(
-                                    text = "Hint: $passwordHint",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                )
-                            }
-
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = Spacing.extraSmall),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Device Recovery",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "Allow biometric / device unlock if password forgotten",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                    )
-                                }
-                                Switch(
-                                    checked = isRecoveryEnabled,
-                                    onCheckedChange = { viewModel.setRecoveryEnabled(it) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (showSetupPasswordDialog) {
-                    com.pixelmarks.feature.security.SetupSecureFolderPasswordDialog(
-                        onDismiss = { showSetupPasswordDialog = false },
-                        onSuccess = {
-                            showSetupPasswordDialog = false
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Secure Folder password saved")
-                            }
-                        }
-                    )
-                }
-
-                // Browser Section
-                Text(
-                    text = "BROWSER ROUTING & LINK DISPATCH",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                SettingsActionRow(
+                    title = "Pick color scheme",
+                    subtitle = colorScheme.label,
+                    icon = Icons.Default.Palette,
+                    onClick = { showColorSchemeDialog = true }
                 )
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Column(
-                        modifier = Modifier.padding(vertical = Spacing.small)
-                    ) {
-                        BrowserPreferenceRadioItem(
-                            title = "In-App Browser",
-                            description = "Most private — uses a browser inside the app,\nwithout signed-in accounts.",
-                            selected = currentBrowserPref == BrowserPreference.IN_APP,
-                            onSelect = { viewModel.onBrowserPreferenceSelected(BrowserPreference.IN_APP) }
-                        )
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
 
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = Spacing.medium),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
-
-                        BrowserPreferenceRadioItem(
-                            title = "System Preferred",
-                            description = "Let the system decide the best way to view links,\nusually without leaving the app.",
-                            selected = currentBrowserPref == BrowserPreference.SYSTEM_PREFERRED,
-                            onSelect = { viewModel.onBrowserPreferenceSelected(BrowserPreference.SYSTEM_PREFERRED) }
-                        )
-
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = Spacing.medium),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
-
-                        BrowserPreferenceRadioItem(
-                            title = "Default Browser",
-                            description = "Use your device's default browser for full features\nand saved accounts.",
-                            selected = currentBrowserPref == BrowserPreference.DEFAULT_BROWSER,
-                            onSelect = { viewModel.onBrowserPreferenceSelected(BrowserPreference.DEFAULT_BROWSER) }
-                        )
-
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = Spacing.medium),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                        )
-
-                        BrowserPreferenceRadioItem(
-                            title = "Ask Every Time",
-                            description = "Ask you each time how you'd like to open the link.",
-                            selected = currentBrowserPref == BrowserPreference.ASK_EVERY_TIME,
-                            onSelect = { viewModel.onBrowserPreferenceSelected(BrowserPreference.ASK_EVERY_TIME) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(Spacing.small))
-
-                // Other Settings Sections
-                Text(
-                    text = "DATA & LOCAL CONNECTIVITY",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(start = 4.dp)
+                SettingsActionRow(
+                    title = "Display font",
+                    subtitle = displayFont.label,
+                    icon = Icons.Default.TextFields,
+                    onClick = { showDisplayFontDialog = true }
                 )
 
-                OutlinedButton(
-                    onClick = onNavigateToConnectPc,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Connect to PC")
-                }
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
 
-                OutlinedButton(
-                    onClick = onNavigateToConnectedDevices,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Connected PC Devices")
-                }
-
-
-                OutlinedButton(
-                    onClick = onNavigateToHtmlImportExport,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Import & Export Bookmarks (HTML)")
-                }
-
-                Button(
-                    onClick = onNavigateToBackup,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Backup & Restore")
-                }
+                SettingsActionRow(
+                    title = "Language",
+                    subtitle = language,
+                    icon = Icons.Default.Language,
+                    onClick = { showLanguageDialog = true }
+                )
             }
 
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = Spacing.medium)
-            )
+            // Category 2: Data Management (Manage Tags removed - already in bottom nav)
+            SettingsCategorySection(title = "Data Management") {
+                SettingsActionRow(
+                    title = "Backup & Restore",
+                    subtitle = "Manual or Auto Backup via file or Google Drive",
+                    icon = Icons.Default.Restore,
+                    badgeText = "PRO",
+                    onClick = onNavigateToBackup
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                SettingsActionRow(
+                    title = "Browser Import & Export",
+                    subtitle = "Transfer bookmarks with Chrome, Safari, and other apps",
+                    icon = Icons.Default.SwapHoriz,
+                    onClick = onNavigateToHtmlImportExport
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                SettingsActionRow(
+                    title = "Connect to PC",
+                    subtitle = "Open and manage your bookmarks on your computer",
+                    icon = Icons.Default.Laptop,
+                    badgeText = "PRO",
+                    onClick = onNavigateToConnectPc
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                SettingsActionRow(
+                    title = "Connected PC Devices",
+                    subtitle = "Manage paired workstations & tokens",
+                    icon = Icons.Default.Devices,
+                    onClick = onNavigateToConnectedDevices
+                )
+            }
+
+            // Category 3: Appearance & Behavior
+            SettingsCategorySection(title = "Appearance & Behavior") {
+                SettingsActionRow(
+                    title = "Customize Bookmark",
+                    subtitle = "Customize the appearance of the bookmark",
+                    icon = Icons.Default.Tune,
+                    onClick = onNavigateToCustomizeBookmark
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                SettingsActionRow(
+                    title = "Collection Style",
+                    subtitle = collectionStyle.label,
+                    icon = Icons.Default.Folder,
+                    onClick = { showCollectionStyleDialog = true }
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                // Concise single row showing current selection, opens dedicated screen
+                SettingsActionRow(
+                    title = "Browser Preference",
+                    subtitle = when (browserPreference) {
+                        BrowserPreference.IN_APP -> "In-App Browser"
+                        BrowserPreference.SYSTEM_PREFERRED -> "System Preferred"
+                        BrowserPreference.DEFAULT_BROWSER -> "Default Browser"
+                        BrowserPreference.ASK_EVERY_TIME -> "Ask Every Time"
+                    },
+                    icon = Icons.Default.Public,
+                    onClick = onNavigateToBrowserPreference
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                SettingsActionRow(
+                    title = "Startup Page",
+                    subtitle = startupPage.label,
+                    icon = Icons.Default.Home,
+                    onClick = { showStartupPageDialog = true }
+                )
+            }
+
+            // Category 4: Security & Privacy (Divided into dedicated App Lock and Secure Folder screens)
+            SettingsCategorySection(title = "Security & Privacy") {
+                SettingsActionRow(
+                    title = "App Lock",
+                    subtitle = if (isAppLockEnabled) "Enabled (${appLockTimeout.label})" else "Require credentials on app open",
+                    icon = Icons.Default.Lock,
+                    onClick = onNavigateToAppLock
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                SettingsActionRow(
+                    title = "Secure Folder (Archival Vault)",
+                    subtitle = "Vault authentication & long-press shortcut",
+                    icon = Icons.Default.Security,
+                    onClick = onNavigateToSecureFolder
+                )
+            }
+
+            // Category 5: About
+            SettingsCategorySection(title = "About") {
+                SettingsActionRow(
+                    title = "Developer message",
+                    subtitle = "A message from the app creator",
+                    icon = Icons.Default.ChatBubbleOutline,
+                    onClick = { showDeveloperMessageDialog = true }
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                SettingsActionRow(
+                    title = "Licenses",
+                    subtitle = "View open source licenses",
+                    icon = Icons.Default.Info,
+                    onClick = { showLicensesDialog = true }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    // Modal dialogs
+    if (showThemeModeDialog) {
+        ThemeModeDialog(
+            currentMode = themeMode,
+            onDismiss = { showThemeModeDialog = false },
+            onSelectMode = { viewModel.setThemeMode(it) }
+        )
+    }
+
+    if (showColorSchemeDialog) {
+        ColorSchemeDialog(
+            currentScheme = colorScheme,
+            onDismiss = { showColorSchemeDialog = false },
+            onSelectScheme = { viewModel.setColorScheme(it) }
+        )
+    }
+
+    if (showDisplayFontDialog) {
+        DisplayFontDialog(
+            currentFont = displayFont,
+            onDismiss = { showDisplayFontDialog = false },
+            onSelectFont = { viewModel.setDisplayFont(it) }
+        )
+    }
+
+    if (showLanguageDialog) {
+        LanguageDialog(
+            currentLanguage = language,
+            onDismiss = { showLanguageDialog = false },
+            onSelectLanguage = { viewModel.setLanguage(it) }
+        )
+    }
+
+    if (showStartupPageDialog) {
+        StartupPageDialog(
+            currentPage = startupPage,
+            onDismiss = { showStartupPageDialog = false },
+            onSelectPage = { viewModel.setStartupPage(it) }
+        )
+    }
+
+    if (showCollectionStyleDialog) {
+        CollectionStyleDialog(
+            currentStyle = collectionStyle,
+            onDismiss = { showCollectionStyleDialog = false },
+            onSelectStyle = { viewModel.setCollectionStyle(it) }
+        )
+    }
+
+    if (showDeveloperMessageDialog) {
+        DeveloperMessageDialog(onDismiss = { showDeveloperMessageDialog = false })
+    }
+
+    if (showLicensesDialog) {
+        LicensesDialog(onDismiss = { showLicensesDialog = false })
+    }
+}
+
+@Composable
+private fun SettingsCategorySection(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            color = ArchivalTextSecondary.copy(alpha = 0.85f),
+            modifier = Modifier.padding(start = 4.dp)
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = ArchivalSurfaceContainer),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                content()
+            }
         }
     }
 }
 
 @Composable
-private fun BrowserPreferenceRadioItem(
+private fun SettingsActionRow(
     title: String,
-    description: String,
-    selected: Boolean,
-    onSelect: () -> Unit
+    subtitle: String,
+    icon: ImageVector,
+    badgeText: String? = null,
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onSelect)
-            .padding(horizontal = Spacing.medium, vertical = Spacing.small),
-        verticalAlignment = Alignment.Top
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = onSelect,
-            modifier = Modifier.padding(top = 2.dp)
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = ArchivalTextSecondary,
+            modifier = Modifier.size(22.dp)
         )
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = Spacing.small),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+                .padding(start = 14.dp, end = 8.dp)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = ArchivalTextPrimary,
+                fontSize = 15.sp
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = description,
+                text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                color = ArchivalTextSecondary,
+                fontSize = 12.sp,
+                maxLines = 1
             )
+        }
+        if (badgeText != null) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(ArchivalPrimary.copy(alpha = 0.18f))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = badgeText,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ArchivalPrimary,
+                    letterSpacing = 0.5.sp
+                )
+            }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-private fun SettingsScreenPreview() {
-    PixelMarksTheme {
-        SettingsScreen(
-            onNavigateToConnectedDevices = {},
-            onNavigateToBackup = {}
+private fun SettingsSwitchRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = ArchivalTextSecondary,
+            modifier = Modifier.size(22.dp)
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 14.dp, end = 8.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = ArchivalTextPrimary,
+                fontSize = 15.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = ArchivalTextSecondary,
+                fontSize = 12.sp,
+                maxLines = 1
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = ArchivalBackground,
+                checkedTrackColor = ArchivalPrimary,
+                uncheckedTrackColor = ArchivalSurfaceContainerHigh
+            )
         )
     }
 }

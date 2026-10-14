@@ -51,6 +51,11 @@ sealed class Screen(val route: String) {
     data object Backup : Screen("backup")
     data object HtmlImportExport : Screen("html_import_export")
     data object Trash : Screen("trash")
+    data object BrowserPreferenceSetting : Screen("settings/browser_preference")
+    data object AppLockSetting : Screen("settings/app_lock")
+    data object SecureFolderSetting : Screen("settings/secure_folder")
+    data object SecuritySettings : Screen("settings/security")
+    data object CustomizeBookmark : Screen("settings/customize_bookmark")
 }
 
 /**

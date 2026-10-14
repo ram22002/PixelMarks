@@ -185,6 +185,7 @@ interface AppContainer {
     val pairingManager: com.pixelmarks.core.pcserver.PairingManager
     val deviceSessionManager: com.pixelmarks.core.pcserver.DeviceSessionManager
     val localServerManager: com.pixelmarks.core.pcserver.LocalServerManager
+    val appPreferencesRepository: com.pixelmarks.data.repository.AppPreferencesRepository
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -561,6 +562,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             pairingManager = pairingManager,
             sessionManager = deviceSessionManager
         )
+    }
+
+    override val appPreferencesRepository: com.pixelmarks.data.repository.AppPreferencesRepository by lazy {
+        com.pixelmarks.data.repository.AppPreferencesRepositoryImpl(context)
     }
 }
 

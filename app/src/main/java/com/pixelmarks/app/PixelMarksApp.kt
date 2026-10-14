@@ -90,7 +90,17 @@ fun PixelMarksApp(
         }
     }
 
-    PixelMarksTheme {
+    val themeMode by app.container.appPreferencesRepository.observeThemeMode().collectAsState(initial = com.pixelmarks.data.repository.ThemeMode.DARK)
+    val dynamicTheme by app.container.appPreferencesRepository.observeDynamicTheme().collectAsState(initial = false)
+    val colorScheme by app.container.appPreferencesRepository.observeColorScheme().collectAsState(initial = com.pixelmarks.data.repository.AppColorScheme.ARCHIVAL_GOLD)
+    val displayFont by app.container.appPreferencesRepository.observeDisplayFont().collectAsState(initial = com.pixelmarks.data.repository.DisplayFont.EDITORIAL_SERIF)
+
+    PixelMarksTheme(
+        themeMode = themeMode,
+        appColorScheme = colorScheme,
+        displayFont = displayFont,
+        dynamicColor = dynamicTheme
+    ) {
         if (isAppLocked) {
             AppLockScreen(
                 onUnlockClicked = { launchUnlock() },

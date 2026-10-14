@@ -24,6 +24,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import com.pixelmarks.data.repository.AppColorScheme
+import com.pixelmarks.data.repository.AppPreferencesRepository
+import com.pixelmarks.data.repository.CollectionStyle
+import com.pixelmarks.data.repository.DisplayFont
+import com.pixelmarks.data.repository.StartupPage
+import com.pixelmarks.data.repository.ThemeMode
+
 data class SettingsUiState(
     val browserPreference: BrowserPreference = BrowserPreference.DEFAULT,
     val isAppLockEnabled: Boolean = false,
@@ -39,8 +46,64 @@ class SettingsViewModel(
     private val setAppLockTimeoutUseCase: SetAppLockTimeoutUseCase,
     private val checkBiometricCapabilityUseCase: CheckBiometricCapabilityUseCase,
     private val biometricAuthManager: BiometricAuthManager,
-    private val privatePreferencesRepository: PrivatePreferencesRepository
+    private val privatePreferencesRepository: PrivatePreferencesRepository,
+    private val appPreferencesRepository: AppPreferencesRepository? = null
 ) : ViewModel() {
+
+    val themeMode: StateFlow<ThemeMode> =
+        appPreferencesRepository?.observeThemeMode()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.DARK)
+            ?: MutableStateFlow(ThemeMode.DARK)
+
+    val dynamicThemeEnabled: StateFlow<Boolean> =
+        appPreferencesRepository?.observeDynamicTheme()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+            ?: MutableStateFlow(false)
+
+    val colorScheme: StateFlow<AppColorScheme> =
+        appPreferencesRepository?.observeColorScheme()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppColorScheme.ARCHIVAL_GOLD)
+            ?: MutableStateFlow(AppColorScheme.ARCHIVAL_GOLD)
+
+    val displayFont: StateFlow<DisplayFont> =
+        appPreferencesRepository?.observeDisplayFont()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DisplayFont.EDITORIAL_SERIF)
+            ?: MutableStateFlow(DisplayFont.EDITORIAL_SERIF)
+
+    val language: StateFlow<String> =
+        appPreferencesRepository?.observeLanguage()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "English")
+            ?: MutableStateFlow("English")
+
+    val startupPage: StateFlow<StartupPage> =
+        appPreferencesRepository?.observeStartupPage()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StartupPage.HOME)
+            ?: MutableStateFlow(StartupPage.HOME)
+
+    val collectionStyle: StateFlow<CollectionStyle> =
+        appPreferencesRepository?.observeCollectionStyle()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CollectionStyle.FOLIO)
+            ?: MutableStateFlow(CollectionStyle.FOLIO)
+
+    val bookmarkShowFavicon: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowFavicon()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val bookmarkShowDomain: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowDomain()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val bookmarkShowNotes: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowNotes()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val bookmarkCompactMode: StateFlow<Boolean> =
+        appPreferencesRepository?.observeCompactMode()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+            ?: MutableStateFlow(false)
 
     val browserPreference: StateFlow<BrowserPreference> =
         observeBrowserPreferenceUseCase()
@@ -107,8 +170,12 @@ class SettingsViewModel(
 
     fun onBrowserPreferenceSelected(preference: BrowserPreference) {
         viewModelScope.launch {
-            setBrowserPreferenceUseCase(preference)
+            setBrowserPreference(preference)
         }
+    }
+
+    suspend fun setBrowserPreference(preference: BrowserPreference) {
+        setBrowserPreferenceUseCase(preference)
     }
 
     fun setLockTimeout(timeout: AppLockTimeout) {
@@ -159,6 +226,94 @@ class SettingsViewModel(
         )
     }
 
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { updateThemeMode(mode) }
+    }
+
+    suspend fun updateThemeMode(mode: ThemeMode) {
+        appPreferencesRepository?.setThemeMode(mode)
+    }
+
+    fun setDynamicTheme(enabled: Boolean) {
+        viewModelScope.launch { updateDynamicTheme(enabled) }
+    }
+
+    suspend fun updateDynamicTheme(enabled: Boolean) {
+        appPreferencesRepository?.setDynamicTheme(enabled)
+    }
+
+    fun setColorScheme(scheme: AppColorScheme) {
+        viewModelScope.launch { updateColorScheme(scheme) }
+    }
+
+    suspend fun updateColorScheme(scheme: AppColorScheme) {
+        appPreferencesRepository?.setColorScheme(scheme)
+    }
+
+    fun setDisplayFont(font: DisplayFont) {
+        viewModelScope.launch { updateDisplayFont(font) }
+    }
+
+    suspend fun updateDisplayFont(font: DisplayFont) {
+        appPreferencesRepository?.setDisplayFont(font)
+    }
+
+    fun setLanguage(lang: String) {
+        viewModelScope.launch { updateLanguage(lang) }
+    }
+
+    suspend fun updateLanguage(lang: String) {
+        appPreferencesRepository?.setLanguage(lang)
+    }
+
+    fun setStartupPage(page: StartupPage) {
+        viewModelScope.launch { updateStartupPage(page) }
+    }
+
+    suspend fun updateStartupPage(page: StartupPage) {
+        appPreferencesRepository?.setStartupPage(page)
+    }
+
+    fun setCollectionStyle(style: CollectionStyle) {
+        viewModelScope.launch { updateCollectionStyle(style) }
+    }
+
+    suspend fun updateCollectionStyle(style: CollectionStyle) {
+        appPreferencesRepository?.setCollectionStyle(style)
+    }
+
+    fun setBookmarkShowFavicon(show: Boolean) {
+        viewModelScope.launch { updateBookmarkShowFavicon(show) }
+    }
+
+    suspend fun updateBookmarkShowFavicon(show: Boolean) {
+        appPreferencesRepository?.setShowFavicon(show)
+    }
+
+    fun setBookmarkShowDomain(show: Boolean) {
+        viewModelScope.launch { updateBookmarkShowDomain(show) }
+    }
+
+    suspend fun updateBookmarkShowDomain(show: Boolean) {
+        appPreferencesRepository?.setShowDomain(show)
+    }
+
+    fun setBookmarkShowNotes(show: Boolean) {
+        viewModelScope.launch { updateBookmarkShowNotes(show) }
+    }
+
+    suspend fun updateBookmarkShowNotes(show: Boolean) {
+        appPreferencesRepository?.setShowNotes(show)
+    }
+
+    fun setBookmarkCompactMode(compact: Boolean) {
+        viewModelScope.launch { updateBookmarkCompactMode(compact) }
+    }
+
+    suspend fun updateBookmarkCompactMode(compact: Boolean) {
+        appPreferencesRepository?.setCompactMode(compact)
+    }
+
     fun createEnrollIntent(): Intent = biometricAuthManager.createEnrollIntent()
 
     companion object {
@@ -170,7 +325,8 @@ class SettingsViewModel(
             setAppLockTimeoutUseCase: SetAppLockTimeoutUseCase,
             checkBiometricCapabilityUseCase: CheckBiometricCapabilityUseCase,
             biometricAuthManager: BiometricAuthManager,
-            privatePreferencesRepository: PrivatePreferencesRepository
+            privatePreferencesRepository: PrivatePreferencesRepository,
+            appPreferencesRepository: AppPreferencesRepository? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -182,7 +338,8 @@ class SettingsViewModel(
                     setAppLockTimeoutUseCase,
                     checkBiometricCapabilityUseCase,
                     biometricAuthManager,
-                    privatePreferencesRepository
+                    privatePreferencesRepository,
+                    appPreferencesRepository
                 ) as T
             }
         }

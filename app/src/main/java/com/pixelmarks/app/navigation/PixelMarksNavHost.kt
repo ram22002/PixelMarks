@@ -20,6 +20,11 @@ import com.pixelmarks.feature.home.HomeScreen
 import com.pixelmarks.feature.importexport.HtmlImportExportScreen
 import com.pixelmarks.feature.reminders.RemindersScreen
 import com.pixelmarks.feature.search.SearchScreen
+import com.pixelmarks.feature.settings.AppLockSettingsScreen
+import com.pixelmarks.feature.settings.BrowserPreferenceScreen
+import com.pixelmarks.feature.settings.CustomizeBookmarkScreen
+import com.pixelmarks.feature.settings.SecureFolderSettingsScreen
+import com.pixelmarks.feature.settings.SecuritySettingsScreen
 import com.pixelmarks.feature.settings.SettingsScreen
 import com.pixelmarks.feature.tags.TagDetailScreen
 import com.pixelmarks.feature.tags.TagsScreen
@@ -77,7 +82,13 @@ fun PixelMarksNavHost(
                 onNavigateToConnectPc = { navController.navigate(Screen.ConnectPc.route) },
                 onNavigateToConnectedDevices = { navController.navigate(Screen.ConnectedDevices.route) },
                 onNavigateToBackup = { navController.navigate(Screen.Backup.route) },
-                onNavigateToHtmlImportExport = { navController.navigate(Screen.HtmlImportExport.route) }
+                onNavigateToHtmlImportExport = { navController.navigate(Screen.HtmlImportExport.route) },
+                onNavigateToManageTags = { navController.navigate(Screen.Tags.route) },
+                onNavigateToBrowserPreference = { navController.navigate(Screen.BrowserPreferenceSetting.route) },
+                onNavigateToAppLock = { navController.navigate(Screen.AppLockSetting.route) },
+                onNavigateToSecureFolder = { navController.navigate(Screen.SecureFolderSetting.route) },
+                onNavigateToSecurity = { navController.navigate(Screen.AppLockSetting.route) },
+                onNavigateToCustomizeBookmark = { navController.navigate(Screen.CustomizeBookmark.route) }
             )
         }
 
@@ -252,6 +263,36 @@ fun PixelMarksNavHost(
 
         composable(Screen.HtmlImportExport.route) {
             HtmlImportExportScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.BrowserPreferenceSetting.route) {
+            BrowserPreferenceScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.AppLockSetting.route) {
+            AppLockSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.SecureFolderSetting.route) {
+            SecureFolderSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.SecuritySettings.route) {
+            SecuritySettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.CustomizeBookmark.route) {
+            CustomizeBookmarkScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
