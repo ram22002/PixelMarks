@@ -421,7 +421,7 @@ fun CustomizeBookmarkScreen(
             }
 
             // Section 5: Title
-            CustomizeCategorySection(title = "Title", badge = "PRO") {
+            CustomizeCategorySection(title = "Title") {
                 CustomizeSwitchRow(
                     title = "Show Title",
                     subtitle = "Display the bookmark title on each item",
@@ -444,7 +444,7 @@ fun CustomizeBookmarkScreen(
             }
 
             // Section 6: Subtitle
-            CustomizeCategorySection(title = "Subtitle", badge = "PRO") {
+            CustomizeCategorySection(title = "Subtitle") {
                 CustomizeSwitchRow(
                     title = "Show Subtitle",
                     subtitle = "Display the bookmark's subtitle below the title",
@@ -467,7 +467,7 @@ fun CustomizeBookmarkScreen(
             }
 
             // Section 7: Site Name
-            CustomizeCategorySection(title = "Site Name", badge = "PRO") {
+            CustomizeCategorySection(title = "Site Name") {
                 CustomizeSwitchRow(
                     title = "Show Site Name",
                     subtitle = "Display the website name on each bookmark",
@@ -498,7 +498,7 @@ fun CustomizeBookmarkScreen(
             }
 
             // Section 8: Note
-            CustomizeCategorySection(title = "Note", badge = "PRO") {
+            CustomizeCategorySection(title = "Note") {
                 CustomizeSwitchRow(
                     title = "Show Note",
                     subtitle = "Display the bookmark's note below its details",

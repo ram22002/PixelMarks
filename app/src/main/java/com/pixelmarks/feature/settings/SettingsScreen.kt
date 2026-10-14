@@ -205,7 +205,6 @@ fun SettingsScreen(
                     title = "Backup & Restore",
                     subtitle = "Manual or Auto Backup via file or Google Drive",
                     icon = Icons.Default.Restore,
-                    badgeText = "PRO",
                     onClick = onNavigateToBackup
                 )
 
@@ -224,7 +223,6 @@ fun SettingsScreen(
                     title = "Connect to PC",
                     subtitle = "Open and manage your bookmarks on your computer",
                     icon = Icons.Default.Laptop,
-                    badgeText = "PRO",
                     onClick = onNavigateToConnectPc
                 )
 
