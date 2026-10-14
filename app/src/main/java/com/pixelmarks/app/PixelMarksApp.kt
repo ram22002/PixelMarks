@@ -199,7 +199,17 @@ fun PixelMarksApp(
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 bottomBar = {
-                    if (isBottomBarVisible) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = isBottomBarVisible,
+                        enter = androidx.compose.animation.slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = androidx.compose.animation.core.tween(durationMillis = 220, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                        ) + androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(160)),
+                        exit = androidx.compose.animation.slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = androidx.compose.animation.core.tween(durationMillis = 180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                        ) + androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(140))
+                    ) {
                         PixelMarksBottomBar(
                             currentRoute = currentRoute,
                             privacyMode = privacyMode,

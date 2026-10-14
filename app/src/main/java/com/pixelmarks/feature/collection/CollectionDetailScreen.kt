@@ -1,10 +1,16 @@
 package com.pixelmarks.feature.collection
 
 import android.content.Intent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -848,13 +855,21 @@ fun CollectionDetailScreen(
                                     val isChildFilter = filterName !in baseFilters
                                     val childCol = if (isChildFilter) uiState.childCollections.firstOrNull { it.name == filterName } else null
 
+                                    val bgColor by animateColorAsState(
+                                        targetValue = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceVariant,
+                                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                        label = "colFilterBg"
+                                    )
+                                    val textColor by animateColorAsState(
+                                        targetValue = if (isSelected) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                        label = "colFilterText"
+                                    )
+
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
-                                            .background(
-                                                if (isSelected) MaterialTheme.colorScheme.secondary
-                                                else MaterialTheme.colorScheme.surfaceVariant
-                                            )
+                                            .background(bgColor)
                                             .clickable { selectedFilter = filterName }
                                             .padding(horizontal = 10.dp, vertical = 5.dp)
                                     ) {
@@ -876,8 +891,7 @@ fun CollectionDetailScreen(
                                                     else -> filterName
                                                 },
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onSecondary
-                                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                color = textColor,
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         }
@@ -1024,11 +1038,26 @@ private fun SubCollectionCard(
     onClick: () -> Unit
 ) {
     val color = parseHexColor(collection.color)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1.0f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+        label = "subColCardScale"
+    )
 
     Surface(
         modifier = Modifier
             .width(220.dp)
-            .clickable(onClick = onClick),
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            ),
         shape = RoundedCornerShape(12.dp),
         color = ArchivalSurfaceContainerLow,
         border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest)

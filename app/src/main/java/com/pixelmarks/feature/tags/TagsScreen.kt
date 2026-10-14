@@ -1,9 +1,15 @@
 package com.pixelmarks.feature.tags
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -274,21 +281,27 @@ fun TagsScreen(
                         ) {
                             listOf("Most Used", "Recently Added", "Alphabetical (A–Z)").forEach { filter ->
                                 val isSelected = selectedSortFilter == filter
+                                val bgColor by animateColorAsState(
+                                    targetValue = if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceVariant,
+                                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                    label = "tagFilterBg"
+                                )
+                                val textColor by animateColorAsState(
+                                    targetValue = if (isSelected) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                    label = "tagFilterText"
+                                )
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(16.dp))
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.secondary
-                                            else MaterialTheme.colorScheme.surfaceVariant
-                                        )
+                                        .background(bgColor)
                                         .clickable { selectedSortFilter = filter }
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
                                         text = filter.uppercase(),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onSecondary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = textColor,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -386,6 +399,13 @@ fun ArchivalTagListItem(
     onDelete: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.985f else 1.0f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+        label = "tagCardScale"
+    )
 
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -393,7 +413,13 @@ fun ArchivalTagListItem(
         border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            }
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
                 onClick = onClick,
                 onLongClick = { menuExpanded = true }
             )

@@ -71,6 +71,7 @@ import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -1249,11 +1250,18 @@ fun BookmarkDetailScreen(
                         }
                     }
                 } else {
-                    Text(
-                        text = "Loading bookmark details...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = ArchivalTextSecondary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = BrassGold,
+                            modifier = Modifier.size(28.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

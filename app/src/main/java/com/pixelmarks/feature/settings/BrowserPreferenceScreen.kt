@@ -1,5 +1,8 @@
 package com.pixelmarks.feature.settings
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -214,6 +217,22 @@ private fun BrowserOptionRow(
     badgeText: String? = null,
     onSelect: () -> Unit
 ) {
+    val iconBgColor by animateColorAsState(
+        targetValue = if (selected) ArchivalPrimary.copy(alpha = 0.15f) else ArchivalSurfaceContainerLow,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "browserOptionIconBg"
+    )
+    val iconTint by animateColorAsState(
+        targetValue = if (selected) ArchivalPrimary else ArchivalTextSecondary,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "browserOptionIconTint"
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (selected) ArchivalPrimary else ArchivalTextPrimary,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "browserOptionTitleColor"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -226,15 +245,13 @@ private fun BrowserOptionRow(
                 .padding(top = 2.dp)
                 .size(36.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(
-                    if (selected) ArchivalPrimary.copy(alpha = 0.15f) else ArchivalSurfaceContainerLow
-                ),
+                .background(iconBgColor),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (selected) ArchivalPrimary else ArchivalTextSecondary,
+                tint = iconTint,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -252,7 +269,7 @@ private fun BrowserOptionRow(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (selected) ArchivalPrimary else ArchivalTextPrimary
+                    color = titleColor
                 )
                 if (badgeText != null) {
                     Box(

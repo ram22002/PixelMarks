@@ -1,6 +1,13 @@
 package com.pixelmarks.app.navigation
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -37,10 +44,75 @@ fun PixelMarksNavHost(
     modifier: Modifier = Modifier,
     startDestination: String = Screen.Home.route
 ) {
+    val bottomBarRoutes = remember {
+        setOf(
+            Screen.Home.route,
+            Screen.Collections.route,
+            Screen.Tags.route,
+            Screen.Settings.route
+        )
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination,
-        modifier = modifier
+        modifier = modifier,
+        enterTransition = {
+            val fromRoute = initialState.destination.route
+            val toRoute = targetState.destination.route
+            if (fromRoute in bottomBarRoutes && toRoute in bottomBarRoutes) {
+                fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
+            } else {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> (fullWidth * 0.12f).toInt() },
+                    animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
+                ) + fadeIn(
+                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                )
+            }
+        },
+        exitTransition = {
+            val fromRoute = initialState.destination.route
+            val toRoute = targetState.destination.route
+            if (fromRoute in bottomBarRoutes && toRoute in bottomBarRoutes) {
+                fadeOut(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing))
+            } else {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> -(fullWidth * 0.08f).toInt() },
+                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                ) + fadeOut(
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                )
+            }
+        },
+        popEnterTransition = {
+            val fromRoute = initialState.destination.route
+            val toRoute = targetState.destination.route
+            if (fromRoute in bottomBarRoutes && toRoute in bottomBarRoutes) {
+                fadeIn(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing))
+            } else {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> -(fullWidth * 0.08f).toInt() },
+                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                ) + fadeIn(
+                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                )
+            }
+        },
+        popExitTransition = {
+            val fromRoute = initialState.destination.route
+            val toRoute = targetState.destination.route
+            if (fromRoute in bottomBarRoutes && toRoute in bottomBarRoutes) {
+                fadeOut(animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing))
+            } else {
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> (fullWidth * 0.12f).toInt() },
+                    animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
+                ) + fadeOut(
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                )
+            }
+        }
     ) {
         // Bottom Navigation Roots
         composable(Screen.Home.route) {

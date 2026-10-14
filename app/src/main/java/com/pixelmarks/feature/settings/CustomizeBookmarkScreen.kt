@@ -1,5 +1,16 @@
 package com.pixelmarks.feature.settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -160,7 +171,14 @@ fun CustomizeBookmarkScreen(
         ) {
             // Live Preview Card matching Screenshot 1 exactly
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = 0.8f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ),
                 colors = CardDefaults.cardColors(containerColor = ArchivalSurfaceContainerLow),
                 shape = RoundedCornerShape(18.dp)
             ) {
@@ -172,7 +190,11 @@ fun CustomizeBookmarkScreen(
                     verticalAlignment = Alignment.Top
                 ) {
                     // Left Image / Domain Thumbnail
-                    if (showDomainThumbnail) {
+                    AnimatedVisibility(
+                        visible = showDomainThumbnail,
+                        enter = fadeIn(animationSpec = tween(150)) + expandHorizontally(),
+                        exit = fadeOut(animationSpec = tween(150)) + shrinkHorizontally()
+                    ) {
                         Box(
                             modifier = Modifier
                                 .size(90.dp)
@@ -210,7 +232,7 @@ fun CustomizeBookmarkScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            if (showPinIcon) {
+                            AnimatedVisibility(visible = showPinIcon) {
                                 Icon(
                                     imageVector = Icons.Default.PushPin,
                                     contentDescription = null,
@@ -218,7 +240,7 @@ fun CustomizeBookmarkScreen(
                                     modifier = Modifier.size(13.dp)
                                 )
                             }
-                            if (showTimeIcons) {
+                            AnimatedVisibility(visible = showTimeIcons) {
                                 Icon(
                                     imageVector = Icons.Default.Notifications,
                                     contentDescription = null,
@@ -226,7 +248,7 @@ fun CustomizeBookmarkScreen(
                                     modifier = Modifier.size(13.dp)
                                 )
                             }
-                            if (showSiteName) {
+                            AnimatedVisibility(visible = showSiteName) {
                                 Text(
                                     text = "News",
                                     style = MaterialTheme.typography.labelSmall,
@@ -239,7 +261,11 @@ fun CustomizeBookmarkScreen(
                         }
 
                         // Title
-                        if (showTitle) {
+                        AnimatedVisibility(
+                            visible = showTitle,
+                            enter = fadeIn(animationSpec = tween(150)) + expandVertically(),
+                            exit = fadeOut(animationSpec = tween(150)) + shrinkVertically()
+                        ) {
                             Text(
                                 text = "One UI 7 rollout resumes globally for Galaxy devices",
                                 style = MaterialTheme.typography.titleMedium,
@@ -254,7 +280,11 @@ fun CustomizeBookmarkScreen(
                         }
 
                         // Subtitle / Description
-                        if (showSubtitle) {
+                        AnimatedVisibility(
+                            visible = showSubtitle,
+                            enter = fadeIn(animationSpec = tween(150)) + expandVertically(),
+                            exit = fadeOut(animationSpec = tween(150)) + shrinkVertically()
+                        ) {
                             Text(
                                 text = "After resuming in Korea last week, Samsung is expanding updates across more regions.",
                                 style = MaterialTheme.typography.bodySmall,
@@ -267,7 +297,11 @@ fun CustomizeBookmarkScreen(
                         }
 
                         // Creation Time
-                        if (showCreationTime) {
+                        AnimatedVisibility(
+                            visible = showCreationTime,
+                            enter = fadeIn(animationSpec = tween(150)) + expandVertically(),
+                            exit = fadeOut(animationSpec = tween(150)) + shrinkVertically()
+                        ) {
                             Text(
                                 text = when (creationTimeFormat) {
                                     1 -> "4h ago"
@@ -282,7 +316,11 @@ fun CustomizeBookmarkScreen(
                         }
 
                         // Tags Pills
-                        if (showTags) {
+                        AnimatedVisibility(
+                            visible = showTags,
+                            enter = fadeIn(animationSpec = tween(150)) + expandVertically(),
+                            exit = fadeOut(animationSpec = tween(150)) + shrinkVertically()
+                        ) {
                             val sampleTags = listOf("News", "Samsung", "Galaxy", "One UI", "Android", "Update")
                             val displayedTags = sampleTags.take(maxTagsToShow)
                             val remaining = sampleTags.size - displayedTags.size
@@ -329,7 +367,11 @@ fun CustomizeBookmarkScreen(
                         }
 
                         // Note Pill
-                        if (showNote) {
+                        AnimatedVisibility(
+                            visible = showNote,
+                            enter = fadeIn(animationSpec = tween(150)) + expandVertically(),
+                            exit = fadeOut(animationSpec = tween(150)) + shrinkVertically()
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()

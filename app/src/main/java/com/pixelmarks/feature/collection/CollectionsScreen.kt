@@ -1,9 +1,15 @@
 package com.pixelmarks.feature.collection
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -502,10 +509,21 @@ private fun SortPill(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSelected) TerracottaAccent else ArchivalSurfaceContainer,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "sortPillBg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) ArchivalSurfaceContainerLowest else ArchivalTextSecondary,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "sortPillContent"
+    )
+
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = if (isSelected) TerracottaAccent else ArchivalSurfaceContainer,
-        contentColor = if (isSelected) ArchivalSurfaceContainerLowest else ArchivalTextSecondary,
+        color = backgroundColor,
+        contentColor = contentColor,
         modifier = Modifier.clickable(onClick = onClick)
     ) {
         Text(
@@ -531,6 +549,13 @@ private fun CollectionFolioRowCard(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val color = parseHexColor(collection.color)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.985f else 1.0f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+        label = "collectionRowScale"
+    )
 
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -539,7 +564,15 @@ private fun CollectionFolioRowCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = (depth * 16).dp)
-            .clickable(onClick = onClick)
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            )
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -752,6 +785,13 @@ private fun CollectionGridCard(
     onDelete: () -> Unit
 ) {
     val color = parseHexColor(collection.color)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1.0f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
+        label = "collectionGridScale"
+    )
 
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -759,7 +799,15 @@ private fun CollectionGridCard(
         border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            )
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
