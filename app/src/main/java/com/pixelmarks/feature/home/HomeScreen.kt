@@ -238,14 +238,6 @@ fun HomeScreen(
         }
     }
 
-    val pinnedBookmarks = remember(uiState.bookmarks) {
-        uiState.bookmarks.filter { it.isPinned }
-    }
-
-    val recentBookmarks = remember(uiState.bookmarks) {
-        uiState.bookmarks.filter { !it.isPinned }
-    }
-
     Scaffold(
         containerColor = ArchivalBackground,
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -317,7 +309,7 @@ fun HomeScreen(
                     )
                     FilterPill(
                         label = "Pinned",
-                        count = pinnedBookmarks.size,
+                        count = uiState.bookmarks.count { it.isPinned },
                         isSelected = activeFilter == HomeFilter.PINNED,
                         onClick = { activeFilter = HomeFilter.PINNED }
                     )
@@ -392,156 +384,8 @@ fun HomeScreen(
                         }
                     }
                 }
-            } else if (activeFilter == HomeFilter.ALL) {
-                // ALL ENTRIES: Pinned Bookmarks Shelf (if any) + Recent Bookmarks Stream
-                if (pinnedBookmarks.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PushPin,
-                                    contentDescription = null,
-                                    tint = TerracottaAccent,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = "PINNED BOOKMARKS",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ArchivalTextPrimary,
-                                    letterSpacing = 1.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = ArchivalSurfaceContainerHighest
-                            ) {
-                                Text(
-                                    text = "${pinnedBookmarks.size} pinned",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = TerracottaAccent,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Pinned Grid (2 columns)
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            pinnedBookmarks.chunked(2).forEach { rowPair ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    rowPair.forEach { bookmark ->
-                                        Box(modifier = Modifier.weight(1f)) {
-                                            PinnedBookmarkCard(
-                                                bookmark = bookmark,
-                                                config = cardConfig,
-                                                onClick = { onNavigateToBookmarkDetail(bookmark.id) },
-                                                onOpen = { openBookmark(bookmark) },
-                                                onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
-                                                onShare = { shareBookmark(bookmark) }
-                                            )
-                                        }
-                                    }
-                                    if (rowPair.size == 1) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Recent Bookmarks Stream
-                if (recentBookmarks.isNotEmpty()) {
-                    item {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                    contentDescription = null,
-                                    tint = BrassGold,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = "RECENT BOOKMARKS",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ArchivalTextPrimary,
-                                    letterSpacing = 1.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            Text(
-                                text = "${recentBookmarks.size} entries",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = ArchivalTextSecondary
-                            )
-                        }
-                    }
-
-                    // List or Grid items
-                    if (isGridView) {
-                        item {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                recentBookmarks.chunked(2).forEach { rowPair ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        rowPair.forEach { bookmark ->
-                                            Box(modifier = Modifier.weight(1f)) {
-                                                GridBookmarkCard(
-                                                    bookmark = bookmark,
-                                                    config = cardConfig,
-                                                    onClick = { onNavigateToBookmarkDetail(bookmark.id) },
-                                                    onOpen = { openBookmark(bookmark) },
-                                                    onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
-                                                    onShare = { shareBookmark(bookmark) },
-                                                    onDelete = { viewModel.moveToTrash(bookmark) }
-                                                )
-                                            }
-                                        }
-                                        if (rowPair.size == 1) {
-                                            Spacer(modifier = Modifier.weight(1f))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        items(recentBookmarks, key = { it.id }) { bookmark ->
-                            ListBookmarkCard(
-                                bookmark = bookmark,
-                                config = cardConfig,
-                                onClick = { onNavigateToBookmarkDetail(bookmark.id) },
-                                onOpen = { openBookmark(bookmark) },
-                                onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
-                                onShare = { shareBookmark(bookmark) },
-                                onDelete = { viewModel.moveToTrash(bookmark) }
-                            )
-                        }
-                    }
-                }
             } else {
-                // FILTERED STREAM: Favorites, Pinned, or With Notes
+                // Unified Bookmarks Stream (ALL, FAVORITES, PINNED, NOTES)
                 item {
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
@@ -554,10 +398,10 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             val (icon, titleText) = when (activeFilter) {
+                                HomeFilter.ALL -> Icons.AutoMirrored.Filled.MenuBook to "ALL BOOKMARKS"
                                 HomeFilter.FAVORITES -> Icons.Default.Star to "FAVORITE BOOKMARKS"
                                 HomeFilter.PINNED -> Icons.Default.PushPin to "PINNED BOOKMARKS"
                                 HomeFilter.NOTES -> Icons.Default.EditNote to "BOOKMARKS WITH NOTES"
-                                else -> Icons.AutoMirrored.Filled.MenuBook to "BOOKMARKS"
                             }
                             Icon(
                                 imageVector = icon,
@@ -622,8 +466,8 @@ fun HomeScreen(
                             onDelete = { viewModel.moveToTrash(bookmark) }
                         )
                     }
-                    }
                 }
+            }
 
             item {
                 Spacer(modifier = Modifier.height(Spacing.large))

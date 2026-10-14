@@ -1,7 +1,9 @@
 package com.pixelmarks.feature.tags
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
-
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,6 +64,8 @@ import com.pixelmarks.ui.components.getEditorialSalutation
 import com.pixelmarks.ui.theme.ArchivalBackground
 import com.pixelmarks.ui.theme.ArchivalError
 import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHighest
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLow
 import com.pixelmarks.ui.theme.ArchivalSurfaceContainerLowest
 import com.pixelmarks.ui.theme.ArchivalTextPrimary
 import com.pixelmarks.ui.theme.ArchivalTextSecondary
@@ -250,7 +256,7 @@ fun TagsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Editorial Header
                     item {
@@ -370,6 +376,7 @@ fun TagsScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ArchivalTagListItem(
     tag: Tag,
@@ -380,62 +387,72 @@ fun ArchivalTagListItem(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    Box(
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = ArchivalSurfaceContainerLow,
+        border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { menuExpanded = true }
+            )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            // Prominent '#' icon on the left matching the image
+            Icon(
+                imageVector = Icons.Default.Tag,
+                contentDescription = null,
+                tint = ArchivalTextPrimary,
+                modifier = Modifier.size(24.dp)
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
                 Text(
-                    text = "#${tag.name}",
+                    text = tag.name.removePrefix("#"),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = FontFamily.Monospace,
+                    color = ArchivalTextPrimary,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 15.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "$bookmarkCount bookmarks",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = ArchivalTextSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
             Box {
-                IconButton(
-                    onClick = { menuExpanded = true },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Tag options",
-                        tint = ArchivalTextSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                     modifier = Modifier.background(ArchivalSurfaceContainerHigh)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Edit", color = ArchivalTextPrimary) },
+                        text = { Text("Edit Tag", color = ArchivalTextPrimary) },
                         onClick = {
                             menuExpanded = false
                             onEdit()
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = ArchivalError) },
+                        text = { Text("Delete Tag", color = ArchivalError) },
                         onClick = {
                             menuExpanded = false
                             onDelete()
