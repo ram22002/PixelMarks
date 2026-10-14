@@ -155,7 +155,7 @@ fun CollectionsScreen(
     var createParentId by remember { mutableStateOf<Long?>(null) }
     var editingCollection by remember { mutableStateOf<Collection?>(null) }
     var deletingCollection by remember { mutableStateOf<Collection?>(null) }
-    var isGridView by remember { mutableStateOf(false) }
+    val collectionStyle by app.container.appPreferencesRepository.observeCollectionStyle().collectAsState(initial = com.pixelmarks.data.repository.CollectionStyle.FOLIO)
     var sortOption by remember { mutableStateOf(CollectionSortOption.RECENT) }
 
     LaunchedEffect(uiState.errorMessage) {
@@ -304,8 +304,14 @@ fun CollectionsScreen(
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 ArchivalSubHeader(
-                    isGridView = isGridView,
-                    onToggleGridView = { isGridView = it }
+                    isGridView = collectionStyle == com.pixelmarks.data.repository.CollectionStyle.GRID,
+                    onToggleGridView = { isGrid ->
+                        coroutineScope.launch {
+                            app.container.appPreferencesRepository.setCollectionStyle(
+                                if (isGrid) com.pixelmarks.data.repository.CollectionStyle.GRID else com.pixelmarks.data.repository.CollectionStyle.FOLIO
+                            )
+                        }
+                    }
                 )
             }
 
@@ -415,8 +421,8 @@ fun CollectionsScreen(
                     }
                 }
 
-                // Grid or Folio List
-                if (isGridView) {
+                // Grid, Compact List, or Folio
+                if (collectionStyle == com.pixelmarks.data.repository.CollectionStyle.GRID) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             rootCollections.chunked(2).forEach { rowPair ->
@@ -444,6 +450,20 @@ fun CollectionsScreen(
                                 }
                             }
                         }
+                    }
+                } else if (collectionStyle == com.pixelmarks.data.repository.CollectionStyle.LIST) {
+                    items(rootCollections, key = { it.id }) { col ->
+                        val bookmarkCount = uiState.bookmarkCounts[col.id] ?: 0
+                        val childCount = uiState.childCounts[col.id] ?: 0
+
+                        CollectionCompactRowCard(
+                            collection = col,
+                            bookmarkCount = bookmarkCount,
+                            childCount = childCount,
+                            onClick = { handleCollectionClick(col) },
+                            onEdit = { editingCollection = col },
+                            onDelete = { deletingCollection = col }
+                        )
                     }
                 } else {
                     items(rootCollections, key = { it.id }) { col ->
@@ -844,3 +864,105 @@ private fun formatCuratorialDate(): String {
     val sdf = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
     return sdf.format(cal.time).uppercase()
 }
+
+@Composable
+private fun CollectionCompactRowCard(
+    collection: Collection,
+    bookmarkCount: Int,
+    childCount: Int,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val color = parseHexColor(collection.color)
+
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = ArchivalSurfaceContainerLow,
+        border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(ArchivalSurfaceContainerHigh),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = getIconVector(collection.icon),
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Text(
+                    text = collection.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontFamily = FontFamily.Serif,
+                    color = ArchivalTextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Text(
+                    text = "$bookmarkCount items",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TerracottaAccent
+                )
+            }
+
+            Box {
+                IconButton(
+                    onClick = { menuExpanded = true },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = ArchivalTextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    modifier = Modifier.background(ArchivalSurfaceContainerHigh)
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Edit Collection", color = ArchivalTextPrimary) },
+                        onClick = {
+                            menuExpanded = false
+                            onEdit()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete Collection", color = MaterialTheme.colorScheme.error) },
+                        onClick = {
+                            menuExpanded = false
+                            onDelete()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+

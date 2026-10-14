@@ -62,6 +62,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.core.model.BookmarkSortOption
 import com.pixelmarks.feature.home.ArchivalBookmarkCard
+import com.pixelmarks.feature.home.rememberBookmarkCardConfig
 import com.pixelmarks.ui.components.PixelMarksScreenScaffold
 import com.pixelmarks.ui.theme.Spacing
 
@@ -91,6 +92,9 @@ fun SearchScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val app = context.applicationContext as PixelMarksApplication
+    val cardConfig = rememberBookmarkCardConfig(app.container.appPreferencesRepository)
 
     LaunchedEffect(initialCollectionId) {
         if (initialCollectionId != null && initialCollectionId > 0) {
@@ -543,7 +547,10 @@ fun SearchScreen(
                     items(uiState.bookmarks, key = { it.id }) { bookmark ->
                         ArchivalBookmarkCard(
                             bookmark = bookmark,
-                            onClick = { onNavigateToBookmarkDetail(bookmark.id) }
+                            onClick = { onNavigateToBookmarkDetail(bookmark.id) },
+                            onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
+                            onDelete = { viewModel.deleteBookmark(bookmark.id) },
+                            config = cardConfig
                         )
                     }
                 }

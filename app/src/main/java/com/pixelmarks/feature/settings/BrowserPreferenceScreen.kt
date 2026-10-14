@@ -59,7 +59,8 @@ import com.pixelmarks.ui.theme.ArchivalTextPrimary
 import com.pixelmarks.ui.theme.ArchivalTextSecondary
 import com.pixelmarks.ui.theme.TerracottaAccent
 
-@OptIn(ExperimentalMaterial3Api::class)
+import com.pixelmarks.ui.components.PixelMarksScreenScaffold
+
 @Composable
 fun BrowserPreferenceScreen(
     onNavigateBack: () -> Unit,
@@ -82,33 +83,9 @@ fun BrowserPreferenceScreen(
 ) {
     val currentPref by viewModel.browserPreference.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Browser Preferences",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ArchivalTextPrimary,
-                        fontFamily = FontFamily.Serif
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = ArchivalTextPrimary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ArchivalBackground
-                )
-            )
-        },
-        containerColor = ArchivalBackground
+    PixelMarksScreenScaffold(
+        title = "Browser Preferences",
+        onNavigateBack = onNavigateBack
     ) { paddingValues ->
         Column(
             modifier = Modifier

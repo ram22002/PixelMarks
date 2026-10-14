@@ -418,9 +418,22 @@ fun BookmarkDetailScreen(
         }
     }
 
-    PixelMarksScreenScaffold(
-        title = "Bookmark Detail",
-        onNavigateBack = onNavigateBack,
+    val dynamicThemeEnabled by app.container.appPreferencesRepository.observeDynamicTheme().collectAsState(initial = false)
+    val currentThemeMode by app.container.appPreferencesRepository.observeThemeMode().collectAsState(initial = com.pixelmarks.data.repository.ThemeMode.DARK)
+
+    val dynamicPalette = com.pixelmarks.ui.theme.rememberBookmarkDynamicPalette(
+        imageUrl = current?.thumbnailUrl ?: current?.faviconUrl,
+        domain = current?.domain.orEmpty(),
+        themeMode = currentThemeMode,
+        enabled = dynamicThemeEnabled
+    )
+
+    androidx.compose.runtime.CompositionLocalProvider(
+        com.pixelmarks.ui.theme.LocalArchivalColors provides dynamicPalette
+    ) {
+        PixelMarksScreenScaffold(
+            title = "Bookmark Detail",
+            onNavigateBack = onNavigateBack,
         actions = {
             if (current != null && (!isProtected || isCollectionUnlocked)) {
                 if (current.isTrashed) {
@@ -462,6 +475,51 @@ fun BookmarkDetailScreen(
                     }
                 }
             }
+        },
+        bottomBar = {
+            if (current != null && (!isProtected || isCollectionUnlocked)) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = ArchivalBackground,
+                    shadowElevation = 8.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHighest.copy(alpha = 0.5f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Button(
+                            onClick = ::openInBrowser,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            elevation = androidx.compose.material3.ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                        ) {
+                            Text(
+                                text = "OPEN ORIGINAL URL",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
         }
     ) { paddingValues ->
         Box(
@@ -1189,32 +1247,6 @@ fun BookmarkDetailScreen(
                                 )
                             }
                         }
-
-                        // OPEN ORIGINAL URL
-                        Button(
-                            onClick = ::openInBrowser,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFEDE1CB),
-                                contentColor = Color(0xFF1B160B)
-                            )
-                        ) {
-                            Text(
-                                text = "OPEN ORIGINAL URL",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
                     }
                 } else {
                     Text(
@@ -1224,15 +1256,9 @@ fun BookmarkDetailScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
-
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp)
-            )
         }
     }
+}
 }

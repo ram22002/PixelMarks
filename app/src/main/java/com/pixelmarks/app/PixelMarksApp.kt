@@ -94,6 +94,16 @@ fun PixelMarksApp(
     val dynamicTheme by app.container.appPreferencesRepository.observeDynamicTheme().collectAsState(initial = false)
     val colorScheme by app.container.appPreferencesRepository.observeColorScheme().collectAsState(initial = com.pixelmarks.data.repository.AppColorScheme.ARCHIVAL_GOLD)
     val displayFont by app.container.appPreferencesRepository.observeDisplayFont().collectAsState(initial = com.pixelmarks.data.repository.DisplayFont.EDITORIAL_SERIF)
+    val startupPage by app.container.appPreferencesRepository.observeStartupPage().collectAsState(initial = com.pixelmarks.data.repository.StartupPage.HOME)
+
+    val startDestinationRoute = remember(startupPage) {
+        when (startupPage) {
+            com.pixelmarks.data.repository.StartupPage.HOME -> Screen.Home.route
+            com.pixelmarks.data.repository.StartupPage.COLLECTIONS -> Screen.Collections.route
+            com.pixelmarks.data.repository.StartupPage.TAGS -> Screen.Tags.route
+            com.pixelmarks.data.repository.StartupPage.SEARCH -> Screen.Search.route
+        }
+    }
 
     PixelMarksTheme(
         themeMode = themeMode,
@@ -219,7 +229,8 @@ fun PixelMarksApp(
             ) { innerPadding ->
                 PixelMarksNavHost(
                     navController = navController,
-                    modifier = Modifier.padding(innerPadding)
+                    modifier = Modifier.padding(innerPadding),
+                    startDestination = startDestinationRoute
                 )
             }
         }

@@ -68,13 +68,21 @@ import com.pixelmarks.core.pcserver.model.PcServerState
 import com.pixelmarks.ui.components.PixelMarksScreenScaffold
 import com.pixelmarks.ui.theme.Spacing
 
-private val TerracottaColor = Color(0xFFF9B89A)
-private val ParchmentBg = Color(0xFF181306)
-private val CharcoalColor = Color(0xFFEDE1CB)
-private val MutedCharcoal = Color(0xFFD2C5B5)
-private val CardBg = Color(0xFF251F11)
-private val InnerCardBg = Color(0xFF30291B)
-private val ThinBorderColor = Color(0x404E4539)
+import com.pixelmarks.ui.theme.ArchivalBackground
+import com.pixelmarks.ui.theme.ArchivalPrimary
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainer
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
+import com.pixelmarks.ui.theme.ArchivalOutlineVariant
+import com.pixelmarks.ui.theme.ArchivalTextPrimary
+import com.pixelmarks.ui.theme.ArchivalTextSecondary
+
+private val TerracottaColor: Color @Composable get() = ArchivalPrimary
+private val ParchmentBg: Color @Composable get() = ArchivalBackground
+private val CharcoalColor: Color @Composable get() = ArchivalTextPrimary
+private val MutedCharcoal: Color @Composable get() = ArchivalTextSecondary
+private val CardBg: Color @Composable get() = ArchivalSurfaceContainer
+private val InnerCardBg: Color @Composable get() = ArchivalSurfaceContainerHigh
+private val ThinBorderColor: Color @Composable get() = ArchivalOutlineVariant
 private val SuccessGreen = Color(0xFF81C784)
 private val AmberWarning = Color(0xFFFFB74D)
 

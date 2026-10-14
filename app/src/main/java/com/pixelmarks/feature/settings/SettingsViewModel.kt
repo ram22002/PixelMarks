@@ -105,6 +105,81 @@ class SettingsViewModel(
             ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
             ?: MutableStateFlow(false)
 
+    val layoutDisplayMode: StateFlow<String> =
+        appPreferencesRepository?.observeLayoutDisplayMode()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "List")
+            ?: MutableStateFlow("List")
+
+    val showDomainThumbnail: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowDomainThumbnail()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val showTags: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowTags()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val maxTagsToShow: StateFlow<Int> =
+        appPreferencesRepository?.observeMaxTagsToShow()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 4)
+            ?: MutableStateFlow(4)
+
+    val showCreationTime: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowCreationTime()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val creationTimeFormat: StateFlow<Int> =
+        appPreferencesRepository?.observeCreationTimeFormat()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 2)
+            ?: MutableStateFlow(2)
+
+    val showTitle: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowTitle()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val titleMaxLines: StateFlow<Int> =
+        appPreferencesRepository?.observeTitleMaxLines()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1)
+            ?: MutableStateFlow(1)
+
+    val showSubtitle: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowSubtitle()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val subtitleMaxLines: StateFlow<Int> =
+        appPreferencesRepository?.observeSubtitleMaxLines()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1)
+            ?: MutableStateFlow(1)
+
+    val showSiteName: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowSiteName()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val showTimeIcons: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowTimeIcons()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val showPinIcon: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowPinIcon()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val showNote: StateFlow<Boolean> =
+        appPreferencesRepository?.observeShowNote()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+            ?: MutableStateFlow(true)
+
+    val noteMaxLines: StateFlow<Int> =
+        appPreferencesRepository?.observeNoteMaxLines()
+            ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1)
+            ?: MutableStateFlow(1)
+
     val browserPreference: StateFlow<BrowserPreference> =
         observeBrowserPreferenceUseCase()
             .stateIn(
@@ -312,6 +387,70 @@ class SettingsViewModel(
 
     suspend fun updateBookmarkCompactMode(compact: Boolean) {
         appPreferencesRepository?.setCompactMode(compact)
+    }
+
+    fun setLayoutDisplayMode(mode: String) {
+        viewModelScope.launch { appPreferencesRepository?.setLayoutDisplayMode(mode) }
+    }
+
+    fun setShowDomainThumbnail(show: Boolean) {
+        viewModelScope.launch { appPreferencesRepository?.setShowDomainThumbnail(show) }
+    }
+
+    fun setShowTags(show: Boolean) {
+        viewModelScope.launch { appPreferencesRepository?.setShowTags(show) }
+    }
+
+    fun setMaxTagsToShow(max: Int) {
+        viewModelScope.launch { appPreferencesRepository?.setMaxTagsToShow(max) }
+    }
+
+    fun setShowCreationTime(show: Boolean) {
+        viewModelScope.launch { appPreferencesRepository?.setShowCreationTime(show) }
+    }
+
+    fun setCreationTimeFormat(format: Int) {
+        viewModelScope.launch { appPreferencesRepository?.setCreationTimeFormat(format) }
+    }
+
+    fun setShowTitle(show: Boolean) {
+        viewModelScope.launch { appPreferencesRepository?.setShowTitle(show) }
+    }
+
+    fun setTitleMaxLines(lines: Int) {
+        viewModelScope.launch { appPreferencesRepository?.setTitleMaxLines(lines) }
+    }
+
+    fun setShowSubtitle(show: Boolean) {
+        viewModelScope.launch { appPreferencesRepository?.setShowSubtitle(show) }
+    }
+
+    fun setSubtitleMaxLines(lines: Int) {
+        viewModelScope.launch { appPreferencesRepository?.setSubtitleMaxLines(lines) }
+    }
+
+    fun setShowSiteName(show: Boolean) {
+        viewModelScope.launch { appPreferencesRepository?.setShowSiteName(show) }
+    }
+
+    fun setShowTimeIcons(show: Boolean) {
+        viewModelScope.launch { appPreferencesRepository?.setShowTimeIcons(show) }
+    }
+
+    fun setShowPinIcon(show: Boolean) {
+        viewModelScope.launch { appPreferencesRepository?.setShowPinIcon(show) }
+    }
+
+    fun setShowNote(show: Boolean) {
+        viewModelScope.launch { appPreferencesRepository?.setShowNote(show) }
+    }
+
+    fun setNoteMaxLines(lines: Int) {
+        viewModelScope.launch { appPreferencesRepository?.setNoteMaxLines(lines) }
+    }
+
+    fun resetAllBookmarkSettings() {
+        viewModelScope.launch { appPreferencesRepository?.resetAllBookmarkSettings() }
     }
 
     fun createEnrollIntent(): Intent = biometricAuthManager.createEnrollIntent()

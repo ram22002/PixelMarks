@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Notifications
@@ -43,6 +44,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.ViewAgenda
+import com.pixelmarks.data.repository.AppPreferencesRepository
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -137,9 +139,13 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val app = context.applicationContext as PixelMarksApplication
+    val layoutMode by app.container.appPreferencesRepository.observeLayoutDisplayMode().collectAsState(initial = "List")
+    val cardConfig = rememberBookmarkCardConfig(app.container.appPreferencesRepository)
+
     var showAskEveryTimeSheet by remember { mutableStateOf(false) }
     var askEveryTimeUrl by remember { mutableStateOf("") }
-    var isGridView by remember { mutableStateOf(false) }
+    var isGridView by remember(layoutMode) { mutableStateOf(layoutMode.equals("Grid", ignoreCase = true)) }
     var activeFilter by remember { mutableStateOf(HomeFilter.ALL) }
     var showQuickAddDialog by remember { mutableStateOf(false) }
 
@@ -277,7 +283,12 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 ArchivalSubHeader(
                     isGridView = isGridView,
-                    onToggleGridView = { isGridView = it }
+                    onToggleGridView = {
+                        isGridView = it
+                        coroutineScope.launch {
+                            app.container.appPreferencesRepository.setLayoutDisplayMode(if (it) "Grid" else "List")
+                        }
+                    }
                 )
             }
 
@@ -431,6 +442,7 @@ fun HomeScreen(
                                         Box(modifier = Modifier.weight(1f)) {
                                             PinnedBookmarkCard(
                                                 bookmark = bookmark,
+                                                config = cardConfig,
                                                 onClick = { onNavigateToBookmarkDetail(bookmark.id) },
                                                 onOpen = { openBookmark(bookmark) },
                                                 onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
@@ -495,6 +507,7 @@ fun HomeScreen(
                                             Box(modifier = Modifier.weight(1f)) {
                                                 GridBookmarkCard(
                                                     bookmark = bookmark,
+                                                    config = cardConfig,
                                                     onClick = { onNavigateToBookmarkDetail(bookmark.id) },
                                                     onOpen = { openBookmark(bookmark) },
                                                     onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
@@ -514,6 +527,7 @@ fun HomeScreen(
                         items(recentBookmarks, key = { it.id }) { bookmark ->
                             ListBookmarkCard(
                                 bookmark = bookmark,
+                                config = cardConfig,
                                 onClick = { onNavigateToBookmarkDetail(bookmark.id) },
                                 onOpen = { openBookmark(bookmark) },
                                 onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
@@ -577,6 +591,7 @@ fun HomeScreen(
                                         Box(modifier = Modifier.weight(1f)) {
                                             GridBookmarkCard(
                                                 bookmark = bookmark,
+                                                config = cardConfig,
                                                 onClick = { onNavigateToBookmarkDetail(bookmark.id) },
                                                 onOpen = { openBookmark(bookmark) },
                                                 onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
@@ -594,15 +609,16 @@ fun HomeScreen(
                     }
                 } else {
                     items(filteredBookmarks, key = { it.id }) { bookmark ->
-                            ListBookmarkCard(
-                                bookmark = bookmark,
-                                onClick = { onNavigateToBookmarkDetail(bookmark.id) },
-                                onOpen = { openBookmark(bookmark) },
-                                onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
-                                onShare = { shareBookmark(bookmark) },
-                                onDelete = { viewModel.moveToTrash(bookmark) }
-                            )
-                        }
+                        ListBookmarkCard(
+                            bookmark = bookmark,
+                            config = cardConfig,
+                            onClick = { onNavigateToBookmarkDetail(bookmark.id) },
+                            onOpen = { openBookmark(bookmark) },
+                            onToggleFavorite = { viewModel.toggleFavorite(bookmark) },
+                            onShare = { shareBookmark(bookmark) },
+                            onDelete = { viewModel.moveToTrash(bookmark) }
+                        )
+                    }
                     }
                 }
 
@@ -657,7 +673,8 @@ private fun PinnedBookmarkCard(
     onClick: () -> Unit,
     onOpen: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    config: BookmarkCardConfig = BookmarkCardConfig()
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -672,87 +689,118 @@ private fun PinnedBookmarkCard(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Thumbnail with Pin overlay
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(96.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(ArchivalSurfaceContainerLowest)
-            ) {
-                if (ImageUrlValidator.isValidImageUrl(bookmark.thumbnailUrl)) {
-                    BookmarkThumbnail(
-                        thumbnailUrl = bookmark.thumbnailUrl,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 32.dp)
-                    }
-                }
+            if (config.showDomainThumbnail) {
+                val hasThumb = ImageUrlValidator.isValidImageUrl(bookmark.thumbnailUrl)
                 Box(
                     modifier = Modifier
-                        .padding(6.dp)
-                        .size(20.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(TerracottaAccent),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .height(96.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ArchivalSurfaceContainerLowest)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PushPin,
-                        contentDescription = null,
-                        tint = ArchivalSurfaceContainerLowest,
-                        modifier = Modifier.size(12.dp)
-                    )
+                    if (hasThumb) {
+                        BookmarkThumbnail(
+                            thumbnailUrl = bookmark.thumbnailUrl,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 32.dp)
+                        }
+                    }
+                    if (config.showPinIcon && bookmark.isPinned) {
+                        Box(
+                            modifier = Modifier
+                                .padding(6.dp)
+                                .size(20.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(TerracottaAccent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = null,
+                                tint = ArchivalSurfaceContainerLowest,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
                 }
             }
 
-            // Domain & relative time
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 12.dp)
-                Text(
-                    text = "${bookmark.domain} • ${formatRelativeTime(bookmark.createdAt)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = ArchivalTextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            // Domain & relative/creation time
+            if (config.showSiteName || config.showCreationTime || (config.showPinIcon && bookmark.isPinned)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (config.showPinIcon && bookmark.isPinned && !config.showDomainThumbnail) {
+                        Icon(
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = null,
+                            tint = TerracottaAccent,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                    if (config.showSiteName) {
+                        BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 12.dp)
+                        Text(
+                            text = bookmark.domain,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ArchivalTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (config.showSiteName && config.showCreationTime) {
+                        Text("•", style = MaterialTheme.typography.labelSmall, color = ArchivalTextSecondary)
+                    }
+                    if (config.showCreationTime) {
+                        Text(
+                            text = formatCreationTime(bookmark.createdAt, config.creationTimeFormat),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ArchivalTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
 
             // Title
-            Text(
-                text = bookmark.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontFamily = FontFamily.Serif,
-                color = ArchivalTextPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 18.sp
-            )
+            if (config.showTitle) {
+                Text(
+                    text = bookmark.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontFamily = FontFamily.Serif,
+                    color = ArchivalTextPrimary,
+                    maxLines = config.titleMaxLines,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 18.sp
+                )
+            }
 
-            if (!bookmark.description.isNullOrBlank()) {
+            if (config.showSubtitle && !bookmark.description.isNullOrBlank()) {
                 Text(
                     text = bookmark.description!!,
                     style = MaterialTheme.typography.bodySmall,
                     color = ArchivalTextSecondary,
-                    maxLines = 2,
+                    maxLines = config.subtitleMaxLines,
                     overflow = TextOverflow.Ellipsis,
                     fontSize = 11.sp,
                     lineHeight = 15.sp
                 )
             }
 
-            if (bookmark.tags.isNotEmpty()) {
+            if (config.showTags && bookmark.tags.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    bookmark.tags.take(3).forEach { tag ->
+                    bookmark.tags.take(config.maxTagsToShow).forEach { tag ->
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = ArchivalSurfaceContainerHighest
@@ -770,7 +818,7 @@ private fun PinnedBookmarkCard(
             }
 
             // Margin note snippet
-            if (!bookmark.notes.isNullOrBlank()) {
+            if (config.showNote && !bookmark.notes.isNullOrBlank()) {
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = ArchivalSurfaceContainerHigh,
@@ -791,7 +839,7 @@ private fun PinnedBookmarkCard(
                             text = bookmark.notes!!,
                             style = MaterialTheme.typography.labelSmall,
                             color = ArchivalTextSecondary,
-                            maxLines = 1,
+                            maxLines = config.noteMaxLines,
                             overflow = TextOverflow.Ellipsis,
                             fontSize = 10.sp
                         )
@@ -832,15 +880,109 @@ private fun PinnedBookmarkCard(
     }
 }
 
+data class BookmarkCardConfig(
+    val showDomainThumbnail: Boolean = true,
+    val showTags: Boolean = true,
+    val maxTagsToShow: Int = 4,
+    val showCreationTime: Boolean = true,
+    val creationTimeFormat: Int = 2,
+    val showTitle: Boolean = true,
+    val titleMaxLines: Int = 1,
+    val showSubtitle: Boolean = true,
+    val subtitleMaxLines: Int = 1,
+    val showSiteName: Boolean = true,
+    val showTimeIcons: Boolean = true,
+    val showPinIcon: Boolean = true,
+    val showNote: Boolean = true,
+    val noteMaxLines: Int = 1
+)
+
+@Composable
+fun rememberBookmarkCardConfig(repo: AppPreferencesRepository): BookmarkCardConfig {
+    val showDomainThumbnail by repo.observeShowDomainThumbnail().collectAsState(initial = true)
+    val showTags by repo.observeShowTags().collectAsState(initial = true)
+    val maxTagsToShow by repo.observeMaxTagsToShow().collectAsState(initial = 4)
+    val showCreationTime by repo.observeShowCreationTime().collectAsState(initial = true)
+    val creationTimeFormat by repo.observeCreationTimeFormat().collectAsState(initial = 2)
+    val showTitle by repo.observeShowTitle().collectAsState(initial = true)
+    val titleMaxLines by repo.observeTitleMaxLines().collectAsState(initial = 1)
+    val showSubtitle by repo.observeShowSubtitle().collectAsState(initial = true)
+    val subtitleMaxLines by repo.observeSubtitleMaxLines().collectAsState(initial = 1)
+    val showSiteName by repo.observeShowSiteName().collectAsState(initial = true)
+    val showTimeIcons by repo.observeShowTimeIcons().collectAsState(initial = true)
+    val showPinIcon by repo.observeShowPinIcon().collectAsState(initial = true)
+    val showNote by repo.observeShowNote().collectAsState(initial = true)
+    val noteMaxLines by repo.observeNoteMaxLines().collectAsState(initial = 1)
+
+    return remember(
+        showDomainThumbnail, showTags, maxTagsToShow, showCreationTime,
+        creationTimeFormat, showTitle, titleMaxLines, showSubtitle,
+        subtitleMaxLines, showSiteName, showTimeIcons, showPinIcon,
+        showNote, noteMaxLines
+    ) {
+        BookmarkCardConfig(
+            showDomainThumbnail = showDomainThumbnail,
+            showTags = showTags,
+            maxTagsToShow = maxTagsToShow,
+            showCreationTime = showCreationTime,
+            creationTimeFormat = creationTimeFormat,
+            showTitle = showTitle,
+            titleMaxLines = titleMaxLines,
+            showSubtitle = showSubtitle,
+            subtitleMaxLines = subtitleMaxLines,
+            showSiteName = showSiteName,
+            showTimeIcons = showTimeIcons,
+            showPinIcon = showPinIcon,
+            showNote = showNote,
+            noteMaxLines = noteMaxLines
+        )
+    }
+}
+
+fun formatCreationTime(timestamp: Long, format: Int): String {
+    val diff = System.currentTimeMillis() - timestamp
+    val seconds = diff / 1000
+    val minutes = seconds / 60
+    val hours = minutes / 60
+    val days = hours / 24
+    return when (format) {
+        1 -> when {
+            days > 0 -> "${days}d"
+            hours > 0 -> "${hours}h"
+            minutes > 0 -> "${minutes}m"
+            else -> "just now"
+        }
+        2 -> when {
+            days > 0 -> "Created $days days ago"
+            hours > 0 -> "Created $hours hours ago"
+            minutes > 0 -> "Created $minutes minutes ago"
+            else -> "Created just now"
+        }
+        else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(java.util.Date(timestamp))
+    }
+}
+
 @Composable
 fun BookmarkGridPlate(
     bookmark: Bookmark,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpen: () -> Unit = {},
+    onToggleFavorite: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    onMove: (() -> Unit)? = null,
+    config: BookmarkCardConfig = BookmarkCardConfig()
 ) {
     GridBookmarkCard(
         bookmark = bookmark,
-        onClick = onClick
+        config = config,
+        onClick = onClick,
+        onOpen = onOpen,
+        onToggleFavorite = onToggleFavorite,
+        onShare = onShare,
+        onDelete = onDelete,
+        onMove = onMove
     )
 }
 
@@ -848,11 +990,23 @@ fun BookmarkGridPlate(
 fun ArchivalBookmarkCard(
     bookmark: Bookmark,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpen: () -> Unit = {},
+    onToggleFavorite: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    onMove: (() -> Unit)? = null,
+    config: BookmarkCardConfig = BookmarkCardConfig()
 ) {
     ListBookmarkCard(
         bookmark = bookmark,
-        onClick = onClick
+        config = config,
+        onClick = onClick,
+        onOpen = onOpen,
+        onToggleFavorite = onToggleFavorite,
+        onShare = onShare,
+        onDelete = onDelete,
+        onMove = onMove
     )
 }
 
@@ -863,7 +1017,9 @@ fun GridBookmarkCard(
     onOpen: () -> Unit = {},
     onToggleFavorite: () -> Unit = {},
     onShare: () -> Unit = {},
-    onDelete: () -> Unit = {}
+    onDelete: () -> Unit = {},
+    onMove: (() -> Unit)? = null,
+    config: BookmarkCardConfig = BookmarkCardConfig()
 ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -877,87 +1033,116 @@ fun GridBookmarkCard(
             modifier = Modifier.padding(Spacing.small),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 10f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(ArchivalSurfaceContainerLowest)
-            ) {
-                if (ImageUrlValidator.isValidImageUrl(bookmark.thumbnailUrl)) {
-                    BookmarkThumbnail(
-                        thumbnailUrl = bookmark.thumbnailUrl,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 32.dp)
+            if (config.showDomainThumbnail) {
+                val hasThumb = ImageUrlValidator.isValidImageUrl(bookmark.thumbnailUrl)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 10f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ArchivalSurfaceContainerLowest)
+                ) {
+                    if (hasThumb) {
+                        BookmarkThumbnail(
+                            thumbnailUrl = bookmark.thumbnailUrl,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 32.dp)
+                        }
+                    }
+                    if (config.showPinIcon && bookmark.isPinned) {
+                        Box(
+                            modifier = Modifier
+                                .padding(6.dp)
+                                .size(20.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(TerracottaAccent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = null,
+                                tint = ArchivalSurfaceContainerLowest,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                     }
                 }
-                if (bookmark.isPinned) {
-                    Box(
-                        modifier = Modifier
-                            .padding(6.dp)
-                            .size(20.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(TerracottaAccent),
-                        contentAlignment = Alignment.Center
-                    ) {
+            }
+
+            if (config.showSiteName || config.showCreationTime || (config.showPinIcon && bookmark.isPinned)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (config.showPinIcon && bookmark.isPinned && !config.showDomainThumbnail) {
                         Icon(
                             imageVector = Icons.Default.PushPin,
                             contentDescription = null,
-                            tint = ArchivalSurfaceContainerLowest,
+                            tint = TerracottaAccent,
                             modifier = Modifier.size(12.dp)
+                        )
+                    }
+                    if (config.showSiteName) {
+                        BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 12.dp)
+                        Text(
+                            text = bookmark.domain,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ArchivalTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (config.showSiteName && config.showCreationTime) {
+                        Text("•", style = MaterialTheme.typography.labelSmall, color = ArchivalTextSecondary)
+                    }
+                    if (config.showCreationTime) {
+                        Text(
+                            text = formatCreationTime(bookmark.createdAt, config.creationTimeFormat),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ArchivalTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 12.dp)
+            if (config.showTitle) {
                 Text(
-                    text = "${bookmark.domain} • ${formatRelativeTime(bookmark.createdAt)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = ArchivalTextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = bookmark.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontFamily = FontFamily.Serif,
+                    color = ArchivalTextPrimary,
+                    maxLines = config.titleMaxLines,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 18.sp
                 )
             }
 
-            Text(
-                text = bookmark.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontFamily = FontFamily.Serif,
-                color = ArchivalTextPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 18.sp
-            )
-
-            if (!bookmark.description.isNullOrBlank()) {
+            if (config.showSubtitle && !bookmark.description.isNullOrBlank()) {
                 Text(
                     text = bookmark.description!!,
                     style = MaterialTheme.typography.bodySmall,
                     color = ArchivalTextSecondary,
-                    maxLines = 2,
+                    maxLines = config.subtitleMaxLines,
                     overflow = TextOverflow.Ellipsis,
                     fontSize = 11.sp,
                     lineHeight = 15.sp
                 )
             }
 
-            if (bookmark.tags.isNotEmpty()) {
+            if (config.showTags && bookmark.tags.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    bookmark.tags.take(3).forEach { tag ->
+                    bookmark.tags.take(config.maxTagsToShow).forEach { tag ->
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = ArchivalSurfaceContainerLowest
@@ -971,6 +1156,23 @@ fun GridBookmarkCard(
                             )
                         }
                     }
+                }
+            }
+
+            if (config.showNote && !bookmark.notes.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = ArchivalSurfaceContainerLowest
+                ) {
+                    Text(
+                        text = "✎ ${bookmark.notes}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ArchivalTextSecondary,
+                        maxLines = config.noteMaxLines,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                    )
                 }
             }
 
@@ -1002,6 +1204,19 @@ fun GridBookmarkCard(
                             modifier = Modifier.size(16.dp)
                         )
                     }
+                    if (onMove != null) {
+                        IconButton(
+                            onClick = onMove,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FolderCopy,
+                                contentDescription = "Move",
+                                tint = ArchivalTextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = onDelete,
                         modifier = Modifier.size(24.dp)
@@ -1026,7 +1241,9 @@ fun ListBookmarkCard(
     onOpen: () -> Unit = {},
     onToggleFavorite: () -> Unit = {},
     onShare: () -> Unit = {},
-    onDelete: () -> Unit = {}
+    onDelete: () -> Unit = {},
+    onMove: (() -> Unit)? = null,
+    config: BookmarkCardConfig = BookmarkCardConfig()
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -1044,20 +1261,23 @@ fun ListBookmarkCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Left square thumbnail
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(ArchivalSurfaceContainerLow),
-                contentAlignment = Alignment.Center
-            ) {
-                if (ImageUrlValidator.isValidImageUrl(bookmark.thumbnailUrl)) {
-                    BookmarkThumbnail(
-                        thumbnailUrl = bookmark.thumbnailUrl,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 28.dp)
+            if (config.showDomainThumbnail) {
+                val hasThumb = ImageUrlValidator.isValidImageUrl(bookmark.thumbnailUrl)
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ArchivalSurfaceContainerLow),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (hasThumb) {
+                        BookmarkThumbnail(
+                            thumbnailUrl = bookmark.thumbnailUrl,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 28.dp)
+                    }
                 }
             }
 
@@ -1066,49 +1286,83 @@ fun ListBookmarkCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 12.dp)
+                if (config.showSiteName || config.showCreationTime || config.showTimeIcons || config.showPinIcon) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        if (config.showSiteName) {
+                            BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 12.dp)
+                            Text(
+                                text = bookmark.domain,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ArchivalTextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (config.showSiteName && config.showCreationTime) {
+                            Text("•", style = MaterialTheme.typography.labelSmall, color = ArchivalTextSecondary)
+                        }
+                        if (config.showCreationTime) {
+                            Text(
+                                text = formatCreationTime(bookmark.createdAt, config.creationTimeFormat),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ArchivalTextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (config.showTimeIcons && bookmark.reminderAt != null) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = BrassGold,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                        if (config.showPinIcon && bookmark.isPinned) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = null,
+                                tint = TerracottaAccent,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
+                }
+
+                if (config.showTitle) {
                     Text(
-                        text = "${bookmark.domain} • ${formatRelativeTime(bookmark.createdAt)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ArchivalTextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = bookmark.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontFamily = FontFamily.Serif,
+                        color = ArchivalTextPrimary,
+                        maxLines = config.titleMaxLines,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 20.sp
                     )
                 }
 
-                Text(
-                    text = bookmark.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontFamily = FontFamily.Serif,
-                    color = ArchivalTextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 20.sp
-                )
-
-                if (!bookmark.description.isNullOrBlank()) {
+                if (config.showSubtitle && !bookmark.description.isNullOrBlank()) {
                     Text(
                         text = bookmark.description!!,
                         style = MaterialTheme.typography.bodySmall,
                         color = ArchivalTextSecondary,
-                        maxLines = 2,
+                        maxLines = config.subtitleMaxLines,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = 16.sp
                     )
                 }
 
-                if (bookmark.tags.isNotEmpty()) {
+                if (config.showTags && bookmark.tags.isNotEmpty()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        bookmark.tags.forEach { tag ->
+                        bookmark.tags.take(config.maxTagsToShow).forEach { tag ->
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
                                 color = ArchivalSurfaceContainerLow
@@ -1125,7 +1379,7 @@ fun ListBookmarkCard(
                     }
                 }
 
-                if (!bookmark.notes.isNullOrBlank()) {
+                if (config.showNote && !bookmark.notes.isNullOrBlank()) {
                     Surface(
                         shape = RoundedCornerShape(4.dp),
                         color = ArchivalSurfaceContainerLow
@@ -1145,7 +1399,7 @@ fun ListBookmarkCard(
                                 text = "✎ Note: ${bookmark.notes}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = ArchivalTextSecondary,
-                                maxLines = 1,
+                                maxLines = config.noteMaxLines,
                                 overflow = TextOverflow.Ellipsis,
                                 fontSize = 10.sp
                             )
@@ -1181,6 +1435,19 @@ fun ListBookmarkCard(
                         modifier = Modifier.size(16.dp)
                     )
                 }
+                if (onMove != null) {
+                    IconButton(
+                        onClick = onMove,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FolderCopy,
+                            contentDescription = "Move",
+                            tint = ArchivalTextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
                 IconButton(
                     onClick = onDelete,
                     modifier = Modifier.size(28.dp)
@@ -1197,7 +1464,6 @@ fun ListBookmarkCard(
     }
 }
 
-
 private fun formatRelativeTime(timestamp: Long): String {
     val diff = System.currentTimeMillis() - timestamp
     val seconds = diff / 1000
@@ -1211,3 +1477,4 @@ private fun formatRelativeTime(timestamp: Long): String {
         else -> "just now"
     }
 }
+

@@ -84,6 +84,7 @@ fun SettingsScreen(
     onNavigateToSecureFolder: () -> Unit = {},
     onNavigateToSecurity: () -> Unit = onNavigateToAppLock,
     onNavigateToCustomizeBookmark: () -> Unit = {},
+    onNavigateToThemeAndColors: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel(
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
@@ -157,7 +158,7 @@ fun SettingsScreen(
                     title = "Theme Mode",
                     subtitle = themeMode.label,
                     icon = Icons.Default.NightsStay,
-                    onClick = { showThemeModeDialog = true }
+                    onClick = onNavigateToThemeAndColors
                 )
 
                 HorizontalDivider(color = ArchivalSurfaceContainerHigh)
@@ -176,7 +177,7 @@ fun SettingsScreen(
                     title = "Pick color scheme",
                     subtitle = colorScheme.label,
                     icon = Icons.Default.Palette,
-                    onClick = { showColorSchemeDialog = true }
+                    onClick = onNavigateToThemeAndColors
                 )
 
                 HorizontalDivider(color = ArchivalSurfaceContainerHigh)

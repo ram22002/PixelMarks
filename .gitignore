@@ -28,3 +28,4 @@ Thumbs.db
 # Workspace agent & design artifacts
 .agents/
 stitch_redesign/
+.kotlin/

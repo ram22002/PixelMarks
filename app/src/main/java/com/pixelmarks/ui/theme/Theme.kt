@@ -8,66 +8,13 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import com.pixelmarks.data.repository.AppColorScheme
 import com.pixelmarks.data.repository.DisplayFont
 import com.pixelmarks.data.repository.ThemeMode
-
-private val LightColorScheme = lightColorScheme(
-    primary = PrimaryLight,
-    onPrimary = OnPrimaryLight,
-    primaryContainer = PrimaryContainerLight,
-    onPrimaryContainer = OnPrimaryContainerLight,
-    secondary = SecondaryLight,
-    onSecondary = OnSecondaryLight,
-    secondaryContainer = SecondaryContainerLight,
-    onSecondaryContainer = OnSecondaryContainerLight,
-    tertiary = TertiaryLight,
-    onTertiary = OnTertiaryLight,
-    tertiaryContainer = TertiaryContainerLight,
-    onTertiaryContainer = OnTertiaryContainerLight,
-    error = ErrorLight,
-    onError = OnErrorLight,
-    errorContainer = ErrorContainerLight,
-    onErrorContainer = OnErrorContainerLight,
-    background = BackgroundLight,
-    onBackground = OnBackgroundLight,
-    surface = SurfaceLight,
-    onSurface = OnSurfaceLight,
-    surfaceVariant = SurfaceVariantLight,
-    onSurfaceVariant = OnSurfaceVariantLight,
-    outline = OutlineLight,
-    outlineVariant = OutlineVariantLight
-)
-
-private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryDark,
-    onPrimary = OnPrimaryDark,
-    primaryContainer = PrimaryContainerDark,
-    onPrimaryContainer = OnPrimaryContainerDark,
-    secondary = SecondaryDark,
-    onSecondary = OnSecondaryDark,
-    secondaryContainer = SecondaryContainerDark,
-    onSecondaryContainer = OnSecondaryContainerDark,
-    tertiary = TertiaryDark,
-    onTertiary = OnTertiaryDark,
-    tertiaryContainer = TertiaryContainerDark,
-    onTertiaryContainer = OnTertiaryContainerDark,
-    error = ErrorDark,
-    onError = OnErrorDark,
-    errorContainer = ErrorContainerDark,
-    onErrorContainer = OnErrorContainerDark,
-    background = BackgroundDark,
-    onBackground = OnBackgroundDark,
-    surface = SurfaceDark,
-    onSurface = OnSurfaceDark,
-    surfaceVariant = SurfaceVariantDark,
-    onSurfaceVariant = OnSurfaceVariantDark,
-    outline = OutlineDark,
-    outlineVariant = OutlineVariantDark
-)
 
 @Composable
 fun PixelMarksTheme(
@@ -80,28 +27,82 @@ fun PixelMarksTheme(
     val isSystemDark = isSystemInDarkTheme()
     val isDark = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemDark
-        ThemeMode.DARK -> true
+        ThemeMode.DARK, ThemeMode.AMOLED -> true
         ThemeMode.LIGHT -> false
     }
 
-    val baseScheme = if (isDark) DarkColorScheme else LightColorScheme
-    val primaryColor = when (appColorScheme) {
-        AppColorScheme.ARCHIVAL_GOLD -> if (isDark) ArchivalPrimary else PrimaryLight
-        AppColorScheme.TERRACOTTA -> if (isDark) TerracottaAccent else Color(0xFF8B4B32)
-        AppColorScheme.EMERALD -> if (isDark) Color(0xFF7EBA8C) else Color(0xFF2E6B3E)
-        AppColorScheme.OBSIDIAN -> if (isDark) Color(0xFFA3B8CC) else Color(0xFF365A7C)
+    val isAmoled = themeMode == ThemeMode.AMOLED
+
+    // Select base palette based on mode
+    val basePalette = when {
+        !isDark -> DefaultLightArchivalPalette
+        isAmoled -> DefaultAmoledArchivalPalette
+        else -> DefaultDarkArchivalPalette
     }
-    val styledScheme = baseScheme.copy(
-        primary = primaryColor
+
+    // Apply chosen color palette
+    val primaryColor = Color(android.graphics.Color.parseColor(appColorScheme.primaryHex))
+    val secondaryColor = Color(android.graphics.Color.parseColor(appColorScheme.secondaryHex))
+    val tertiaryColor = Color(android.graphics.Color.parseColor(appColorScheme.tertiaryHex))
+
+    val activePalette = basePalette.copy(
+        primary = primaryColor,
+        secondary = secondaryColor,
+        tertiary = tertiaryColor
     )
 
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        else -> styledScheme
+    // Build Material 3 ColorScheme matching activePalette
+    val baseMaterialScheme = if (isDark) {
+        darkColorScheme(
+            primary = activePalette.primary,
+            onPrimary = activePalette.onPrimary,
+            secondary = activePalette.secondary,
+            onSecondary = activePalette.onSecondary,
+            tertiary = activePalette.tertiary,
+            onTertiary = activePalette.onTertiary,
+            background = activePalette.background,
+            onBackground = activePalette.textPrimary,
+            surface = activePalette.surface,
+            onSurface = activePalette.textPrimary,
+            surfaceVariant = activePalette.surfaceVariant,
+            onSurfaceVariant = activePalette.textSecondary,
+            surfaceContainerLowest = activePalette.surfaceContainerLowest,
+            surfaceContainerLow = activePalette.surfaceContainerLow,
+            surfaceContainer = activePalette.surfaceContainer,
+            surfaceContainerHigh = activePalette.surfaceContainerHigh,
+            surfaceContainerHighest = activePalette.surfaceContainerHighest,
+            outline = activePalette.outline,
+            outlineVariant = activePalette.outlineVariant,
+            error = activePalette.error,
+            onError = activePalette.onError
+        )
+    } else {
+        lightColorScheme(
+            primary = activePalette.primary,
+            onPrimary = activePalette.onPrimary,
+            secondary = activePalette.secondary,
+            onSecondary = activePalette.onSecondary,
+            tertiary = activePalette.tertiary,
+            onTertiary = activePalette.onTertiary,
+            background = activePalette.background,
+            onBackground = activePalette.textPrimary,
+            surface = activePalette.surface,
+            onSurface = activePalette.textPrimary,
+            surfaceVariant = activePalette.surfaceVariant,
+            onSurfaceVariant = activePalette.textSecondary,
+            surfaceContainerLowest = activePalette.surfaceContainerLowest,
+            surfaceContainerLow = activePalette.surfaceContainerLow,
+            surfaceContainer = activePalette.surfaceContainer,
+            surfaceContainerHigh = activePalette.surfaceContainerHigh,
+            surfaceContainerHighest = activePalette.surfaceContainerHighest,
+            outline = activePalette.outline,
+            outlineVariant = activePalette.outlineVariant,
+            error = activePalette.error,
+            onError = activePalette.onError
+        )
     }
+
+    val finalMaterialScheme = baseMaterialScheme
 
     val font = when (displayFont) {
         DisplayFont.EDITORIAL_SERIF -> FontFamily.Serif
@@ -110,12 +111,16 @@ fun PixelMarksTheme(
     }
     val typography = getPixelMarksTypography(font)
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = typography,
-        shapes = PixelMarksShapes,
-        content = content
-    )
+    CompositionLocalProvider(
+        LocalArchivalColors provides activePalette
+    ) {
+        MaterialTheme(
+            colorScheme = finalMaterialScheme,
+            typography = typography,
+            shapes = PixelMarksShapes,
+            content = content
+        )
+    }
 }
 
 @Composable
@@ -130,4 +135,3 @@ fun PixelMarksTheme(
         content = content
     )
 }
-

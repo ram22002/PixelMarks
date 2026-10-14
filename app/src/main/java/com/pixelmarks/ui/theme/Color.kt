@@ -1,105 +1,182 @@
 package com.pixelmarks.ui.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Stitch Warm Editorial Archival Colors
-val ArchivalBackground = Color(0xFF181306)
-val ArchivalSurface = Color(0xFF181306)
-val ArchivalSurfaceContainerLowest = Color(0xFF120E03)
-val ArchivalSurfaceContainerLow = Color(0xFF211B0D)
-val ArchivalSurfaceContainer = Color(0xFF251F11)
-val ArchivalSurfaceContainerHigh = Color(0xFF30291B)
-val ArchivalSurfaceContainerHighest = Color(0xFF3B3425)
-val ArchivalSurfaceVariant = Color(0xFF3B3425)
-val ArchivalSurfaceBright = Color(0xFF3F3829)
+/**
+ * Cohesive palette model allowing the whole app to adapt between Light, Dark,
+ * AMOLED pure black, custom color palettes, and bookmark dynamic colors.
+ */
+data class ArchivalPalette(
+    val background: Color,
+    val surface: Color,
+    val surfaceContainerLowest: Color,
+    val surfaceContainerLow: Color,
+    val surfaceContainer: Color,
+    val surfaceContainerHigh: Color,
+    val surfaceContainerHighest: Color,
+    val surfaceVariant: Color,
+    val surfaceBright: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val outline: Color,
+    val outlineVariant: Color,
+    val primary: Color,
+    val onPrimary: Color,
+    val secondary: Color,
+    val onSecondary: Color,
+    val tertiary: Color,
+    val onTertiary: Color,
+    val error: Color,
+    val onError: Color
+)
 
-val ArchivalPrimary = Color(0xFFEAC07F) // Warm Brass / Gold
-val ArchivalOnPrimary = Color(0xFF432C00)
-val ArchivalPrimaryContainer = Color(0xFFB08B4F)
-val ArchivalOnPrimaryContainer = Color(0xFF3A2600)
+val DefaultDarkArchivalPalette = ArchivalPalette(
+    background = Color(0xFF141714),
+    surface = Color(0xFF141714),
+    surfaceContainerLowest = Color(0xFF0F120F),
+    surfaceContainerLow = Color(0xFF1B1F1B),
+    surfaceContainer = Color(0xFF222722),
+    surfaceContainerHigh = Color(0xFF2B312B),
+    surfaceContainerHighest = Color(0xFF353C35),
+    surfaceVariant = Color(0xFF353C35),
+    surfaceBright = Color(0xFF3F473F),
+    textPrimary = Color(0xFFEDE1CB),
+    textSecondary = Color(0xFFD2C5B5),
+    outline = Color(0xFF9A8F81),
+    outlineVariant = Color(0xFF4E4539),
+    primary = Color(0xFFEAC07F), // Warm Brass / Gold
+    onPrimary = Color(0xFF432C00),
+    secondary = Color(0xFFF9B89A), // Terracotta
+    onSecondary = Color(0xFF4D2611),
+    tertiary = Color(0xFF7EBA8C), // Sage Emerald
+    onTertiary = Color(0xFF11381B),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005)
+)
 
-val ArchivalSecondary = Color(0xFFF9B89A) // Peach / Terracotta Accent
-val ArchivalOnSecondary = Color(0xFF4D2611)
-val ArchivalSecondaryContainer = Color(0xFF6B3D27)
-val ArchivalOnSecondaryContainer = Color(0xFFE9AA8D)
+val DefaultAmoledArchivalPalette = DefaultDarkArchivalPalette.copy(
+    background = Color(0xFF000000),
+    surface = Color(0xFF000000),
+    surfaceContainerLowest = Color(0xFF0A0A0A),
+    surfaceContainerLow = Color(0xFF121212),
+    surfaceContainer = Color(0xFF1A1A1A),
+    surfaceContainerHigh = Color(0xFF242424),
+    surfaceContainerHighest = Color(0xFF2E2E2E),
+    surfaceVariant = Color(0xFF242424)
+)
 
-val ArchivalTertiary = Color(0xFFD8C3B3) // Warm Parchment / Stone
-val ArchivalOnTertiary = Color(0xFF3B2E23)
-val ArchivalTertiaryContainer = Color(0xFFA08D7F)
-val ArchivalOnTertiaryContainer = Color(0xFF34271D)
+val DefaultLightArchivalPalette = ArchivalPalette(
+    background = Color(0xFFF7F5F0),
+    surface = Color(0xFFFDFCFA),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFF0ECE3),
+    surfaceContainer = Color(0xFFE8E3D7),
+    surfaceContainerHigh = Color(0xFFDFD9CB),
+    surfaceContainerHighest = Color(0xFFD5CEBE),
+    surfaceVariant = Color(0xFFE2DCCF),
+    surfaceBright = Color(0xFFFFFFFF),
+    textPrimary = Color(0xFF221E18),
+    textSecondary = Color(0xFF5A5348),
+    outline = Color(0xFF8A8275),
+    outlineVariant = Color(0xFFCCC5B8),
+    primary = Color(0xFF8B6424),
+    onPrimary = Color(0xFFFFFFFF),
+    secondary = Color(0xFFA05537),
+    onSecondary = Color(0xFFFFFFFF),
+    tertiary = Color(0xFF387246),
+    onTertiary = Color(0xFFFFFFFF),
+    error = Color(0xFFBA1A1A),
+    onError = Color(0xFFFFFFFF)
+)
 
-val ArchivalTextPrimary = Color(0xFFEDE1CB) // Warm Cream Primary
-val ArchivalTextSecondary = Color(0xFFD2C5B5) // Warm Stone Muted
-val ArchivalOutline = Color(0xFF9A8F81)
-val ArchivalOutlineVariant = Color(0xFF4E4539)
+val LocalArchivalColors = staticCompositionLocalOf {
+    DefaultDarkArchivalPalette
+}
 
-val ArchivalError = Color(0xFFFFB4AB)
-val ArchivalOnError = Color(0xFF690005)
-val ArchivalErrorContainer = Color(0xFF93000A)
-val ArchivalOnErrorContainer = Color(0xFFFFDAD6)
+// Dynamic theme-aware properties for seamless backward compatibility
+val ArchivalBackground: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.background
 
-// Curatorial accents
-val BrassGold = Color(0xFFEAC07F)
-val BrassGoldDark = Color(0xFF9B783E)
-val BrassGoldLight = Color(0xFFCDA766)
-val TerracottaAccent = Color(0xFFF9B89A)
+val ArchivalSurface: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.surface
 
-// Compatibility aliases for Material 3 ColorScheme
-val PrimaryDark = ArchivalPrimary
-val OnPrimaryDark = ArchivalOnPrimary
-val PrimaryContainerDark = ArchivalPrimaryContainer
-val OnPrimaryContainerDark = ArchivalOnPrimaryContainer
+val ArchivalSurfaceContainerLowest: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.surfaceContainerLowest
 
-val SecondaryDark = ArchivalSecondary
-val OnSecondaryDark = ArchivalOnSecondary
-val SecondaryContainerDark = ArchivalSecondaryContainer
-val OnSecondaryContainerDark = ArchivalOnSecondaryContainer
+val ArchivalSurfaceContainerLow: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.surfaceContainerLow
 
-val TertiaryDark = ArchivalTertiary
-val OnTertiaryDark = ArchivalOnTertiary
-val TertiaryContainerDark = ArchivalTertiaryContainer
-val OnTertiaryContainerDark = ArchivalOnTertiaryContainer
+val ArchivalSurfaceContainer: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.surfaceContainer
 
-val ErrorDark = ArchivalError
-val OnErrorDark = ArchivalOnError
-val ErrorContainerDark = ArchivalErrorContainer
-val OnErrorContainerDark = ArchivalOnErrorContainer
+val ArchivalSurfaceContainerHigh: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.surfaceContainerHigh
 
-val BackgroundDark = ArchivalBackground
-val OnBackgroundDark = ArchivalTextPrimary
-val SurfaceDark = ArchivalSurface
-val OnSurfaceDark = ArchivalTextPrimary
-val SurfaceVariantDark = ArchivalSurfaceVariant
-val OnSurfaceVariantDark = ArchivalTextSecondary
-val OutlineDark = ArchivalOutline
-val OutlineVariantDark = ArchivalOutlineVariant
+val ArchivalSurfaceContainerHighest: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.surfaceContainerHighest
 
-// Light mode fallback (inherits archival warm tones)
-val PrimaryLight = Color(0xFF785922)
-val OnPrimaryLight = Color(0xFFFFFFFF)
-val PrimaryContainerLight = Color(0xFFFFDEAD)
-val OnPrimaryContainerLight = Color(0xFF281900)
+val ArchivalSurfaceVariant: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.surfaceVariant
 
-val SecondaryLight = Color(0xFF8B4B32)
-val OnSecondaryLight = Color(0xFFFFFFFF)
-val SecondaryContainerLight = Color(0xFFFFDBCC)
-val OnSecondaryContainerLight = Color(0xFF331101)
+val ArchivalSurfaceBright: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.surfaceBright
 
-val TertiaryLight = Color(0xFF6B584B)
-val OnTertiaryLight = Color(0xFFFFFFFF)
-val TertiaryContainerLight = Color(0xFFF5DECE)
-val OnTertiaryContainerLight = Color(0xFF24190F)
+val ArchivalTextPrimary: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.textPrimary
 
-val ErrorLight = ArchivalError
-val OnErrorLight = ArchivalOnError
-val ErrorContainerLight = ArchivalErrorContainer
-val OnErrorContainerLight = ArchivalOnErrorContainer
+val ArchivalTextSecondary: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.textSecondary
 
-val BackgroundLight = Color(0xFFFFF8F1)
-val OnBackgroundLight = Color(0xFF211B0D)
-val SurfaceLight = Color(0xFFFFF8F1)
-val OnSurfaceLight = Color(0xFF211B0D)
-val SurfaceVariantLight = Color(0xFFEFE4D6)
-val OnSurfaceVariantLight = Color(0xFF4E4539)
-val OutlineLight = Color(0xFF7E7568)
-val OutlineVariantLight = Color(0xFFCFC4B5)
+val ArchivalOutline: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.outline
+
+val ArchivalOutlineVariant: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.outlineVariant
+
+val ArchivalPrimary: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.primary
+
+val ArchivalOnPrimary: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.onPrimary
+
+val ArchivalSecondary: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.secondary
+
+val ArchivalOnSecondary: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.onSecondary
+
+val ArchivalTertiary: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.tertiary
+
+val ArchivalOnTertiary: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.onTertiary
+
+val ArchivalError: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.error
+
+val ArchivalOnError: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.onError
+
+val BrassGold: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.primary
+
+val BrassGoldDark: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.surfaceContainerHighest
+
+val BrassGoldLight: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.secondary
+
+val TerracottaAccent: Color
+    @Composable @ReadOnlyComposable get() = LocalArchivalColors.current.secondary
+
+// Static color constants for fallback and previews
+val StaticArchivalBackground = Color(0xFF141714)
+val StaticArchivalSurface = Color(0xFF141714)
+val StaticArchivalSurfaceContainer = Color(0xFF222722)
+val StaticArchivalPrimary = Color(0xFFEAC07F)
+val StaticArchivalTextPrimary = Color(0xFFEDE1CB)
+val StaticArchivalTextSecondary = Color(0xFFD2C5B5)
+val StaticTerracottaAccent = Color(0xFFF9B89A)

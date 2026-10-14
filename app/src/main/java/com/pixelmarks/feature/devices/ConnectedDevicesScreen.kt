@@ -58,12 +58,19 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val TerracottaColor = Color(0xFFF9B89A)
-private val ParchmentBg = Color(0xFF181306)
-private val CharcoalColor = Color(0xFFEDE1CB)
-private val MutedCharcoal = Color(0xFFD2C5B5)
-private val CardBg = Color(0xFF251F11)
-private val ThinBorderColor = Color(0x404E4539)
+import com.pixelmarks.ui.theme.ArchivalBackground
+import com.pixelmarks.ui.theme.ArchivalPrimary
+import com.pixelmarks.ui.theme.ArchivalSurfaceContainer
+import com.pixelmarks.ui.theme.ArchivalOutlineVariant
+import com.pixelmarks.ui.theme.ArchivalTextPrimary
+import com.pixelmarks.ui.theme.ArchivalTextSecondary
+
+private val TerracottaColor: Color @Composable get() = ArchivalPrimary
+private val ParchmentBg: Color @Composable get() = ArchivalBackground
+private val CharcoalColor: Color @Composable get() = ArchivalTextPrimary
+private val MutedCharcoal: Color @Composable get() = ArchivalTextSecondary
+private val CardBg: Color @Composable get() = ArchivalSurfaceContainer
+private val ThinBorderColor: Color @Composable get() = ArchivalOutlineVariant
 private val RevokedGray = Color(0xFF88827D)
 private val ActiveGreen = Color(0xFF81C784)
 

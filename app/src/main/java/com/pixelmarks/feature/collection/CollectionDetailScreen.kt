@@ -30,6 +30,8 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.GridView
 import com.pixelmarks.feature.home.BookmarkGridPlate
+import com.pixelmarks.feature.home.ListBookmarkCard
+import com.pixelmarks.feature.home.rememberBookmarkCardConfig
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
@@ -143,7 +145,9 @@ fun CollectionDetailScreen(
     var bookmarkToMove by remember { mutableStateOf<Bookmark?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
-    var isGridView by remember { mutableStateOf(false) }
+    val cardConfig = rememberBookmarkCardConfig(app.container.appPreferencesRepository)
+    val layoutMode by app.container.appPreferencesRepository.observeLayoutDisplayMode().collectAsState(initial = "List")
+    var isGridView by remember(layoutMode) { mutableStateOf(layoutMode.equals("Grid", ignoreCase = true)) }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { error ->
@@ -979,7 +983,11 @@ fun CollectionDetailScreen(
                                     Box(modifier = Modifier.weight(1f)) {
                                         BookmarkGridPlate(
                                             bookmark = bookmark,
-                                            onClick = { onNavigateToBookmarkDetail(bookmark.id) }
+                                            onClick = { onNavigateToBookmarkDetail(bookmark.id) },
+                                            onShare = { shareBookmark(bookmark) },
+                                            onMove = { bookmarkToMove = bookmark },
+                                            onDelete = { viewModel.deleteBookmark(bookmark.id) },
+                                            config = cardConfig
                                         )
                                     }
                                 }
@@ -990,12 +998,13 @@ fun CollectionDetailScreen(
                         }
                     } else {
                         items(displayedBookmarks, key = { it.id }) { bookmark ->
-                            CollectionBookmarkRow(
+                            ListBookmarkCard(
                                 bookmark = bookmark,
                                 onClick = { onNavigateToBookmarkDetail(bookmark.id) },
                                 onShare = { shareBookmark(bookmark) },
                                 onMove = { bookmarkToMove = bookmark },
-                                onDelete = { viewModel.deleteBookmark(bookmark.id) }
+                                onDelete = { viewModel.deleteBookmark(bookmark.id) },
+                                config = cardConfig
                             )
                         }
                     }
@@ -1124,163 +1133,3 @@ private fun SubCollectionCard(
     }
 }
 
-@Composable
-private fun CollectionBookmarkRow(
-    bookmark: Bookmark,
-    onClick: () -> Unit,
-    onShare: () -> Unit,
-    onMove: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = ArchivalSurfaceContainerLowest,
-        border = androidx.compose.foundation.BorderStroke(1.dp, ArchivalSurfaceContainerHigh.copy(alpha = 0.5f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(ArchivalSurfaceContainerLow),
-                contentAlignment = Alignment.Center
-            ) {
-                if (ImageUrlValidator.isValidImageUrl(bookmark.thumbnailUrl)) {
-                    BookmarkThumbnail(
-                        thumbnailUrl = bookmark.thumbnailUrl,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 26.dp)
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    BookmarkFavicon(faviconUrl = bookmark.faviconUrl, size = 12.dp)
-                    Text(
-                        text = bookmark.domain,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ArchivalTextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Text(
-                    text = bookmark.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontFamily = FontFamily.Serif,
-                    color = ArchivalTextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                if (!bookmark.description.isNullOrBlank()) {
-                    Text(
-                        text = bookmark.description!!,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = ArchivalTextSecondary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 16.sp
-                    )
-                }
-
-                if (bookmark.tags.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        bookmark.tags.forEach { tag ->
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = ArchivalSurfaceContainerLow
-                            ) {
-                                Text(
-                                    text = "#${tag.name}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ArchivalTextSecondary,
-                                    fontSize = 10.sp,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (!bookmark.notes.isNullOrBlank()) {
-                    Text(
-                        text = "✎ ${bookmark.notes}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ArchivalTextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-
-            Box {
-                IconButton(
-                    onClick = { menuExpanded = true },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = ArchivalTextSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    modifier = Modifier.background(ArchivalSurfaceContainerHigh)
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Share", color = ArchivalTextPrimary) },
-                        onClick = {
-                            menuExpanded = false
-                            onShare()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Move", color = ArchivalTextPrimary) },
-                        onClick = {
-                            menuExpanded = false
-                            onMove()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                        onClick = {
-                            menuExpanded = false
-                            onDelete()
-                        }
-                    )
-                }
-            }
-        }
-    }
-}

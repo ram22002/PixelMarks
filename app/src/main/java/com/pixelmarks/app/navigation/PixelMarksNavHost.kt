@@ -27,17 +27,19 @@ import com.pixelmarks.feature.settings.SecureFolderSettingsScreen
 import com.pixelmarks.feature.settings.SecuritySettingsScreen
 import com.pixelmarks.feature.settings.SettingsScreen
 import com.pixelmarks.feature.tags.TagDetailScreen
+import com.pixelmarks.feature.settings.ThemeAndColorsScreen
 import com.pixelmarks.feature.tags.TagsScreen
 import com.pixelmarks.feature.trash.TrashScreen
 
 @Composable
 fun PixelMarksNavHost(
     navController: NavHostController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    startDestination: String = Screen.Home.route
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route,
+        startDestination = startDestination,
         modifier = modifier
     ) {
         // Bottom Navigation Roots
@@ -88,7 +90,8 @@ fun PixelMarksNavHost(
                 onNavigateToAppLock = { navController.navigate(Screen.AppLockSetting.route) },
                 onNavigateToSecureFolder = { navController.navigate(Screen.SecureFolderSetting.route) },
                 onNavigateToSecurity = { navController.navigate(Screen.AppLockSetting.route) },
-                onNavigateToCustomizeBookmark = { navController.navigate(Screen.CustomizeBookmark.route) }
+                onNavigateToCustomizeBookmark = { navController.navigate(Screen.CustomizeBookmark.route) },
+                onNavigateToThemeAndColors = { navController.navigate(Screen.ThemeAndColorsSetting.route) }
             )
         }
 
@@ -293,6 +296,12 @@ fun PixelMarksNavHost(
 
         composable(Screen.CustomizeBookmark.route) {
             CustomizeBookmarkScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.ThemeAndColorsSetting.route) {
+            ThemeAndColorsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

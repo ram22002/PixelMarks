@@ -65,6 +65,7 @@ import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.core.image.BookmarkFavicon
 import com.pixelmarks.feature.home.ArchivalBookmarkCard
 import com.pixelmarks.feature.home.BookmarkGridPlate
+import com.pixelmarks.feature.home.rememberBookmarkCardConfig
 import com.pixelmarks.ui.components.PixelMarksScreenScaffold
 import com.pixelmarks.ui.theme.ArchivalBackground
 import com.pixelmarks.ui.theme.ArchivalSurfaceContainerHigh
@@ -105,7 +106,11 @@ fun TagDetailScreen(
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
-    var isGridView by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val app = context.applicationContext as PixelMarksApplication
+    val cardConfig = rememberBookmarkCardConfig(app.container.appPreferencesRepository)
+    val layoutMode by app.container.appPreferencesRepository.observeLayoutDisplayMode().collectAsState(initial = "List")
+    var isGridView by remember(layoutMode) { mutableStateOf(layoutMode.equals("Grid", ignoreCase = true)) }
 
     LaunchedEffect(uiState.isDeleted) {
         if (uiState.isDeleted) {
@@ -477,7 +482,9 @@ fun TagDetailScreen(
                                     Box(modifier = Modifier.weight(1f)) {
                                         BookmarkGridPlate(
                                             bookmark = bookmark,
-                                            onClick = { onNavigateToBookmarkDetail(bookmark.id) }
+                                            onClick = { onNavigateToBookmarkDetail(bookmark.id) },
+                                            onDelete = { viewModel.deleteBookmark(bookmark.id) },
+                                            config = cardConfig
                                         )
                                     }
                                 }
@@ -490,7 +497,9 @@ fun TagDetailScreen(
                         items(filteredBookmarks, key = { it.id }) { bookmark ->
                             ArchivalBookmarkCard(
                                 bookmark = bookmark,
-                                onClick = { onNavigateToBookmarkDetail(bookmark.id) }
+                                onClick = { onNavigateToBookmarkDetail(bookmark.id) },
+                                onDelete = { viewModel.deleteBookmark(bookmark.id) },
+                                config = cardConfig
                             )
                         }
                     }
