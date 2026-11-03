@@ -186,6 +186,10 @@ interface AppContainer {
     val deviceSessionManager: com.pixelmarks.core.pcserver.DeviceSessionManager
     val localServerManager: com.pixelmarks.core.pcserver.LocalServerManager
     val appPreferencesRepository: com.pixelmarks.data.repository.AppPreferencesRepository
+
+    // Update system
+    val releaseRepository: com.pixelmarks.core.update.GitHubReleaseRepository
+    val updatePreferences: com.pixelmarks.data.datastore.UpdatePreferences
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -566,6 +570,15 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val appPreferencesRepository: com.pixelmarks.data.repository.AppPreferencesRepository by lazy {
         com.pixelmarks.data.repository.AppPreferencesRepositoryImpl(context)
+    }
+
+    // ── Update system ──────────────────────────────────────────────────────
+    override val releaseRepository: com.pixelmarks.core.update.GitHubReleaseRepository by lazy {
+        com.pixelmarks.core.update.GitHubReleaseRepositoryImpl()
+    }
+
+    override val updatePreferences: com.pixelmarks.data.datastore.UpdatePreferences by lazy {
+        com.pixelmarks.data.datastore.UpdatePreferences(context)
     }
 }
 

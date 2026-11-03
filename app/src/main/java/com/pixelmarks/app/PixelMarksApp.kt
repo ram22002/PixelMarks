@@ -42,6 +42,24 @@ fun PixelMarksApp(
 
     LaunchedEffect(Unit) {
         onReady()
+        kotlinx.coroutines.delay(4000)
+        app.container.releaseRepository // Ensure initialized
+        val checker = com.pixelmarks.core.update.UpdateChecker(
+            releaseRepository = app.container.releaseRepository,
+            installedVersionName = com.pixelmarks.app.BuildConfig.VERSION_NAME,
+            installedVersionCode = com.pixelmarks.app.BuildConfig.VERSION_CODE
+        )
+        val lastCheck = app.container.updatePreferences.lastCheckTimestamp.first()
+        val elapsed = System.currentTimeMillis() - lastCheck
+        if (elapsed >= com.pixelmarks.data.datastore.UpdatePreferences.MIN_CHECK_INTERVAL_MS) {
+            val channelName = app.container.updatePreferences.releaseChannelName.first()
+            val channel = runCatching {
+                com.pixelmarks.core.update.model.ReleaseChannel.valueOf(channelName)
+            }.getOrDefault(com.pixelmarks.core.update.model.ReleaseChannel.STABLE)
+            val dismissed = app.container.updatePreferences.dismissedVersion.first()
+            checker.checkForUpdate(channel, dismissedVersionName = dismissed)
+            app.container.updatePreferences.recordCheckTimestamp()
+        }
     }
 
     fun launchUnlock() {

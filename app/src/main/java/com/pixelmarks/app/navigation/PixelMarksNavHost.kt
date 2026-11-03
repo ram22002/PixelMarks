@@ -37,6 +37,8 @@ import com.pixelmarks.feature.tags.TagDetailScreen
 import com.pixelmarks.feature.settings.ThemeAndColorsScreen
 import com.pixelmarks.feature.tags.TagsScreen
 import com.pixelmarks.feature.trash.TrashScreen
+import com.pixelmarks.feature.about.AboutScreen
+import com.pixelmarks.feature.changelog.ChangelogScreen
 
 @Composable
 fun PixelMarksNavHost(
@@ -163,7 +165,9 @@ fun PixelMarksNavHost(
                 onNavigateToSecureFolder = { navController.navigate(Screen.SecureFolderSetting.route) },
                 onNavigateToSecurity = { navController.navigate(Screen.AppLockSetting.route) },
                 onNavigateToCustomizeBookmark = { navController.navigate(Screen.CustomizeBookmark.route) },
-                onNavigateToThemeAndColors = { navController.navigate(Screen.ThemeAndColorsSetting.route) }
+                onNavigateToThemeAndColors = { navController.navigate(Screen.ThemeAndColorsSetting.route) },
+                onNavigateToAbout = { navController.navigate(Screen.About.route) },
+                onNavigateToChangelog = { navController.navigate(Screen.Changelog.route) }
             )
         }
 
@@ -374,6 +378,20 @@ fun PixelMarksNavHost(
 
         composable(Screen.ThemeAndColorsSetting.route) {
             ThemeAndColorsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.About.route) {
+            AboutScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToChangelog = { navController.navigate(Screen.Changelog.route) },
+                onCheckForUpdates = { navController.navigate(Screen.About.route) }
+            )
+        }
+
+        composable(Screen.Changelog.route) {
+            ChangelogScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

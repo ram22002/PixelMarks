@@ -57,6 +57,8 @@ sealed class Screen(val route: String) {
     data object SecuritySettings : Screen("settings/security")
     data object CustomizeBookmark : Screen("settings/customize_bookmark")
     data object ThemeAndColorsSetting : Screen("settings/theme_colors")
+    data object About : Screen("settings/about")
+    data object Changelog : Screen("settings/changelog")
 }
 
 /**

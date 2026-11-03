@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.SystemUpdateAlt
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
@@ -47,6 +48,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,8 +65,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.pixelmarks.app.BuildConfig
 import com.pixelmarks.app.PixelMarksApplication
 import com.pixelmarks.core.browser.BrowserPreference
+import com.pixelmarks.core.update.DownloadState
+import com.pixelmarks.core.update.model.UpdateCheckResult
+import com.pixelmarks.feature.update.UpdateBanner
+import com.pixelmarks.feature.update.UpdateProgressDialog
+import com.pixelmarks.feature.update.UpdateViewModel
 import com.pixelmarks.ui.theme.ArchivalBackground
 import com.pixelmarks.ui.theme.ArchivalPrimary
 import com.pixelmarks.ui.theme.ArchivalSurfaceContainer
@@ -87,6 +95,8 @@ fun SettingsScreen(
     onNavigateToSecurity: () -> Unit = onNavigateToAppLock,
     onNavigateToCustomizeBookmark: () -> Unit = {},
     onNavigateToThemeAndColors: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {},
+    onNavigateToChangelog: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel(
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
@@ -122,6 +132,42 @@ fun SettingsScreen(
     val appLockTimeout by viewModel.appLockTimeout.collectAsState()
     val privateAuthMethod by viewModel.privateAuthMethod.collectAsState()
 
+    val updateViewModel: UpdateViewModel = viewModel(
+        factory = run {
+            val app = LocalContext.current.applicationContext as PixelMarksApplication
+            UpdateViewModel.provideFactory(
+                releaseRepository = app.container.releaseRepository,
+                updatePreferences = app.container.updatePreferences,
+                context = LocalContext.current.applicationContext
+            )
+        }
+    )
+    val updateCheckResult by updateViewModel.updateCheckResult.collectAsState()
+    val downloadState by updateViewModel.downloadState.collectAsState()
+    val canInstallPackages by updateViewModel.canInstallPackages.collectAsState()
+
+    var hasManuallyCheckedUpdates by remember { mutableStateOf(false) }
+
+    LaunchedEffect(updateCheckResult) {
+        if (hasManuallyCheckedUpdates) {
+            when (val res = updateCheckResult) {
+                is UpdateCheckResult.UpToDate -> {
+                    snackbarHostState.showSnackbar("PixelMarks is up to date (v${BuildConfig.VERSION_NAME})")
+                    hasManuallyCheckedUpdates = false
+                }
+                is UpdateCheckResult.Offline -> {
+                    snackbarHostState.showSnackbar("No internet connection to check for updates")
+                    hasManuallyCheckedUpdates = false
+                }
+                is UpdateCheckResult.Error -> {
+                    snackbarHostState.showSnackbar("Update check failed: ${res.message}")
+                    hasManuallyCheckedUpdates = false
+                }
+                else -> Unit
+            }
+        }
+    }
+
     // Dialog state
     var showThemeModeDialog by remember { mutableStateOf(false) }
     var showColorSchemeDialog by remember { mutableStateOf(false) }
@@ -152,6 +198,14 @@ fun SettingsScreen(
                 color = ArchivalTextPrimary,
                 fontFamily = FontFamily.Serif,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+
+            // Update banner if available
+            UpdateBanner(
+                checkResult = updateCheckResult,
+                onWhatsNew = { onNavigateToChangelog() },
+                onUpdate = { release -> updateViewModel.startDownload(release) },
+                onDismiss = { version -> updateViewModel.dismissUpdate(version) }
             )
 
             // Category 1: Theme
@@ -325,7 +379,7 @@ fun SettingsScreen(
                             fontFamily = FontFamily.Serif
                         )
                         Text(
-                            text = "Version 1.0.0 • Curatorial Bookmark Catalogue",
+                            text = "v${BuildConfig.VERSION_NAME} • Curatorial Bookmark Catalogue",
                             style = MaterialTheme.typography.bodySmall,
                             color = ArchivalTextSecondary
                         )
@@ -335,10 +389,39 @@ fun SettingsScreen(
                 HorizontalDivider(color = ArchivalSurfaceContainerHigh)
 
                 SettingsActionRow(
-                    title = "Developer message",
-                    subtitle = "A message from the app creator",
+                    title = "About PixelMarks",
+                    subtitle = "Developer, contributors & project info",
+                    icon = Icons.Default.Info,
+                    onClick = onNavigateToAbout
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                SettingsActionRow(
+                    title = "Changelog",
+                    subtitle = "Release history and notes",
                     icon = Icons.Default.ChatBubbleOutline,
-                    onClick = { showDeveloperMessageDialog = true }
+                    onClick = onNavigateToChangelog
+                )
+
+                HorizontalDivider(color = ArchivalSurfaceContainerHigh)
+
+                val updateSubtitle = when (val res = updateCheckResult) {
+                    is UpdateCheckResult.Loading -> "Checking for updates…"
+                    is UpdateCheckResult.UpdateAvailable -> "New version v${res.release.versionName} available"
+                    is UpdateCheckResult.Offline -> "Offline — tap to retry"
+                    is UpdateCheckResult.Error -> "Check failed — tap to retry"
+                    is UpdateCheckResult.UpToDate -> "v${BuildConfig.VERSION_NAME} is up to date"
+                }
+
+                SettingsActionRow(
+                    title = "Check for Updates",
+                    subtitle = updateSubtitle,
+                    icon = Icons.Default.SystemUpdateAlt,
+                    onClick = {
+                        hasManuallyCheckedUpdates = true
+                        updateViewModel.checkForUpdates()
+                    }
                 )
 
                 HorizontalDivider(color = ArchivalSurfaceContainerHigh)
@@ -346,13 +429,28 @@ fun SettingsScreen(
                 SettingsActionRow(
                     title = "Licenses",
                     subtitle = "View open source licenses",
-                    icon = Icons.Default.Info,
+                    icon = Icons.Default.Security,
                     onClick = { showLicensesDialog = true }
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    // Download & Install progress dialog
+    if (downloadState !is DownloadState.Idle && downloadState !is DownloadState.Cancelled) {
+        val releaseUrl = (updateCheckResult as? UpdateCheckResult.UpdateAvailable)?.release?.htmlUrl
+            ?: "https://github.com/ram22002/PixelMarks/releases"
+        UpdateProgressDialog(
+            downloadState = downloadState,
+            canInstallPackages = canInstallPackages,
+            onCancel = { updateViewModel.cancelDownload() },
+            onInstall = { uri -> updateViewModel.installApk(uri) },
+            onRequestPermission = { updateViewModel.requestInstallPermission() },
+            onDismiss = { updateViewModel.resetDownloadState() },
+            onOpenReleasePage = { updateViewModel.openReleasePage(releaseUrl) }
+        )
     }
 
     // Modal dialogs
