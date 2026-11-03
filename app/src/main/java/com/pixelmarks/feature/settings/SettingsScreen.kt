@@ -132,7 +132,9 @@ fun SettingsScreen(
     val appLockTimeout by viewModel.appLockTimeout.collectAsState()
     val privateAuthMethod by viewModel.privateAuthMethod.collectAsState()
 
+    val activity = LocalContext.current as? androidx.fragment.app.FragmentActivity
     val updateViewModel: UpdateViewModel = viewModel(
+        viewModelStoreOwner = activity ?: androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner.current!!,
         factory = run {
             val app = LocalContext.current.applicationContext as PixelMarksApplication
             UpdateViewModel.provideFactory(
@@ -145,6 +147,7 @@ fun SettingsScreen(
     val updateCheckResult by updateViewModel.updateCheckResult.collectAsState()
     val downloadState by updateViewModel.downloadState.collectAsState()
     val canInstallPackages by updateViewModel.canInstallPackages.collectAsState()
+    val bannerDismissedVersion by updateViewModel.bannerDismissedVersion.collectAsState()
 
     var hasManuallyCheckedUpdates by remember { mutableStateOf(false) }
 
@@ -222,13 +225,17 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
             )
 
-            // Update banner if available
-            UpdateBanner(
-                checkResult = updateCheckResult,
-                onWhatsNew = { onNavigateToChangelog() },
-                onUpdate = { release -> updateViewModel.startDownload(release) },
-                onDismiss = { version -> updateViewModel.dismissUpdate(version) }
-            )
+            // Update banner if available and not dismissed
+            val showBanner = updateCheckResult is UpdateCheckResult.UpdateAvailable &&
+                (updateCheckResult as UpdateCheckResult.UpdateAvailable).release.versionName != bannerDismissedVersion
+            if (showBanner) {
+                UpdateBanner(
+                    checkResult = updateCheckResult,
+                    onWhatsNew = { onNavigateToChangelog() },
+                    onUpdate = { release -> updateViewModel.startDownload(release) },
+                    onDismiss = { version -> updateViewModel.dismissUpdate(version) }
+                )
+            }
 
             // Category 1: Theme
             SettingsCategorySection(title = "Theme") {

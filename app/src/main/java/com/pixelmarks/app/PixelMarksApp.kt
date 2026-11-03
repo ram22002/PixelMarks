@@ -21,8 +21,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pixelmarks.core.security.model.PrivacyMode
+import com.pixelmarks.core.update.DownloadState
+import com.pixelmarks.core.update.model.UpdateCheckResult
 import com.pixelmarks.feature.security.AppLockScreen
+import com.pixelmarks.feature.update.UpdateAvailableDialog
+import com.pixelmarks.feature.update.UpdateProgressDialog
+import com.pixelmarks.feature.update.UpdateViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -40,31 +46,32 @@ fun PixelMarksApp(
     val activity = context as? FragmentActivity
     var lockErrorMessage by remember { mutableStateOf<String?>(null) }
 
+    val updateViewModel: UpdateViewModel = viewModel(
+        viewModelStoreOwner = (activity ?: (context as? androidx.lifecycle.ViewModelStoreOwner))
+            ?: androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner.current!!,
+        factory = UpdateViewModel.provideFactory(
+            releaseRepository = app.container.releaseRepository,
+            updatePreferences = app.container.updatePreferences,
+            context = context.applicationContext
+        )
+    )
+    val updateCheckResult by updateViewModel.updateCheckResult.collectAsState()
+    val downloadState by updateViewModel.downloadState.collectAsState()
+    val canInstallPackages by updateViewModel.canInstallPackages.collectAsState()
+
+    var showStartupUpdateDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(updateCheckResult) {
+        if (updateCheckResult is UpdateCheckResult.UpdateAvailable) {
+            showStartupUpdateDialog = true
+        }
+    }
+
     LaunchedEffect(Unit) {
         onReady()
-        kotlinx.coroutines.delay(4000)
-        app.container.releaseRepository // Ensure initialized
-        val checker = com.pixelmarks.core.update.UpdateChecker(
-            releaseRepository = app.container.releaseRepository,
-            installedVersionName = com.pixelmarks.app.BuildConfig.VERSION_NAME,
-            installedVersionCode = com.pixelmarks.app.BuildConfig.VERSION_CODE
-        )
-        val lastCheck = app.container.updatePreferences.lastCheckTimestamp.first()
-        val elapsed = System.currentTimeMillis() - lastCheck
-        if (elapsed >= com.pixelmarks.data.datastore.UpdatePreferences.MIN_CHECK_INTERVAL_MS) {
-            val channelName = app.container.updatePreferences.releaseChannelName.first()
-            val channel = runCatching {
-                com.pixelmarks.core.update.model.ReleaseChannel.valueOf(channelName)
-            }.getOrElse {
-                val defaultName = com.pixelmarks.data.datastore.UpdatePreferences.getDefaultChannel()
-                runCatching {
-                    com.pixelmarks.core.update.model.ReleaseChannel.valueOf(defaultName)
-                }.getOrDefault(com.pixelmarks.core.update.model.ReleaseChannel.STABLE)
-            }
-            val dismissed = app.container.updatePreferences.dismissedVersion.first()
-            checker.checkForUpdate(channel, dismissedVersionName = dismissed)
-            app.container.updatePreferences.recordCheckTimestamp()
-        }
+        // Wait 1.2s for initial home UI composition before checking in background
+        kotlinx.coroutines.delay(1200)
+        updateViewModel.checkForUpdatesOnStartup()
     }
 
     fun launchUnlock() {
@@ -271,6 +278,40 @@ fun PixelMarksApp(
                     navController = navController,
                     modifier = Modifier.padding(innerPadding),
                     startDestination = startDestinationRoute
+                )
+            }
+
+            // Root-level update dialog (shown automatically on app launch if update is available)
+            if (showStartupUpdateDialog && currentRoute != Screen.About.route && updateCheckResult is UpdateCheckResult.UpdateAvailable) {
+                val rel = (updateCheckResult as UpdateCheckResult.UpdateAvailable).release
+                UpdateAvailableDialog(
+                    release = rel,
+                    onViewChangelog = {
+                        showStartupUpdateDialog = false
+                        navController.navigate(Screen.Changelog.route)
+                    },
+                    onUpdateNow = {
+                        showStartupUpdateDialog = false
+                        updateViewModel.startDownload(rel)
+                    },
+                    onDismiss = {
+                        showStartupUpdateDialog = false
+                    }
+                )
+            }
+
+            // Global Download & Install progress dialog
+            if (downloadState !is DownloadState.Idle && downloadState !is DownloadState.Cancelled) {
+                val releaseUrl = (updateCheckResult as? UpdateCheckResult.UpdateAvailable)?.release?.htmlUrl
+                    ?: "https://github.com/ram22002/PixelMarks/releases"
+                UpdateProgressDialog(
+                    downloadState = downloadState,
+                    canInstallPackages = canInstallPackages,
+                    onCancel = { updateViewModel.cancelDownload() },
+                    onInstall = { uri -> updateViewModel.installApk(uri) },
+                    onRequestPermission = { updateViewModel.requestInstallPermission() },
+                    onDismiss = { updateViewModel.resetDownloadState() },
+                    onOpenReleasePage = { updateViewModel.openReleasePage(releaseUrl) }
                 )
             }
         }

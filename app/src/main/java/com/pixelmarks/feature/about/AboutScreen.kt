@@ -109,23 +109,26 @@ private val CONTRIBUTORS = listOf(
 fun AboutScreen(
     onNavigateBack: () -> Unit,
     onNavigateToChangelog: () -> Unit,
-    onCheckForUpdates: () -> Unit,
-    updateViewModel: UpdateViewModel = viewModel(
+    onCheckForUpdates: () -> Unit
+) {
+    val context = LocalContext.current
+    val activity = context as? androidx.fragment.app.FragmentActivity
+    val updateViewModel: UpdateViewModel = viewModel(
+        viewModelStoreOwner = activity ?: androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner.current!!,
         factory = run {
-            val app = LocalContext.current.applicationContext as PixelMarksApplication
+            val app = context.applicationContext as PixelMarksApplication
             UpdateViewModel.provideFactory(
                 releaseRepository = app.container.releaseRepository,
                 updatePreferences = app.container.updatePreferences,
-                context = LocalContext.current.applicationContext
+                context = context.applicationContext
             )
         }
     )
-) {
-    val context = LocalContext.current
     val updateCheckResult by updateViewModel.updateCheckResult.collectAsState()
     val downloadState by updateViewModel.downloadState.collectAsState()
     val canInstallPackages by updateViewModel.canInstallPackages.collectAsState()
     val selectedChannel by updateViewModel.selectedChannel.collectAsState()
+    val bannerDismissedVersion by updateViewModel.bannerDismissedVersion.collectAsState()
 
     var showChannelDialog by remember { mutableStateOf(false) }
     var userTriggeredCheck by remember { mutableStateOf(false) }
@@ -186,8 +189,10 @@ fun AboutScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             // Update banner (animated)
+            val isBannerVisible = updateCheckResult is UpdateCheckResult.UpdateAvailable &&
+                (updateCheckResult as UpdateCheckResult.UpdateAvailable).release.versionName != bannerDismissedVersion
             AnimatedVisibility(
-                visible = visible && updateCheckResult is UpdateCheckResult.UpdateAvailable,
+                visible = visible && isBannerVisible,
                 enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { -it / 2 }
             ) {
                 UpdateBanner(
@@ -314,6 +319,7 @@ fun AboutScreen(
                         subtitle = updateSubtitle,
                         onClick = {
                             userTriggeredCheck = true
+                            showUpdateAvailableDialog = true
                             updateViewModel.checkForUpdates()
                         },
                         trailingIcon = Icons.Default.SystemUpdateAlt
@@ -382,7 +388,6 @@ fun AboutScreen(
                 },
                 onDismiss = {
                     showUpdateAvailableDialog = false
-                    updateViewModel.dismissUpdate(rel.versionName)
                 }
             )
         }

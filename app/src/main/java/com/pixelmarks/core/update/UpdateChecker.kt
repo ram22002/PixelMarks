@@ -55,10 +55,6 @@ class UpdateChecker(
                         candidateSemVer <= installedSemVer -> {
                             UpdateCheckResult.UpToDate
                         }
-                        // User explicitly dismissed this version previously
-                        latest.versionName == dismissedVersionName -> {
-                            UpdateCheckResult.UpToDate
-                        }
                         // Newer version exists, but has no compatible APK asset attached
                         latest.apkAsset == null -> {
                             UpdateCheckResult.ApkAssetMissing(latest)

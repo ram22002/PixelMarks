@@ -377,6 +377,28 @@ class UpdateSystemTest {
         assertEquals(0, SemVer.parse("1.0.0+1").compareTo(SemVer.parse("1.0.0+2")))
     }
 
+    // ── 14. Installed v1.0.2-beta detects v1.0.3-beta ────────────────────────
+
+    @Test
+    fun `testScenario14_installed102Beta_detectsNewer103Beta_neverFalselyReportsUpToDate`() = runBlocking {
+        val releases = listOf(
+            createRelease("v1.0.3-beta", isPreRelease = true),
+            createRelease("v1.0.2-beta", isPreRelease = true),
+            createRelease("v1.0.1-beta", isPreRelease = true),
+            createRelease("v1.0.0-beta", isPreRelease = true)
+        )
+        val checker = UpdateChecker(
+            releaseRepository = FakeReleaseRepository(releases),
+            installedVersionName = "1.0.2-beta",
+            installedVersionCode = 3
+        )
+
+        val result = checker.checkForUpdate(ReleaseChannel.BETA, dismissedVersionName = "1.0.3-beta")
+        assertTrue("Expected UpdateAvailable even if previously dismissed", result is UpdateCheckResult.UpdateAvailable)
+        val update = result as UpdateCheckResult.UpdateAvailable
+        assertEquals("1.0.3-beta", update.release.versionName)
+    }
+
     // ── Fake Repository Helper ──────────────────────────────────────────────
 
     private class FakeReleaseRepository(

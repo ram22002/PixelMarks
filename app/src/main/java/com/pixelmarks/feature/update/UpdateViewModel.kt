@@ -40,6 +40,9 @@ class UpdateViewModel(
     private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
 
+    private val _bannerDismissedVersion = MutableStateFlow<String?>(null)
+    val bannerDismissedVersion: StateFlow<String?> = _bannerDismissedVersion.asStateFlow()
+
     private val defaultChannel: ReleaseChannel
         get() {
             val defaultName = UpdatePreferences.getDefaultChannel(installedVersionName)
@@ -70,36 +73,48 @@ class UpdateViewModel(
         viewModelScope.launch {
             _updateCheckResult.value = UpdateCheckResult.Loading
             releaseRepository.invalidateCache()
+            updatePreferences.clearDismissedVersion()
+            _bannerDismissedVersion.value = null
             performCheck()
         }
     }
 
     /**
-     * Startup check — skipped if last check was less than [UpdatePreferences.MIN_CHECK_INTERVAL_MS] ago.
+     * Startup check — runs automatically in the background every time the app opens.
+     * If an update is available, sets [updateCheckResult] to UpdateAvailable so the update screen/dialog is shown.
+     * Quietly skips showing errors if offline or network is unreachable.
      */
     fun checkForUpdatesOnStartup() {
         viewModelScope.launch {
-            val lastCheck = updatePreferences.lastCheckTimestamp.first()
-            val elapsed = System.currentTimeMillis() - lastCheck
-            if (elapsed < UpdatePreferences.MIN_CHECK_INTERVAL_MS) return@launch
-            _updateCheckResult.value = UpdateCheckResult.Loading
-            performCheck()
+            try {
+                releaseRepository.invalidateCache()
+                val checker = UpdateChecker(releaseRepository, installedVersionName, installedVersionCode)
+                val channel = _selectedChannel.value
+                val result = checker.checkForUpdate(channel)
+                if (result is UpdateCheckResult.UpdateAvailable) {
+                    _updateCheckResult.value = result
+                } else if (_updateCheckResult.value !is UpdateCheckResult.UpdateAvailable) {
+                    _updateCheckResult.value = result
+                }
+                updatePreferences.recordCheckTimestamp()
+            } catch (_: Exception) {
+                // Background check ignores network failure quietly on app open
+            }
         }
     }
 
     private suspend fun performCheck() {
         val checker = UpdateChecker(releaseRepository, installedVersionName, installedVersionCode)
-        val dismissed = updatePreferences.dismissedVersion.first()
-        val result = checker.checkForUpdate(_selectedChannel.value, dismissedVersionName = dismissed)
+        val result = checker.checkForUpdate(_selectedChannel.value)
         _updateCheckResult.value = result
         updatePreferences.recordCheckTimestamp()
     }
 
-    /** User dismissed the update banner — persist to avoid re-showing. */
+    /** User dismissed the update banner — persist to avoid re-showing banner. */
     fun dismissUpdate(versionName: String) {
         viewModelScope.launch {
+            _bannerDismissedVersion.value = versionName
             updatePreferences.setDismissedVersion(versionName)
-            _updateCheckResult.value = UpdateCheckResult.UpToDate
         }
     }
 
