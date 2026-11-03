@@ -26,6 +26,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            versionNameSuffix = "-beta"
+            isDebuggable = true
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

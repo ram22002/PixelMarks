@@ -404,8 +404,8 @@ private fun AboutCard(content: @Composable () -> Unit) {
 @Composable
 private fun VersionChip(versionName: String, versionCode: Int, buildType: String) {
     val channel = when {
-        buildType.contains("nightly", ignoreCase = true) -> "Nightly"
-        buildType.contains("beta", ignoreCase = true) -> "Beta"
+        versionName.contains("nightly", ignoreCase = true) || buildType.contains("nightly", ignoreCase = true) -> "Nightly"
+        versionName.contains("beta", ignoreCase = true) || buildType.contains("beta", ignoreCase = true) -> "Beta"
         else -> "Stable"
     }
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
