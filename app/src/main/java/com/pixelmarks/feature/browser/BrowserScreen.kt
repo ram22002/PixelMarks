@@ -291,9 +291,13 @@ fun BrowserScreen(
                             domStorageEnabled = true
                             allowFileAccess = false
                             allowContentAccess = false
+                            @Suppress("DEPRECATION")
                             allowFileAccessFromFileURLs = false
+                            @Suppress("DEPRECATION")
                             allowUniversalAccessFromFileURLs = false
+                            @Suppress("DEPRECATION")
                             savePassword = false
+                            @Suppress("DEPRECATION")
                             databaseEnabled = false
                             cacheMode = WebSettings.LOAD_DEFAULT
                             builtInZoomControls = true

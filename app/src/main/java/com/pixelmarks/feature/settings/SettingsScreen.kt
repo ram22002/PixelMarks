@@ -259,7 +259,7 @@ fun SettingsScreen(
             SettingsCategorySection(title = "Data Management") {
                 SettingsActionRow(
                     title = "Backup & Restore",
-                    subtitle = "Manual or Auto Backup via file or Google Drive",
+                    subtitle = "Manual file backup and restore (JSON / Encrypted)",
                     icon = Icons.Default.Restore,
                     onClick = onNavigateToBackup
                 )

@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.EditNote
@@ -400,7 +401,7 @@ fun CustomizeBookmarkScreen(
                 CustomizeRow(
                     title = "Display Mode",
                     subtitle = layoutDisplayMode,
-                    icon = Icons.Default.ViewList,
+                    icon = Icons.AutoMirrored.Filled.ViewList,
                     onClick = { showDisplayModeDialog = true }
                 )
             }

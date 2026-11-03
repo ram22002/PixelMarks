@@ -289,6 +289,7 @@ class DatabaseMigrationTest {
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_collections_parentId` ON `collections` (`parentId`)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_collections_name` ON `collections` (`name`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_collections_domain` ON `collections` (`domain`)")
 
         db.execSQL(
             """
@@ -350,6 +351,7 @@ class DatabaseMigrationTest {
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_bookmark_tag_cross_ref_tagId` ON `bookmark_tag_cross_ref` (`tagId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_bookmark_tag_cross_ref_bookmarkId` ON `bookmark_tag_cross_ref` (`bookmarkId`)")
 
         db.execSQL(
             """
@@ -366,6 +368,7 @@ class DatabaseMigrationTest {
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_bookmarkId` ON `reminders` (`bookmarkId`)")
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_reminderAt` ON `reminders` (`reminderAt`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_isCompleted` ON `reminders` (`isCompleted`)")
 
         db.execSQL(
             """

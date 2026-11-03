@@ -79,6 +79,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private const val GOOGLE_DRIVE_BACKUP_ENABLED = false
+
 @Composable
 fun BackupScreen(
     onNavigateBack: () -> Unit,
@@ -300,289 +302,291 @@ fun BackupScreen(
 
                 Spacer(modifier = Modifier.height(Spacing.small))
 
-                // -------------------------------------------------------------
-                // SECTION 2: Google Drive Cloud Backup
-                // -------------------------------------------------------------
-                Text(
-                    text = "Google Drive (Cloud)",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-                )
+                if (GOOGLE_DRIVE_BACKUP_ENABLED) {
+                    // -------------------------------------------------------------
+                    // SECTION 2: Google Drive Cloud Backup
+                    // -------------------------------------------------------------
+                    Text(
+                        text = "Google Drive (Cloud)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                    )
 
-                // Google Drive Connection Card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Spacing.medium),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.small)
+                    // Google Drive Connection Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        shape = MaterialTheme.shapes.medium
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Spacing.medium),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.small)
                         ) {
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Icon(
-                                    imageVector = if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
-                                        Icons.Default.CloudDone
-                                    } else {
-                                        Icons.Default.CloudOff
-                                    },
-                                    contentDescription = null,
-                                    tint = if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
-                                )
-                                Column {
-                                    Text(
-                                        text = "Google Drive",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    val statusText = when (uiState.driveConnectionState) {
-                                        DriveConnectionState.CONNECTED -> uiState.driveConnectedAccount?.email ?: "Connected"
-                                        DriveConnectionState.CONNECTING -> "Connecting..."
-                                        DriveConnectionState.AUTH_EXPIRED -> "Authorization Expired"
-                                        DriveConnectionState.DISCONNECTED -> "Not Connected"
-                                    }
-                                    Text(
-                                        text = statusText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
+                                            Icons.Default.CloudDone
+                                        } else {
+                                            Icons.Default.CloudOff
+                                        },
+                                        contentDescription = null,
+                                        tint = if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
                                             MaterialTheme.colorScheme.primary
                                         } else {
                                             MaterialTheme.colorScheme.onSurfaceVariant
                                         }
                                     )
-                                }
-                            }
-
-                            if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
-                                OutlinedButton(
-                                    onClick = { viewModel.disconnectGoogleDrive() },
-                                    enabled = !uiState.isLoading,
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.error
-                                    )
-                                ) {
-                                    Text("Disconnect")
-                                }
-                            } else {
-                                Button(
-                                    onClick = {
-                                        val intent = viewModel.getGoogleSignInIntent()
-                                        if (intent != null) {
-                                            googleSignInLauncher.launch(intent)
+                                    Column {
+                                        Text(
+                                            text = "Google Drive",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        val statusText = when (uiState.driveConnectionState) {
+                                            DriveConnectionState.CONNECTED -> uiState.driveConnectedAccount?.email ?: "Connected"
+                                            DriveConnectionState.CONNECTING -> "Connecting..."
+                                            DriveConnectionState.AUTH_EXPIRED -> "Authorization Expired"
+                                            DriveConnectionState.DISCONNECTED -> "Not Connected"
                                         }
-                                    },
-                                    enabled = !uiState.isLoading && uiState.driveConnectionState != DriveConnectionState.CONNECTING
-                                ) {
-                                    Icon(imageVector = Icons.Default.AccountCircle, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Connect")
-                                }
-                            }
-                        }
-
-                        Text(
-                            text = "Backups are stored privately in your Google Drive App Data folder. Other apps cannot access them, and files are always AES-256-GCM encrypted before upload.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-
-                // If Google Drive is Connected: Show Backup Actions & Cloud Backups List
-                if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
-
-                    // Back up to Drive Button
-                    Button(
-                        onClick = {
-                            passwordForDriveUpload = ""
-                            confirmPasswordForDriveUpload = ""
-                            driveUploadPasswordError = null
-                            showDriveUploadPasswordDialog = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !uiState.isLoading
-                    ) {
-                        Icon(imageVector = Icons.Default.CloudUpload, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Back Up to Google Drive")
-                    }
-
-                    // Cloud Backups List Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(Spacing.medium),
-                            verticalArrangement = Arrangement.spacedBy(Spacing.small)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Cloud Backups",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                IconButton(
-                                    onClick = { viewModel.refreshDriveBackups() },
-                                    enabled = !uiState.isDriveBackupsLoading
-                                ) {
-                                    if (uiState.isDriveBackupsLoading) {
-                                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                    } else {
-                                        Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
-                                    }
-                                }
-                            }
-
-                            if (uiState.driveBackups.isEmpty() && !uiState.isDriveBackupsLoading) {
-                                Text(
-                                    text = "No backups found in your Drive App Data folder.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else {
-                                uiState.driveBackups.forEach { backupFile ->
-                                    DriveBackupItem(
-                                        backupFile = backupFile,
-                                        onRestore = {
-                                            viewModel.onDriveBackupSelectedForRestore(backupFile, context.cacheDir)
-                                        },
-                                        onDelete = {
-                                            viewModel.requestDeleteDriveBackup(backupFile)
-                                        }
-                                    )
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                                }
-                            }
-                        }
-                    }
-
-                    // Automatic Cloud Backup Settings Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(Spacing.medium),
-                            verticalArrangement = Arrangement.spacedBy(Spacing.small)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Automatic Cloud Backup",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Periodically back up your encrypted data in the background.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = uiState.autoBackupPreferences.enabled,
-                                    onCheckedChange = { isChecked ->
-                                        if (isChecked) {
-                                            autoBackupPassword = ""
-                                            confirmAutoBackupPassword = ""
-                                            autoBackupPasswordError = null
-                                            viewModel.promptAutoBackupPassword()
-                                        } else {
-                                            viewModel.setAutoBackupEnabled(false)
-                                        }
-                                    }
-                                )
-                            }
-
-                            if (uiState.autoBackupPreferences.enabled) {
-                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                                // Frequency Selection
-                                Text(
-                                    text = "Backup Frequency",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
-                                ) {
-                                    AutoBackupFrequency.entries.forEach { freq ->
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.clickable {
-                                                viewModel.setAutoBackupFrequency(freq)
+                                        Text(
+                                            text = statusText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
                                             }
-                                        ) {
-                                            RadioButton(
-                                                selected = uiState.autoBackupPreferences.frequency == freq,
-                                                onClick = { viewModel.setAutoBackupFrequency(freq) }
-                                            )
-                                            Text(
-                                                text = freq.displayName,
-                                                style = MaterialTheme.typography.bodyMedium
-                                            )
-                                        }
+                                        )
                                     }
                                 }
 
-                                // Wi-Fi Only Preference
+                                if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
+                                    OutlinedButton(
+                                        onClick = { viewModel.disconnectGoogleDrive() },
+                                        enabled = !uiState.isLoading,
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.error
+                                        )
+                                    ) {
+                                        Text("Disconnect")
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = {
+                                            val intent = viewModel.getGoogleSignInIntent()
+                                            if (intent != null) {
+                                                googleSignInLauncher.launch(intent)
+                                            }
+                                        },
+                                        enabled = !uiState.isLoading && uiState.driveConnectionState != DriveConnectionState.CONNECTING
+                                    ) {
+                                        Icon(imageVector = Icons.Default.AccountCircle, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Connect")
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = "Backups are stored privately in your Google Drive App Data folder. Other apps cannot access them, and files are always AES-256-GCM encrypted before upload.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+
+                    // If Google Drive is Connected: Show Backup Actions & Cloud Backups List
+                    if (uiState.driveConnectionState == DriveConnectionState.CONNECTED) {
+
+                        // Back up to Drive Button
+                        Button(
+                            onClick = {
+                                passwordForDriveUpload = ""
+                                confirmPasswordForDriveUpload = ""
+                                driveUploadPasswordError = null
+                                showDriveUploadPasswordDialog = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !uiState.isLoading
+                        ) {
+                            Icon(imageVector = Icons.Default.CloudUpload, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Back Up to Google Drive")
+                        }
+
+                        // Cloud Backups List Card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(Spacing.medium),
+                                verticalArrangement = Arrangement.spacedBy(Spacing.small)
+                            ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    Text(
+                                        text = "Cloud Backups",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    IconButton(
+                                        onClick = { viewModel.refreshDriveBackups() },
+                                        enabled = !uiState.isDriveBackupsLoading
                                     ) {
-                                        Icon(Icons.Default.Wifi, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        if (uiState.isDriveBackupsLoading) {
+                                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                        } else {
+                                            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
+                                        }
+                                    }
+                                }
+
+                                if (uiState.driveBackups.isEmpty() && !uiState.isDriveBackupsLoading) {
+                                    Text(
+                                        text = "No backups found in your Drive App Data folder.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    uiState.driveBackups.forEach { backupFile ->
+                                        DriveBackupItem(
+                                            backupFile = backupFile,
+                                            onRestore = {
+                                                viewModel.onDriveBackupSelectedForRestore(backupFile, context.cacheDir)
+                                            },
+                                            onDelete = {
+                                                viewModel.requestDeleteDriveBackup(backupFile)
+                                            }
+                                        )
+                                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                                    }
+                                }
+                            }
+                        }
+
+                        // Automatic Cloud Backup Settings Card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(Spacing.medium),
+                                verticalArrangement = Arrangement.spacedBy(Spacing.small)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Wi-Fi Only",
-                                            style = MaterialTheme.typography.bodyMedium
+                                            text = "Automatic Cloud Backup",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Periodically back up your encrypted data in the background.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                     Switch(
-                                        checked = uiState.autoBackupPreferences.wifiOnly,
-                                        onCheckedChange = { viewModel.setWifiOnly(it) }
+                                        checked = uiState.autoBackupPreferences.enabled,
+                                        onCheckedChange = { isChecked ->
+                                            if (isChecked) {
+                                                autoBackupPassword = ""
+                                                confirmAutoBackupPassword = ""
+                                                autoBackupPasswordError = null
+                                                viewModel.promptAutoBackupPassword()
+                                            } else {
+                                                viewModel.setAutoBackupEnabled(false)
+                                            }
+                                        }
                                     )
+                                }
+
+                                if (uiState.autoBackupPreferences.enabled) {
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                                    // Frequency Selection
+                                    Text(
+                                        text = "Backup Frequency",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
+                                    ) {
+                                        AutoBackupFrequency.entries.forEach { freq ->
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.clickable {
+                                                    viewModel.setAutoBackupFrequency(freq)
+                                                }
+                                            ) {
+                                                RadioButton(
+                                                    selected = uiState.autoBackupPreferences.frequency == freq,
+                                                    onClick = { viewModel.setAutoBackupFrequency(freq) }
+                                                )
+                                                Text(
+                                                    text = freq.displayName,
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Wi-Fi Only Preference
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(Icons.Default.Wifi, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                            Text(
+                                                text = "Wi-Fi Only",
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                        }
+                                        Switch(
+                                            checked = uiState.autoBackupPreferences.wifiOnly,
+                                            onCheckedChange = { viewModel.setWifiOnly(it) }
+                                        )
+                                    }
                                 }
                             }
                         }
