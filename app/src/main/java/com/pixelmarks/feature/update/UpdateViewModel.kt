@@ -40,6 +40,12 @@ class UpdateViewModel(
     private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
 
+    private val defaultChannel: ReleaseChannel
+        get() {
+            val defaultName = UpdatePreferences.getDefaultChannel(installedVersionName)
+            return runCatching { ReleaseChannel.valueOf(defaultName) }.getOrDefault(ReleaseChannel.STABLE)
+        }
+
     private val _selectedChannel = MutableStateFlow(ReleaseChannel.STABLE)
     val selectedChannel: StateFlow<ReleaseChannel> = _selectedChannel.asStateFlow()
 
@@ -47,12 +53,13 @@ class UpdateViewModel(
     val canInstallPackages: StateFlow<Boolean> = _canInstallPackages.asStateFlow()
 
     init {
+        _selectedChannel.value = defaultChannel
         viewModelScope.launch {
             // Restore persisted channel
             val channelName = updatePreferences.releaseChannelName.first()
             _selectedChannel.value = runCatching {
                 ReleaseChannel.valueOf(channelName)
-            }.getOrDefault(ReleaseChannel.STABLE)
+            }.getOrDefault(defaultChannel)
 
             _canInstallPackages.value = apkInstaller.canInstallPackages()
         }
@@ -149,6 +156,10 @@ class UpdateViewModel(
         _selectedChannel.value = channel
         viewModelScope.launch {
             updatePreferences.setReleaseChannel(channel.name)
+            // Immediately perform a fresh check for the newly selected channel
+            _updateCheckResult.value = UpdateCheckResult.Loading
+            releaseRepository.invalidateCache()
+            performCheck()
         }
     }
 

@@ -69,8 +69,10 @@ import com.pixelmarks.core.update.DownloadState
 import com.pixelmarks.core.update.model.ReleaseChannel
 import com.pixelmarks.core.update.model.UpdateCheckResult
 import com.pixelmarks.feature.update.ReleaseChannelDialog
+import com.pixelmarks.feature.update.UpdateAvailableDialog
 import com.pixelmarks.feature.update.UpdateBanner
 import com.pixelmarks.feature.update.UpdateProgressDialog
+import com.pixelmarks.feature.update.UpdateStatusFeedbackDialog
 import com.pixelmarks.feature.update.UpdateViewModel
 import com.pixelmarks.ui.theme.ArchivalBackground
 import com.pixelmarks.ui.theme.ArchivalPrimary
@@ -126,6 +128,14 @@ fun AboutScreen(
     val selectedChannel by updateViewModel.selectedChannel.collectAsState()
 
     var showChannelDialog by remember { mutableStateOf(false) }
+    var userTriggeredCheck by remember { mutableStateOf(false) }
+    var showUpdateAvailableDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(updateCheckResult) {
+        if (updateCheckResult is UpdateCheckResult.UpdateAvailable) {
+            showUpdateAvailableDialog = true
+        }
+    }
 
     LaunchedEffect(Unit) {
         updateViewModel.refreshInstallPermission()
@@ -291,13 +301,21 @@ fun AboutScreen(
                         is UpdateCheckResult.UpdateAvailable -> "New version v${res.release.versionName} available"
                         is UpdateCheckResult.UpToDate -> "Currently v${BuildConfig.VERSION_NAME} (latest)"
                         is UpdateCheckResult.Offline -> "Offline — tap to retry"
+                        is UpdateCheckResult.RateLimited -> "Rate limit reached — resets at ${res.resetTime}"
+                        is UpdateCheckResult.ApkAssetMissing -> "v${res.release.versionName} available (APK missing)"
+                        is UpdateCheckResult.ReleaseUnavailable -> "Releases unavailable"
+                        is UpdateCheckResult.NoReleasesFound -> "No releases on ${selectedChannel.label} channel"
+                        is UpdateCheckResult.InvalidMetadata -> "Invalid release metadata"
                         is UpdateCheckResult.Error -> "Check failed — tap to retry"
                     }
                     AboutLinkRow(
                         icon = Icons.Default.SystemUpdateAlt,
                         title = "Check for Updates",
                         subtitle = updateSubtitle,
-                        onClick = { updateViewModel.checkForUpdates() },
+                        onClick = {
+                            userTriggeredCheck = true
+                            updateViewModel.checkForUpdates()
+                        },
                         trailingIcon = Icons.Default.SystemUpdateAlt
                     )
                     HorizontalDivider(color = ArchivalSurfaceContainerHigh)
@@ -346,6 +364,37 @@ fun AboutScreen(
                 currentChannel = selectedChannel,
                 onSelectChannel = { updateViewModel.setReleaseChannel(it) },
                 onDismiss = { showChannelDialog = false }
+            )
+        }
+
+        // Update available dialog (prompt with version, notes, and actions)
+        if (showUpdateAvailableDialog && updateCheckResult is UpdateCheckResult.UpdateAvailable) {
+            val rel = (updateCheckResult as UpdateCheckResult.UpdateAvailable).release
+            UpdateAvailableDialog(
+                release = rel,
+                onViewChangelog = {
+                    showUpdateAvailableDialog = false
+                    onNavigateToChangelog()
+                },
+                onUpdateNow = {
+                    showUpdateAvailableDialog = false
+                    updateViewModel.startDownload(rel)
+                },
+                onDismiss = {
+                    showUpdateAvailableDialog = false
+                    updateViewModel.dismissUpdate(rel.versionName)
+                }
+            )
+        }
+
+        // User-initiated check feedback dialog for non-UpdateAvailable states
+        if (userTriggeredCheck && updateCheckResult !is UpdateCheckResult.Loading && updateCheckResult !is UpdateCheckResult.UpdateAvailable) {
+            UpdateStatusFeedbackDialog(
+                result = updateCheckResult,
+                installedVersion = BuildConfig.VERSION_NAME,
+                channel = selectedChannel,
+                onViewOnGitHub = { openUrl(GITHUB_RELEASES_URL) },
+                onDismiss = { userTriggeredCheck = false }
             )
         }
     }

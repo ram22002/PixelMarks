@@ -1,7 +1,10 @@
 package com.pixelmarks.core.update.model
 
 /**
- * Release distribution channel.
+ * Release distribution channel:
+ * - STABLE: Official tested releases (no prerelease tags).
+ * - BETA: Preview releases (beta, alpha, rc, or marked prerelease on GitHub).
+ * - NIGHTLY: Bleeding-edge / continuous automated builds.
  */
 enum class ReleaseChannel(val label: String) {
     STABLE("Stable"),
@@ -10,16 +13,15 @@ enum class ReleaseChannel(val label: String) {
 
     companion object {
         /**
-         * Infer channel from a GitHub release tag, e.g. "v1.2.0-beta.1" → BETA.
+         * Infer channel from GitHub tag name and prerelease flag.
          */
-        fun fromTag(tag: String): ReleaseChannel {
+        fun fromTag(tag: String, isPreRelease: Boolean = false): ReleaseChannel {
             val lower = tag.lowercase()
             return when {
                 lower.contains("nightly") -> NIGHTLY
-                lower.contains("beta") || lower.contains("alpha") || lower.contains("rc") -> BETA
+                lower.contains("beta") || lower.contains("alpha") || lower.contains("rc") || isPreRelease -> BETA
                 else -> STABLE
             }
         }
     }
 }
-

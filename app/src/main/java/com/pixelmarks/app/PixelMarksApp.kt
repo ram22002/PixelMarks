@@ -55,7 +55,12 @@ fun PixelMarksApp(
             val channelName = app.container.updatePreferences.releaseChannelName.first()
             val channel = runCatching {
                 com.pixelmarks.core.update.model.ReleaseChannel.valueOf(channelName)
-            }.getOrDefault(com.pixelmarks.core.update.model.ReleaseChannel.STABLE)
+            }.getOrElse {
+                val defaultName = com.pixelmarks.data.datastore.UpdatePreferences.getDefaultChannel()
+                runCatching {
+                    com.pixelmarks.core.update.model.ReleaseChannel.valueOf(defaultName)
+                }.getOrDefault(com.pixelmarks.core.update.model.ReleaseChannel.STABLE)
+            }
             val dismissed = app.container.updatePreferences.dismissedVersion.first()
             checker.checkForUpdate(channel, dismissedVersionName = dismissed)
             app.container.updatePreferences.recordCheckTimestamp()

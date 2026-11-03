@@ -25,6 +25,20 @@ class UpdatePreferences(private val context: Context) {
 
         /** Minimum interval between automatic startup checks: 6 hours. */
         const val MIN_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
+
+        /**
+         * Determines the default channel appropriate for the installed build.
+         * If the installed version is a beta/debug build, default to BETA so prereleases are checked.
+         */
+        fun getDefaultChannel(installedVersionName: String = com.pixelmarks.app.BuildConfig.VERSION_NAME): String {
+            val lower = installedVersionName.lowercase()
+            return when {
+                lower.contains("nightly") -> "NIGHTLY"
+                lower.contains("beta") || lower.contains("alpha") || lower.contains("rc") ||
+                    com.pixelmarks.app.BuildConfig.BUILD_TYPE.equals("debug", ignoreCase = true) -> "BETA"
+                else -> "STABLE"
+            }
+        }
     }
 
     /** Observe the version name the user has dismissed. */
@@ -37,9 +51,9 @@ class UpdatePreferences(private val context: Context) {
         prefs[KEY_LAST_CHECK_TS] ?: 0L
     }
 
-    /** Observe the user's selected release channel name (default: "STABLE"). */
+    /** Observe the user's selected release channel name (defaults intelligently based on build). */
     val releaseChannelName: Flow<String> = context.updateDataStore.data.map { prefs ->
-        prefs[KEY_RELEASE_CHANNEL] ?: "STABLE"
+        prefs[KEY_RELEASE_CHANNEL] ?: getDefaultChannel()
     }
 
     /** Persist the version the user dismissed, preventing re-prompt for that version. */

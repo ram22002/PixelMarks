@@ -159,11 +159,33 @@ fun SettingsScreen(
                     snackbarHostState.showSnackbar("No internet connection to check for updates")
                     hasManuallyCheckedUpdates = false
                 }
+                is UpdateCheckResult.RateLimited -> {
+                    snackbarHostState.showSnackbar("Rate limit reached. Resets at ${res.resetTime}")
+                    hasManuallyCheckedUpdates = false
+                }
+                is UpdateCheckResult.ApkAssetMissing -> {
+                    snackbarHostState.showSnackbar("Update v${res.release.versionName} found, but APK is not yet attached")
+                    hasManuallyCheckedUpdates = false
+                }
+                is UpdateCheckResult.NoReleasesFound -> {
+                    snackbarHostState.showSnackbar("No releases found on this channel")
+                    hasManuallyCheckedUpdates = false
+                }
+                is UpdateCheckResult.ReleaseUnavailable -> {
+                    snackbarHostState.showSnackbar("Release endpoint unavailable")
+                    hasManuallyCheckedUpdates = false
+                }
+                is UpdateCheckResult.InvalidMetadata -> {
+                    snackbarHostState.showSnackbar("Invalid release metadata received")
+                    hasManuallyCheckedUpdates = false
+                }
                 is UpdateCheckResult.Error -> {
                     snackbarHostState.showSnackbar("Update check failed: ${res.message}")
                     hasManuallyCheckedUpdates = false
                 }
-                else -> Unit
+                is UpdateCheckResult.UpdateAvailable, is UpdateCheckResult.Loading -> {
+                    // Handled by banner/dialog
+                }
             }
         }
     }
@@ -410,6 +432,11 @@ fun SettingsScreen(
                     is UpdateCheckResult.Loading -> "Checking for updates…"
                     is UpdateCheckResult.UpdateAvailable -> "New version v${res.release.versionName} available"
                     is UpdateCheckResult.Offline -> "Offline — tap to retry"
+                    is UpdateCheckResult.RateLimited -> "Rate limit reached — resets at ${res.resetTime}"
+                    is UpdateCheckResult.ApkAssetMissing -> "v${res.release.versionName} available (APK missing)"
+                    is UpdateCheckResult.ReleaseUnavailable -> "Releases unavailable"
+                    is UpdateCheckResult.NoReleasesFound -> "No releases on this channel"
+                    is UpdateCheckResult.InvalidMetadata -> "Invalid release metadata"
                     is UpdateCheckResult.Error -> "Check failed — tap to retry"
                     is UpdateCheckResult.UpToDate -> "v${BuildConfig.VERSION_NAME} is up to date"
                 }

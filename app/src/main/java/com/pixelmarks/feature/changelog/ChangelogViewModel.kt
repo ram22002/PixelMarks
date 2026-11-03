@@ -14,7 +14,7 @@ import java.io.IOException
 /** UI state for the Changelog screen. */
 sealed interface ChangelogUiState {
     data object Loading : ChangelogUiState
-    data class Success(val releases: List<GitHubRelease>) : ChangelogUiState
+    data class Success(val releases: List<GitHubRelease>, val isOfflineFallback: Boolean = false) : ChangelogUiState
     data object Offline : ChangelogUiState
     data class Error(val message: String) : ChangelogUiState
 }
@@ -28,31 +28,39 @@ class ChangelogViewModel(
 
     fun loadChangelog() {
         if (_state.value is ChangelogUiState.Success) return // Already loaded
-        fetchReleases()
+        fetchReleases(forceRefresh = false)
     }
 
     fun refresh() {
         releaseRepository.invalidateCache()
-        _state.value = ChangelogUiState.Loading
-        fetchReleases()
+        fetchReleases(forceRefresh = true)
     }
 
-    private fun fetchReleases() {
+    private fun fetchReleases(forceRefresh: Boolean) {
         viewModelScope.launch {
-            _state.value = ChangelogUiState.Loading
-            val result = releaseRepository.getReleases()
+            if (_state.value !is ChangelogUiState.Success) {
+                _state.value = ChangelogUiState.Loading
+            }
+            val result = releaseRepository.getReleases(forceRefresh = forceRefresh)
             _state.value = result.fold(
                 onSuccess = { releases ->
-                    ChangelogUiState.Success(releases.filter { !it.isDraft })
+                    val filtered = releases.filter { !it.isDraft }
+                    ChangelogUiState.Success(filtered, isOfflineFallback = false)
                 },
                 onFailure = { e ->
-                    val msg = e.message ?: "Unknown error"
-                    when {
-                        msg.contains("internet", ignoreCase = true) ||
-                        msg.contains("No internet", ignoreCase = true) ||
-                        e is IOException && (msg.contains("UnknownHost") || msg.contains("connect")) ->
-                            ChangelogUiState.Offline
-                        else -> ChangelogUiState.Error(msg)
+                    // If network fails but cache exists, display cached releases with fallback indicator
+                    val cached = releaseRepository.getCachedReleases()?.filter { !it.isDraft }
+                    if (!cached.isNullOrEmpty()) {
+                        ChangelogUiState.Success(cached, isOfflineFallback = true)
+                    } else {
+                        val msg = e.message ?: "Unknown error"
+                        when {
+                            msg.contains("internet", ignoreCase = true) ||
+                                msg.contains("No internet", ignoreCase = true) ||
+                                e is IOException && (msg.contains("UnknownHost") || msg.contains("connect")) ->
+                                ChangelogUiState.Offline
+                            else -> ChangelogUiState.Error(msg)
+                        }
                     }
                 }
             )
@@ -68,4 +76,3 @@ class ChangelogViewModel(
             }
     }
 }
-

@@ -2,14 +2,21 @@ package com.pixelmarks.core.update
 
 import com.pixelmarks.core.update.model.GitHubRelease
 import com.pixelmarks.core.update.model.ReleaseChannel
+import com.pixelmarks.core.update.model.SemVer
 import com.pixelmarks.core.update.model.UpdateCheckResult
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Compares the installed app version against available GitHub releases,
- * respecting the user's selected release channel.
+ * respecting the user's selected release channel and semantic versioning rules.
  *
- * Version comparison uses semantic versioning (major.minor.patch integers).
- * Falls back to simple string comparison when semver parsing fails.
+ * Implements SemVer 2.0.0 precedence:
+ * - Understands prerelease identifiers (1.0.0-beta < 1.0.1-beta < 1.0.1)
+ * - Excludes draft releases
+ * - Validates APK asset presence
+ * - Never offers downgrades
  */
 class UpdateChecker(
     private val releaseRepository: GitHubReleaseRepository,
@@ -18,10 +25,10 @@ class UpdateChecker(
 ) {
 
     /**
-     * Check whether a newer release is available for [channel].
+     * Check whether a newer release is available on GitHub for [channel].
      *
      * @param channel The user's selected update channel.
-     * @param dismissedVersionName The version the user previously dismissed (skip it).
+     * @param dismissedVersionName The version the user previously dismissed (skip showing).
      */
     suspend fun checkForUpdate(
         channel: ReleaseChannel,
@@ -31,60 +38,92 @@ class UpdateChecker(
             val result = releaseRepository.getReleasesForChannel(channel)
             result.fold(
                 onSuccess = { releases ->
-                    val latest = releases
-                        .filter { !it.isDraft }
-                        .filter { it.apkAsset != null } // Must have a downloadable APK
-                        .maxByOrNull { parseSemVer(it.versionName) }
+                    val validReleases = releases.filter { !it.isDraft }
+                    if (validReleases.isEmpty()) {
+                        return UpdateCheckResult.NoReleasesFound(channel)
+                    }
+
+                    // Pick the highest version release published in this channel
+                    val latest = validReleases.maxByOrNull { it.semVer }
+                        ?: return UpdateCheckResult.NoReleasesFound(channel)
+
+                    val installedSemVer = SemVer.parse(installedVersionName)
+                    val candidateSemVer = latest.semVer
 
                     when {
-                        latest == null -> UpdateCheckResult.UpToDate
-                        latest.versionName == dismissedVersionName -> UpdateCheckResult.UpToDate
-                        isNewer(latest.versionName, installedVersionName) -> {
+                        // Candidate is not strictly newer (already on latest or installed is newer)
+                        candidateSemVer <= installedSemVer -> {
+                            UpdateCheckResult.UpToDate
+                        }
+                        // User explicitly dismissed this version previously
+                        latest.versionName == dismissedVersionName -> {
+                            UpdateCheckResult.UpToDate
+                        }
+                        // Newer version exists, but has no compatible APK asset attached
+                        latest.apkAsset == null -> {
+                            UpdateCheckResult.ApkAssetMissing(latest)
+                        }
+                        // Valid newer update available
+                        else -> {
                             UpdateCheckResult.UpdateAvailable(latest)
                         }
-                        else -> UpdateCheckResult.UpToDate
                     }
                 },
                 onFailure = { e ->
-                    val msg = e.message ?: "Unknown error"
-                    if (msg.contains("internet", ignoreCase = true) ||
-                        msg.contains("UnknownHost", ignoreCase = true) ||
-                        msg.contains("connect", ignoreCase = true)
-                    ) {
-                        UpdateCheckResult.Offline
-                    } else {
-                        UpdateCheckResult.Error(msg)
-                    }
+                    mapFailureToResult(e)
                 }
             )
         } catch (e: Exception) {
-            UpdateCheckResult.Error(e.message ?: "Check failed")
+            UpdateCheckResult.Error(e.message ?: "Update check encountered an unexpected error")
         }
     }
 
     /**
-     * Returns true if [candidate] version is strictly newer than [installed].
+     * Returns true if [candidate] is strictly newer than [installed] under SemVer 2.0.0 rules.
      */
-    internal fun isNewer(candidate: String, installed: String): Boolean {
-        val c = parseSemVer(candidate)
-        val i = parseSemVer(installed)
+    fun isNewer(candidate: String, installed: String): Boolean {
+        val c = SemVer.parse(candidate)
+        val i = SemVer.parse(installed)
         return c > i
     }
 
-    /**
-     * Parse "major.minor.patch" into a comparable long: major*1_000_000 + minor*1_000 + patch.
-     * Returns 0 for unparseable strings.
-     */
-    internal fun parseSemVer(version: String): Long {
+    private fun mapFailureToResult(e: Throwable): UpdateCheckResult {
+        val msg = e.message ?: "Unknown error"
+        return when {
+            msg.contains("rate limit", ignoreCase = true) -> {
+                val resetFormatted = formatRateLimitReset(msg)
+                UpdateCheckResult.RateLimited(resetFormatted)
+            }
+            msg.contains("internet", ignoreCase = true) ||
+                msg.contains("UnknownHost", ignoreCase = true) ||
+                msg.contains("connect", ignoreCase = true) -> {
+                UpdateCheckResult.Offline
+            }
+            msg.contains("404") || msg.contains("not found", ignoreCase = true) -> {
+                UpdateCheckResult.ReleaseUnavailable("GitHub releases endpoint not found")
+            }
+            msg.contains("JSON", ignoreCase = true) || msg.contains("malformed", ignoreCase = true) -> {
+                UpdateCheckResult.InvalidMetadata(msg)
+            }
+            else -> {
+                UpdateCheckResult.Error(msg)
+            }
+        }
+    }
+
+    private fun formatRateLimitReset(message: String): String {
         return try {
-            val parts = version.trimStart('v').substringBefore('-').split(".")
-            val major = parts.getOrNull(0)?.toLongOrNull() ?: 0L
-            val minor = parts.getOrNull(1)?.toLongOrNull() ?: 0L
-            val patch = parts.getOrNull(2)?.toLongOrNull() ?: 0L
-            major * 1_000_000L + minor * 1_000L + patch
+            val epochStr = message.substringAfter("Resets at:").trim().takeWhile { it.isDigit() }
+            if (epochStr.isNotEmpty()) {
+                val epochSeconds = epochStr.toLong()
+                val date = Date(epochSeconds * 1000L)
+                val sdf = SimpleDateFormat("h:mm a", Locale.getDefault())
+                sdf.format(date)
+            } else {
+                "in ~1 hour"
+            }
         } catch (_: Exception) {
-            0L
+            "in ~1 hour"
         }
     }
 }
-
