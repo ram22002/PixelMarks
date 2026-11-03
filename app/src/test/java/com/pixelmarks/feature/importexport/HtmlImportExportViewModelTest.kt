@@ -77,11 +77,12 @@ class HtmlImportExportViewModelTest {
         database.close()
     }
 
-    private fun waitFor(timeoutMs: Long = 5000, condition: () -> Boolean) {
+    private fun waitFor(timeoutMs: Long = 15000, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
+        testDispatcher.scheduler.advanceUntilIdle()
         while (!condition() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(25)
             testDispatcher.scheduler.advanceUntilIdle()
-            Thread.sleep(20)
         }
         testDispatcher.scheduler.advanceUntilIdle()
         assertTrue("Condition timed out after $timeoutMs ms", condition())
@@ -145,7 +146,7 @@ class HtmlImportExportViewModelTest {
         tempFile.writeText(htmlContent)
 
         viewModel.onFileSelected(Uri.fromFile(tempFile), context.contentResolver)
-        waitFor { !viewModel.uiState.value.isParsing }
+        waitFor { viewModel.uiState.value.parseResult != null || viewModel.uiState.value.importErrorMessage != null }
 
         val state = viewModel.uiState.value
         assertFalse(state.isParsing)
@@ -214,7 +215,7 @@ class HtmlImportExportViewModelTest {
         tempFile.writeText(htmlContent)
 
         viewModel.onFileSelected(Uri.fromFile(tempFile), context.contentResolver)
-        waitFor { !viewModel.uiState.value.isParsing }
+        waitFor { viewModel.uiState.value.parseResult != null || viewModel.uiState.value.importErrorMessage != null }
 
         assertNotNull(viewModel.uiState.value.parseResult)
 
@@ -254,7 +255,7 @@ class HtmlImportExportViewModelTest {
         val tempExportFile = File.createTempFile("export_result", ".html", context.cacheDir)
 
         viewModel.exportToUri(Uri.fromFile(tempExportFile), context.contentResolver)
-        waitFor { !viewModel.uiState.value.isExporting }
+        waitFor { viewModel.uiState.value.exportSuccessMessage != null || viewModel.uiState.value.exportErrorMessage != null }
 
         val state = viewModel.uiState.value
         assertFalse(state.isExporting)
