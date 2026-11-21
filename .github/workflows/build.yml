@@ -188,3 +188,24 @@ jobs:
           prerelease: ${{ contains(steps.relinfo.outputs.tag, '-beta') || contains(steps.relinfo.outputs.tag, '-nightly') || contains(steps.relinfo.outputs.tag, '-rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Storage cleanup: keep APK assets on the newest 3 releases only.
+      # Older releases keep their pages/notes (the in-app Changelog history)
+      # but their APK downloads are removed.
+      - name: Prune Old Release APKs (keep newest 3)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isDraft \
+            --jq '.[] | select(.isDraft == false) | .tagName' | tail -n +4 | while read -r TAG; do
+            [ -z "$TAG" ] && continue
+            echo "Pruning APK assets from $TAG"
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+              --jq '.assets[] | select(.name | endswith(".apk")) | .id' | while read -r ASSET_ID; do
+              if [ -n "$ASSET_ID" ]; then
+                gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" && echo "  deleted asset $ASSET_ID"
+              fi
+            done
+          done
+          echo "Prune complete."
