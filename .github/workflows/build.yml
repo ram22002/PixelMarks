@@ -40,22 +40,26 @@ jobs:
         run: chmod +x gradlew
 
       # On tag push: use the tag as-is (v1.0.5 / v1.0.5-beta).
-      # On main push: derive the release tag from versionName in build.gradle.kts.
+      # On main push: Echo-style beta build tagged with the commit id —
+      # v<version>-beta-<sha> — so every push publishes an identifiable build
+      # and the in-app updater can detect new builds by commit id alone.
       # The git tag is created automatically by the release step — no manual tagging.
       - name: Determine Release Info
         id: relinfo
         run: |
           APP_VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          SHORT_SHA=$(git rev-parse --short HEAD)
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             TAG="$GITHUB_REF_NAME"
             IS_TAG="true"
           else
-            TAG="v$APP_VERSION"
+            TAG="v$APP_VERSION-beta-$SHORT_SHA"
             IS_TAG="false"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "is_tag=$IS_TAG" >> "$GITHUB_OUTPUT"
           echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "Release tag: $TAG (tag push: $IS_TAG)"
 
       # Decide whether this run should publish a release:
@@ -107,12 +111,14 @@ jobs:
       # Signed release APK for GitHub Releases (the in-app update asset).
       # Signed with the keystore stored in repository secrets:
       #   KEYSTORE_BASE (Base64 keystore), KEY_ALIAS, PASSWORD
+      # BUILD_CHANNEL tells the app which release channel this build belongs to.
       - name: Assemble Signed Release APK
         if: steps.relcheck.outputs.publish == 'true'
         env:
           KEYSTORE_BASE: ${{ secrets.KEYSTORE_BASE }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           PASSWORD: ${{ secrets.PASSWORD }}
+          BUILD_CHANNEL: ${{ (steps.relinfo.outputs.is_tag != 'true' || contains(steps.relinfo.outputs.tag, '-beta') || contains(steps.relinfo.outputs.tag, '-nightly') || contains(steps.relinfo.outputs.tag, '-rc')) && 'beta' || 'stable' }}
         run: ./gradlew assembleRelease
 
       - name: Verify Release APK Signature
@@ -128,7 +134,9 @@ jobs:
           VERSION="${{ steps.relinfo.outputs.tag }}"
           VERSION="${VERSION#v}"
           cp app/build/outputs/apk/release/*.apk "PixelMarks-${VERSION}.apk"
-          ls -la PixelMarks-*.apk
+          # Echo-style: publish the built commit id so updaters can compare builds
+          echo "${{ steps.relinfo.outputs.short_sha }}" > last_sha_beta.txt
+          ls -la PixelMarks-*.apk last_sha_beta.txt
 
       # Rich release notes: recent commits since the previous release + APK SHA-256
       # checksum table + Full Changelog compare link.
@@ -139,13 +147,14 @@ jobs:
         run: |
           TAG="${{ steps.relinfo.outputs.tag }}"
           VERSION="${TAG#v}"
+          SHORT_SHA="${{ steps.relinfo.outputs.short_sha }}"
           # Most recent existing release tag, excluding the one being published
           PREV_TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 10 --json tagName --jq '.[].tagName' 2>/dev/null | grep -v "^${TAG}$" | head -1 || true)
           {
             if [[ "$TAG" == *-beta* || "$TAG" == *-nightly* || "$TAG" == *-rc* ]]; then
-              echo "## 🌱 Beta Built from main branch"
+              echo "## 🌱 Beta Built from main branch (\`${SHORT_SHA}\`)"
             else
-              echo "## 🚀 PixelMarks v$VERSION"
+              echo "## 🚀 PixelMarks v$VERSION (\`${SHORT_SHA}\`)"
             fi
             echo
             echo "### 📜 Recent Commits"
@@ -176,7 +185,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.relinfo.outputs.tag }}
-          files: PixelMarks-*.apk
+          files: |
+            PixelMarks-*.apk
+            last_sha_beta.txt
           body_path: release_notes.md
           draft: false
           prerelease: ${{ contains(steps.relinfo.outputs.tag, '-beta') || contains(steps.relinfo.outputs.tag, '-nightly') || contains(steps.relinfo.outputs.tag, '-rc') }}

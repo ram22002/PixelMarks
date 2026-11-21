@@ -31,7 +31,8 @@ class UpdateViewModel(
     private val downloadManager: ApkDownloadManager,
     private val apkInstaller: ApkInstaller,
     private val installedVersionName: String = BuildConfig.VERSION_NAME,
-    private val installedVersionCode: Int = BuildConfig.VERSION_CODE
+    private val installedVersionCode: Int = BuildConfig.VERSION_CODE,
+    private val installedCommitSha: String = BuildConfig.COMMIT_SHA
 ) : ViewModel() {
 
     private val _updateCheckResult = MutableStateFlow<UpdateCheckResult>(UpdateCheckResult.UpToDate)
@@ -100,7 +101,7 @@ class UpdateViewModel(
         viewModelScope.launch {
             try {
                 releaseRepository.invalidateCache()
-                val checker = UpdateChecker(releaseRepository, installedVersionName, installedVersionCode)
+                val checker = UpdateChecker(releaseRepository, installedVersionName, installedVersionCode, installedCommitSha)
                 val channel = resolveChannel()
                 val result = checker.checkForUpdate(channel)
                 if (result is UpdateCheckResult.UpdateAvailable) {
@@ -116,7 +117,7 @@ class UpdateViewModel(
     }
 
     private suspend fun performCheck() {
-        val checker = UpdateChecker(releaseRepository, installedVersionName, installedVersionCode)
+        val checker = UpdateChecker(releaseRepository, installedVersionName, installedVersionCode, installedCommitSha)
         val result = checker.checkForUpdate(resolveChannel())
         _updateCheckResult.value = result
         updatePreferences.recordCheckTimestamp()

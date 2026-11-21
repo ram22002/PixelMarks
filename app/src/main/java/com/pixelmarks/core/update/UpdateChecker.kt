@@ -21,7 +21,8 @@ import java.util.Locale
 class UpdateChecker(
     private val releaseRepository: GitHubReleaseRepository,
     private val installedVersionName: String,
-    private val installedVersionCode: Int
+    private val installedVersionCode: Int,
+    private val installedCommitSha: String? = null
 ) {
 
     /**
@@ -57,14 +58,31 @@ class UpdateChecker(
                 return UpdateCheckResult.NoReleasesFound(channel)
             }
 
-            // Pick the highest version release published in this channel
-            val latest = validReleases.maxByOrNull { it.semVer }
+            // Pick the highest version release; among same-version builds
+            // (Echo-style SHA rebuilds, where SemVer cannot order commit ids),
+            // the most recently published one wins.
+            val latest = pickLatest(validReleases)
                 ?: return UpdateCheckResult.NoReleasesFound(channel)
 
             val installedSemVer = SemVer.parse(installedVersionName)
             val candidateSemVer = latest.semVer
+            val installedCore = SemVer(installedSemVer.major, installedSemVer.minor, installedSemVer.patch)
+            val candidateCore = SemVer(candidateSemVer.major, candidateSemVer.minor, candidateSemVer.patch)
 
             when {
+                // Echo-style rebuild: same version built from a different commit
+                // (tags like v1.0.5-beta-0d64594). Offered on beta/nightly channels
+                // and for beta installs; stable users only move via version bumps.
+                candidateCore == installedCore && latest.buildSha != null &&
+                    (channel != ReleaseChannel.STABLE || installedSemVer.isPreRelease) -> {
+                    if (installedCommitSha != null &&
+                        latest.buildSha.equals(installedCommitSha, ignoreCase = true)
+                    ) {
+                        UpdateCheckResult.UpToDate
+                    } else {
+                        UpdateCheckResult.UpdateAvailable(latest)
+                    }
+                }
                 // Candidate is not strictly newer (already on latest or installed is newer)
                 candidateSemVer <= installedSemVer -> {
                     UpdateCheckResult.UpToDate
@@ -90,6 +108,17 @@ class UpdateChecker(
         val c = SemVer.parse(candidate)
         val i = SemVer.parse(installed)
         return c > i
+    }
+
+    /**
+     * Highest major.minor.patch release; ties (same version, different build SHAs)
+     * are resolved by publish time since commit ids have no SemVer order.
+     */
+    private fun pickLatest(releases: List<GitHubRelease>): GitHubRelease? {
+        fun core(r: GitHubRelease) =
+            SemVer(r.semVer.major, r.semVer.minor, r.semVer.patch)
+        val topCore = releases.maxOfOrNull { core(it) } ?: return null
+        return releases.filter { core(it) == topCore }.maxByOrNull { it.publishedAt }
     }
 
     private fun mapFailureToResult(e: Throwable): UpdateCheckResult {

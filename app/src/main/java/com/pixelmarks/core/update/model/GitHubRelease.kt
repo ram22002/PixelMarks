@@ -32,6 +32,14 @@ data class GitHubRelease(
     val semVer: SemVer by lazy { SemVer.parse(tagName) }
 
     /**
+     * Echo-style commit id embedded in rebuild tags like "v1.0.5-beta-0d64594"
+     * or "v1.0.5-nightly-abc1234". Null for plain version tags (stable releases).
+     */
+    val buildSha: String? by lazy {
+        Regex("""-(?:beta|nightly|rc)-([0-9a-fA-F]{7,12})$""").find(tagName)?.groupValues?.get(1)
+    }
+
+    /**
      * Clean version name string without leading "v", preserving any prerelease identifier.
      * e.g., "1.0.1-beta" or "1.0.0".
      */

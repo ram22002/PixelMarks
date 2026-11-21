@@ -28,9 +28,14 @@ class UpdatePreferences(private val context: Context) {
 
         /**
          * Determines the default channel appropriate for the installed build.
-         * If the installed version is a beta/debug build, default to BETA so prereleases are checked.
+         * CI beta/nightly builds carry BUILD_CHANNEL in BuildConfig; debug builds default
+         * to BETA so prerelease updates are checked automatically (Echo-style).
          */
         fun getDefaultChannel(installedVersionName: String = com.pixelmarks.app.BuildConfig.VERSION_NAME): String {
+            when {
+                com.pixelmarks.app.BuildConfig.BUILD_CHANNEL.equals("nightly", ignoreCase = true) -> return "NIGHTLY"
+                com.pixelmarks.app.BuildConfig.BUILD_CHANNEL.equals("beta", ignoreCase = true) -> return "BETA"
+            }
             val lower = installedVersionName.lowercase()
             return when {
                 lower.contains("nightly") -> "NIGHTLY"

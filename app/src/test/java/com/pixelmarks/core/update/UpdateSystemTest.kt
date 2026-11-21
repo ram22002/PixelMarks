@@ -470,6 +470,76 @@ class UpdateSystemTest {
         assertEquals(plain, com.pixelmarks.feature.changelog.extractWhatsNew(plain))
     }
 
+    // ── 17. Echo-style commit-id rebuilds (same version, different SHA) ──────
+
+    private fun createShaRelease(tagName: String, publishedAt: String): GitHubRelease {
+        val release = createRelease(tagName, isPreRelease = true)
+        return release.copy(publishedAt = publishedAt)
+    }
+
+    @Test
+    fun `testScenario17a_sameVersionNewCommitSha_offersRebuildOnBetaChannel`() = runBlocking {
+        val releases = listOf(
+            createShaRelease("v1.0.5-beta-aaa1111", "2026-11-20T10:00:00Z"),
+            createShaRelease("v1.0.5-beta-0d64594", "2026-11-19T10:00:00Z")
+        )
+        val checker = UpdateChecker(
+            releaseRepository = FakeReleaseRepository(releases),
+            installedVersionName = "1.0.5-beta",
+            installedVersionCode = 6,
+            installedCommitSha = "0d64594"
+        )
+
+        val result = checker.checkForUpdate(ReleaseChannel.BETA)
+        assertTrue("Expected rebuild prompt for a new commit id, got $result", result is UpdateCheckResult.UpdateAvailable)
+        assertEquals("aaa1111", (result as UpdateCheckResult.UpdateAvailable).release.buildSha)
+    }
+
+    @Test
+    fun `testScenario17b_sameVersionSameCommitSha_upToDate`() = runBlocking {
+        val releases = listOf(createShaRelease("v1.0.5-beta-0d64594", "2026-11-20T10:00:00Z"))
+        val checker = UpdateChecker(
+            releaseRepository = FakeReleaseRepository(releases),
+            installedVersionName = "1.0.5-beta",
+            installedVersionCode = 6,
+            installedCommitSha = "0d64594"
+        )
+
+        assertEquals(UpdateCheckResult.UpToDate, checker.checkForUpdate(ReleaseChannel.BETA))
+    }
+
+    @Test
+    fun `testScenario17c_stableInstallOnStableChannel_notNaggedByBetaRebuilds`() = runBlocking {
+        val releases = listOf(createShaRelease("v1.0.5-beta-aaa1111", "2026-11-20T10:00:00Z"))
+        val checker = UpdateChecker(
+            releaseRepository = FakeReleaseRepository(releases),
+            installedVersionName = "1.0.5", // stable release build
+            installedVersionCode = 6,
+            installedCommitSha = "0d64594"
+        )
+
+        assertEquals(UpdateCheckResult.UpToDate, checker.checkForUpdate(ReleaseChannel.STABLE))
+    }
+
+    @Test
+    fun `testScenario17d_sameVersionBuilds_pickMostRecentlyPublished`() = runBlocking {
+        // SemVer cannot order commit ids; the newest published build must win
+        val releases = listOf(
+            createShaRelease("v1.0.5-beta-zzz9999", "2026-11-18T10:00:00Z"),
+            createShaRelease("v1.0.5-beta-aaa0001", "2026-11-21T10:00:00Z") // newest build
+        )
+        val checker = UpdateChecker(
+            releaseRepository = FakeReleaseRepository(releases),
+            installedVersionName = "1.0.4-beta",
+            installedVersionCode = 5,
+            installedCommitSha = "older123"
+        )
+
+        val result = checker.checkForUpdate(ReleaseChannel.BETA)
+        assertTrue(result is UpdateCheckResult.UpdateAvailable)
+        assertEquals("aaa0001", (result as UpdateCheckResult.UpdateAvailable).release.buildSha)
+    }
+
     // ── Fake Repository Helper ──────────────────────────────────────────────
 
     private class FakeReleaseRepository(

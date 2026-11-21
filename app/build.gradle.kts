@@ -22,6 +22,22 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // Echo-style build identification: the commit this build was made from.
+        // Lets the updater detect new beta builds of the same version by commit id.
+        val commitSha = try {
+            providers.exec {
+                commandLine("git", "rev-parse", "--short", "HEAD")
+            }.standardOutput.asText.get().trim().ifBlank { "unknown" }
+        } catch (_: Exception) {
+            "unknown"
+        }
+        buildConfigField("String", "COMMIT_SHA", "\"$commitSha\"")
+
+        // Distribution channel this build was published for (stable / beta / nightly).
+        // Set as BUILD_CHANNEL env var by CI; local builds default to stable.
+        val buildChannel = System.getenv("BUILD_CHANNEL") ?: "stable"
+        buildConfigField("String", "BUILD_CHANNEL", "\"$buildChannel\"")
+
         buildConfigField(
             "String",
             "GOOGLE_OAUTH_CLIENT_ID",
