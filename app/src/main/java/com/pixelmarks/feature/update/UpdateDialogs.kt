@@ -119,9 +119,13 @@ fun UpdateAvailableDialog(
                         .padding(10.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    val notes = release.body.ifBlank { "No release notes provided." }
+                    // Only the latest release's recent commits — the full catalog of
+                    // all releases lives on the Changelog screen.
+                    val notes = androidx.compose.runtime.remember(release.body) {
+                        com.pixelmarks.feature.changelog.extractWhatsNew(release.body)
+                    }
                     Text(
-                        text = notes,
+                        text = notes.ifBlank { "No release notes provided." },
                         style = MaterialTheme.typography.bodySmall,
                         color = ArchivalTextSecondary,
                         fontSize = 12.sp,

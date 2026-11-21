@@ -424,6 +424,52 @@ class UpdateSystemTest {
         assertEquals("1.0.4-beta", (result as UpdateCheckResult.UpdateAvailable).release.versionName)
     }
 
+    // ── 16. Update dialog shows only the latest release's recent commits ─────
+
+    @Test
+    fun `testScenario16_extractWhatsNew_returnsOnlyCommitsSection_cappedAt10Lines`() {
+        val body = """
+            ## 🌱 Beta Built from main branch
+
+            ### 📜 Recent Commits
+
+            - fix(update): prevent false up-to-date on dialog dismiss (f3464b9)
+            - feat(update): add startup update check (e510c8e)
+            - chore(release): bump app version to 1.0.4 (10e7bdb)
+            - fix(ui): adjust banner padding (a1b2c3d)
+            - feat(backup): add drive backup (b2c3d4e)
+            - fix(search): correct filter logic (c3d4e5f)
+            - feat(tags): multi-tag editing (d4e5f6g)
+            - fix(pc): close server socket on exit (e5f6g7h)
+            - feat(home): sort favorites first (f6g7h8i)
+            - fix(import): handle empty html files (g7h8i9j)
+            - test: resolve race condition in export test (345b0c5)
+            - chore: update gradle wrapper (h8i9j0k)
+
+            ### 📦 APK & SHA-256 Checksums
+
+            | Variant | SHA-256 |
+            |---|---|
+            | PixelMarks-1.0.4.apk | `2e441bad043d5906127362fea1b9e` |
+
+            **Full Changelog**: https://github.com/ram22002/PixelMarks/compare/v1.0.3...v1.0.4
+        """.trimIndent()
+
+        val whatsNew = com.pixelmarks.feature.changelog.extractWhatsNew(body)
+        val lines = whatsNew.lines()
+
+        // Only commit bullets, capped at 10 lines
+        assertTrue("Expected 10 lines, got ${lines.size}", lines.size == 10)
+        assertTrue(lines.first().contains("fix(update)"))
+        assertTrue(lines.first().contains("f3464b9"))
+        assertTrue("Should not include the checksum table", !whatsNew.contains("SHA-256"))
+        assertTrue("Should not include compare link", !whatsNew.contains("Full Changelog"))
+
+        // Plain body without section headers falls back to whole notes
+        val plain = "Bug fixes and performance improvements."
+        assertEquals(plain, com.pixelmarks.feature.changelog.extractWhatsNew(plain))
+    }
+
     // ── Fake Repository Helper ──────────────────────────────────────────────
 
     private class FakeReleaseRepository(

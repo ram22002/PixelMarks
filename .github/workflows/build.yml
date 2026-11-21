@@ -130,6 +130,46 @@ jobs:
           cp app/build/outputs/apk/release/*.apk "PixelMarks-${VERSION}.apk"
           ls -la PixelMarks-*.apk
 
+      # Rich release notes: recent commits since the previous release + APK SHA-256
+      # checksum table + Full Changelog compare link.
+      - name: Build Release Notes
+        if: steps.relcheck.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.relinfo.outputs.tag }}"
+          VERSION="${TAG#v}"
+          # Most recent existing release tag, excluding the one being published
+          PREV_TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 10 --json tagName --jq '.[].tagName' 2>/dev/null | grep -v "^${TAG}$" | head -1 || true)
+          {
+            if [[ "$TAG" == *-beta* || "$TAG" == *-nightly* || "$TAG" == *-rc* ]]; then
+              echo "## 🌱 Beta Built from main branch"
+            else
+              echo "## 🚀 PixelMarks v$VERSION"
+            fi
+            echo
+            echo "### 📜 Recent Commits"
+            echo
+            if [ -n "$PREV_TAG" ]; then
+              git log --pretty=format:"- %s (%h)" "${PREV_TAG}..HEAD" -n 15 || git log --pretty=format:"- %s (%h)" -n 15
+            else
+              git log --pretty=format:"- %s (%h)" -n 15
+            fi
+            echo
+            echo
+            echo "### 📦 APK & SHA-256 Checksums"
+            echo
+            echo "| Variant | SHA-256 |"
+            echo "|---|---|"
+            APK_SHA=$(sha256sum "PixelMarks-${VERSION}.apk" | cut -d' ' -f1)
+            echo "| PixelMarks-${VERSION}.apk | \`${APK_SHA}\` |"
+            echo
+            if [ -n "$PREV_TAG" ]; then
+              echo "**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/${PREV_TAG}...${TAG}"
+            fi
+          } > release_notes.md
+          cat release_notes.md
+
       # Creates the git tag automatically if it doesn't exist yet (main-push flow).
       - name: Publish GitHub Release
         if: steps.relcheck.outputs.publish == 'true'
@@ -137,7 +177,7 @@ jobs:
         with:
           tag_name: ${{ steps.relinfo.outputs.tag }}
           files: PixelMarks-*.apk
-          generate_release_notes: true
+          body_path: release_notes.md
           draft: false
           prerelease: ${{ contains(steps.relinfo.outputs.tag, '-beta') || contains(steps.relinfo.outputs.tag, '-nightly') || contains(steps.relinfo.outputs.tag, '-rc') }}
         env:
