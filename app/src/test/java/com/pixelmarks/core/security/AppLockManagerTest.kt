@@ -8,7 +8,9 @@ import com.pixelmarks.data.repository.SecurityPreferencesRepositoryImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -56,6 +58,14 @@ class AppLockManagerTest {
         repository.setAppLockEnabled(true)
         repository.setLockTimeout(AppLockTimeout.IMMEDIATELY)
         val manager = AppLockManager(repository, managerScope)
+
+        // isAppLockEnabled is an Eagerly-shared flow seeded with `false` and fed
+        // from DataStore asynchronously. Wait for the enabled preference to arrive
+        // before exercising the lock logic — otherwise onAppForegrounded() may run
+        // before the flow is initialized and flake on slower CI runners.
+        withTimeout(10_000) {
+            manager.isAppLockEnabled.first { it }
+        }
 
         manager.unlockApp()
         assertFalse(manager.isAppLocked.value)
