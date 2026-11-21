@@ -35,40 +35,49 @@ class UpdateChecker(
         dismissedVersionName: String? = null
     ): UpdateCheckResult {
         return try {
-            val result = releaseRepository.getReleasesForChannel(channel)
-            result.fold(
-                onSuccess = { releases ->
-                    val validReleases = releases.filter { !it.isDraft }
-                    if (validReleases.isEmpty()) {
-                        return UpdateCheckResult.NoReleasesFound(channel)
-                    }
-
-                    // Pick the highest version release published in this channel
-                    val latest = validReleases.maxByOrNull { it.semVer }
-                        ?: return UpdateCheckResult.NoReleasesFound(channel)
-
-                    val installedSemVer = SemVer.parse(installedVersionName)
-                    val candidateSemVer = latest.semVer
-
-                    when {
-                        // Candidate is not strictly newer (already on latest or installed is newer)
-                        candidateSemVer <= installedSemVer -> {
-                            UpdateCheckResult.UpToDate
-                        }
-                        // Newer version exists, but has no compatible APK asset attached
-                        latest.apkAsset == null -> {
-                            UpdateCheckResult.ApkAssetMissing(latest)
-                        }
-                        // Valid newer update available
-                        else -> {
-                            UpdateCheckResult.UpdateAvailable(latest)
-                        }
-                    }
-                },
-                onFailure = { e ->
-                    mapFailureToResult(e)
-                }
+            val channelReleases = releaseRepository.getReleasesForChannel(channel).fold(
+                onSuccess = { it },
+                onFailure = { e -> return mapFailureToResult(e) }
             )
+
+            // Channel fallback: if the selected channel has no published releases yet
+            // (e.g. a project that only publishes beta builds), check ALL releases so
+            // users still get update prompts instead of a permanent "no releases" state.
+            val releases = if (channelReleases.isNotEmpty()) {
+                channelReleases
+            } else {
+                releaseRepository.getReleases().fold(
+                    onSuccess = { it },
+                    onFailure = { e -> return mapFailureToResult(e) }
+                )
+            }
+
+            val validReleases = releases.filter { !it.isDraft }
+            if (validReleases.isEmpty()) {
+                return UpdateCheckResult.NoReleasesFound(channel)
+            }
+
+            // Pick the highest version release published in this channel
+            val latest = validReleases.maxByOrNull { it.semVer }
+                ?: return UpdateCheckResult.NoReleasesFound(channel)
+
+            val installedSemVer = SemVer.parse(installedVersionName)
+            val candidateSemVer = latest.semVer
+
+            when {
+                // Candidate is not strictly newer (already on latest or installed is newer)
+                candidateSemVer <= installedSemVer -> {
+                    UpdateCheckResult.UpToDate
+                }
+                // Newer version exists, but has no compatible APK asset attached
+                latest.apkAsset == null -> {
+                    UpdateCheckResult.ApkAssetMissing(latest)
+                }
+                // Valid newer update available
+                else -> {
+                    UpdateCheckResult.UpdateAvailable(latest)
+                }
+            }
         } catch (e: Exception) {
             UpdateCheckResult.Error(e.message ?: "Update check encountered an unexpected error")
         }

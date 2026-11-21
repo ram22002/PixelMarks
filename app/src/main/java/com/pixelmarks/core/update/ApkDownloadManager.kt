@@ -46,6 +46,17 @@ class ApkDownloadManager(private val context: Context) {
 
         val fileName = "PixelMarks-$versionName.apk"
 
+        // Remove any stale file from a previous attempt so the completion step
+        // never serves an outdated APK that happens to have the same name.
+        try {
+            java.io.File(
+                context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                fileName
+            ).delete()
+        } catch (_: Exception) {
+            // Best effort — DownloadManager overwrites the destination anyway
+        }
+
         val request = DownloadManager.Request(Uri.parse(asset.downloadUrl))
             .setTitle("PixelMarks $versionName")
             .setDescription("Downloading update…")
@@ -83,9 +94,25 @@ class ApkDownloadManager(private val context: Context) {
                     emit(DownloadState.Downloading(progressPercent = progress, downloadId = downloadId))
                 }
                 DownloadManager.STATUS_SUCCESSFUL -> {
-                    val localUri = downloadManager.getUriForDownloadedFile(downloadId)
-                    if (localUri != null) {
-                        emit(DownloadState.Completed(localUri = localUri, downloadId = downloadId))
+                    val file = java.io.File(
+                        context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                        fileName
+                    )
+                    val uri = if (file.exists()) {
+                        try {
+                            androidx.core.content.FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                file
+                            )
+                        } catch (_: Exception) {
+                            downloadManager.getUriForDownloadedFile(downloadId)
+                        }
+                    } else {
+                        downloadManager.getUriForDownloadedFile(downloadId)
+                    }
+                    if (uri != null) {
+                        emit(DownloadState.Completed(localUri = uri, downloadId = downloadId))
                     } else {
                         emit(DownloadState.Failed("Downloaded file URI not found"))
                     }

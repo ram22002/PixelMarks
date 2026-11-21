@@ -20,6 +20,7 @@ docs/
 # Keystores
 *.jks
 *.keystore
+!keystore/debug.keystore
 
 # macOS & Windows metadata
 .DS_Store

@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build:
-    name: Build & Test APK
+    name: Build, Test & Auto-Release
     runs-on: ubuntu-latest
 
     steps:
@@ -39,8 +39,60 @@ jobs:
       - name: Grant Execute Permission to Gradlew
         run: chmod +x gradlew
 
+      # On tag push: use the tag as-is (v1.0.5 / v1.0.5-beta).
+      # On main push: derive the release tag from versionName in build.gradle.kts.
+      # The git tag is created automatically by the release step — no manual tagging.
+      - name: Determine Release Info
+        id: relinfo
+        run: |
+          APP_VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="$GITHUB_REF_NAME"
+            IS_TAG="true"
+          else
+            TAG="v$APP_VERSION"
+            IS_TAG="false"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "is_tag=$IS_TAG" >> "$GITHUB_OUTPUT"
+          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $TAG (tag push: $IS_TAG)"
+
+      # Decide whether this run should publish a release:
+      # - Tag push: always publish.
+      # - Main push / manual: publish only if a release for this version doesn't
+      #   exist yet. Bump versionName in build.gradle.kts and push to main = new release.
+      - name: Check If Release Should Publish
+        id: relcheck
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.relinfo.outputs.tag }}"
+          if [[ "${{ steps.relinfo.outputs.is_tag }}" == "true" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Tag push → publishing release $TAG"
+          elif gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists → skipping release (just building/testing)"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG does not exist → will build signed APK and publish"
+          fi
+
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --continue
+
+      - name: Verify Tag Matches App Version
+        if: steps.relinfo.outputs.is_tag == 'true'
+        run: |
+          # Strip prerelease suffix (v1.0.5-beta -> 1.0.5): release builds carry the plain versionName
+          TAG_VERSION=$(echo "${GITHUB_REF_NAME#v}" | cut -d'-' -f1)
+          APP_VERSION="${{ steps.relinfo.outputs.app_version }}"
+          echo "Tag version: $TAG_VERSION | app versionName: $APP_VERSION"
+          if [ "$TAG_VERSION" != "$APP_VERSION" ]; then
+            echo "::error::Tag ${{ steps.relinfo.outputs.tag }} does not match versionName $APP_VERSION in app/build.gradle.kts. Bump versionName/versionCode (versionCode must be greater than the previous release) before tagging."
+            exit 1
+          fi
 
       - name: Assemble Debug APK
         run: ./gradlew assembleDebug
@@ -52,14 +104,41 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
 
-      - name: Publish GitHub Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Signed release APK for GitHub Releases (the in-app update asset).
+      # Signed with the keystore stored in repository secrets:
+      #   KEYSTORE_BASE (Base64 keystore), KEY_ALIAS, PASSWORD
+      - name: Assemble Signed Release APK
+        if: steps.relcheck.outputs.publish == 'true'
+        env:
+          KEYSTORE_BASE: ${{ secrets.KEYSTORE_BASE }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+        run: ./gradlew assembleRelease
+
+      - name: Verify Release APK Signature
+        if: steps.relcheck.outputs.publish == 'true'
+        run: |
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          echo "Checking signature of $APK"
+          "${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools" | sort -V | tail -1)/apksigner" verify --print-certs "$APK" | head -5
+
+      - name: Rename Release APK
+        if: steps.relcheck.outputs.publish == 'true'
+        run: |
+          VERSION="${{ steps.relinfo.outputs.tag }}"
+          VERSION="${VERSION#v}"
+          cp app/build/outputs/apk/release/*.apk "PixelMarks-${VERSION}.apk"
+          ls -la PixelMarks-*.apk
+
+      # Creates the git tag automatically if it doesn't exist yet (main-push flow).
+      - name: Publish GitHub Release
+        if: steps.relcheck.outputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/debug/*.apk
+          tag_name: ${{ steps.relinfo.outputs.tag }}
+          files: PixelMarks-*.apk
           generate_release_notes: true
           draft: false
-          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-nightly') || contains(github.ref, '-rc') }}
+          prerelease: ${{ contains(steps.relinfo.outputs.tag, '-beta') || contains(steps.relinfo.outputs.tag, '-nightly') || contains(steps.relinfo.outputs.tag, '-rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

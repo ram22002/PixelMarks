@@ -399,6 +399,31 @@ class UpdateSystemTest {
         assertEquals("1.0.3-beta", update.release.versionName)
     }
 
+    // ── 15. Stable channel with only beta releases falls back to all releases ─
+
+    @Test
+    fun `testScenario15_stableChannelWithOnlyBetaReleases_fallsBackAndOffersUpdate`() = runBlocking {
+        // Repo state mirrors the real project: only prerelease betas are published.
+        val releases = listOf(
+            createRelease("v1.0.4-beta", isPreRelease = true),
+            createRelease("v1.0.3-beta", isPreRelease = true)
+        )
+        val checker = UpdateChecker(
+            releaseRepository = FakeReleaseRepository(releases),
+            installedVersionName = "1.0.3", // stable build, default STABLE channel
+            installedVersionCode = 4
+        )
+
+        // STABLE channel filter yields nothing → must fall back to all releases
+        // and still offer the newer v1.0.4-beta instead of reporting NoReleasesFound.
+        val result = checker.checkForUpdate(ReleaseChannel.STABLE)
+        assertTrue(
+            "Expected UpdateAvailable via channel fallback, got $result",
+            result is UpdateCheckResult.UpdateAvailable
+        )
+        assertEquals("1.0.4-beta", (result as UpdateCheckResult.UpdateAvailable).release.versionName)
+    }
+
     // ── Fake Repository Helper ──────────────────────────────────────────────
 
     private class FakeReleaseRepository(

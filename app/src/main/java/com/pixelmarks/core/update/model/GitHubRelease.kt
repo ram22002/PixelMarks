@@ -79,11 +79,12 @@ data class GitHubRelease(
 
             // When multiple APKs are attached, pick the most appropriate:
             // 1. Universal build
-            // 2. Debug build (for beta/development testing)
-            // 3. First available valid APK
+            // 2. Release build (signed release APK published by CI)
+            // 3. Debug build (legacy beta/development assets)
+            // 4. First available valid APK
             return apkCandidates.firstOrNull { it.name.contains("universal", ignoreCase = true) }
-                ?: apkCandidates.firstOrNull { it.name.contains("debug", ignoreCase = true) }
                 ?: apkCandidates.firstOrNull { it.name.contains("release", ignoreCase = true) }
+                ?: apkCandidates.firstOrNull { it.name.contains("debug", ignoreCase = true) }
                 ?: apkCandidates.first()
         }
     }

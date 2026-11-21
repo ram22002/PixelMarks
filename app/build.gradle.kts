@@ -1,4 +1,7 @@
 
+import java.util.Base64
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -26,12 +29,68 @@ android {
         )
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("${rootDir}/keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+        create("release") {
+            // 1. CI signing: secrets injected as environment variables.
+            //    KEYSTORE_BASE = Base64-encoded keystore, KEY_ALIAS = key alias,
+            //    PASSWORD = keystore & key password.
+            //    (MIME decoder tolerates line-wrapped Base64.)
+            val ksBase = System.getenv("KEYSTORE_BASE")
+            val ksAlias = System.getenv("KEY_ALIAS")
+            val ksPass = System.getenv("PASSWORD")
+
+            // 2. Local signing: credentials in gitignored local.properties
+            //    (release.keystoreFile / release.keystorePassword / release.keyAlias)
+            val localProps = Properties().apply {
+                val f = rootProject.file("local.properties")
+                if (f.exists()) f.inputStream().use { load(it) }
+            }
+            val localStore = localProps.getProperty("release.keystoreFile")?.let { rootProject.file(it) }
+            val localPass = localProps.getProperty("release.keystorePassword")
+            val localAlias = localProps.getProperty("release.keyAlias")
+
+            when {
+                !ksBase.isNullOrBlank() && !ksAlias.isNullOrBlank() && !ksPass.isNullOrBlank() -> {
+                    val ksFile = File(rootDir, "build/ci-release.keystore")
+                    ksFile.parentFile.mkdirs()
+                    ksFile.writeBytes(Base64.getMimeDecoder().decode(ksBase))
+                    storeFile = ksFile
+                    storePassword = ksPass
+                    keyAlias = ksAlias
+                    keyPassword = ksPass
+                }
+                localStore != null && localStore.exists() && !localPass.isNullOrBlank() && !localAlias.isNullOrBlank() -> {
+                    storeFile = localStore
+                    storePassword = localPass
+                    keyAlias = localAlias
+                    keyPassword = localPass
+                }
+                else -> {
+                    // Last resort for fresh clones: debug keystore so release
+                    // builds still package (not update-compatible with CI builds).
+                    storeFile = file("${rootDir}/keystore/debug.keystore")
+                    storePassword = "android"
+                    keyAlias = "androiddebugkey"
+                    keyPassword = "android"
+                }
+            }
+        }
+    }
+
     buildTypes {
         debug {
+            signingConfig = signingConfigs.getByName("debug")
             versionNameSuffix = "-beta"
             isDebuggable = true
         }
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

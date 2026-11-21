@@ -68,6 +68,18 @@ class UpdateViewModel(
         }
     }
 
+    /**
+     * Resolve the active channel from persisted preferences, falling back to the
+     * build-appropriate default. Also syncs [_selectedChannel] so the UI stays consistent
+     * even if the startup check runs before the init-block restore completes.
+     */
+    private suspend fun resolveChannel(): ReleaseChannel {
+        val storedName = updatePreferences.releaseChannelName.first()
+        val restored = runCatching { ReleaseChannel.valueOf(storedName) }.getOrDefault(defaultChannel)
+        _selectedChannel.value = restored
+        return restored
+    }
+
     /** Manual "Check for Updates" action. Always fires a fresh check. */
     fun checkForUpdates() {
         viewModelScope.launch {
@@ -89,7 +101,7 @@ class UpdateViewModel(
             try {
                 releaseRepository.invalidateCache()
                 val checker = UpdateChecker(releaseRepository, installedVersionName, installedVersionCode)
-                val channel = _selectedChannel.value
+                val channel = resolveChannel()
                 val result = checker.checkForUpdate(channel)
                 if (result is UpdateCheckResult.UpdateAvailable) {
                     _updateCheckResult.value = result
@@ -105,7 +117,7 @@ class UpdateViewModel(
 
     private suspend fun performCheck() {
         val checker = UpdateChecker(releaseRepository, installedVersionName, installedVersionCode)
-        val result = checker.checkForUpdate(_selectedChannel.value)
+        val result = checker.checkForUpdate(resolveChannel())
         _updateCheckResult.value = result
         updatePreferences.recordCheckTimestamp()
     }
@@ -147,6 +159,8 @@ class UpdateViewModel(
         _canInstallPackages.value = apkInstaller.canInstallPackages()
         if (_canInstallPackages.value) {
             apkInstaller.install(apkUri)
+        } else {
+            apkInstaller.openInstallPermissionSettings()
         }
     }
 
